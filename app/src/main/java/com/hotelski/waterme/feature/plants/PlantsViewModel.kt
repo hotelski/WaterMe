@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 sealed interface PlantsEffect {
     data object NavigateToAddPlant : PlantsEffect
     data class NavigateToPlantDetails(val plantId: String) : PlantsEffect
+    data class NavigateToEditPlant(val plantId: String) : PlantsEffect
 }
 
 private data class PlantsActionState(
@@ -78,6 +79,8 @@ class PlantsViewModel(
         when (event) {
             PlantsEvent.AddPlantClicked -> emitEffect(PlantsEffect.NavigateToAddPlant)
             is PlantsEvent.PlantClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
+            is PlantsEvent.EditPlantClicked -> emitEffect(PlantsEffect.NavigateToEditPlant(event.plantId))
+            is PlantsEvent.NotesAndLogsClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
         }

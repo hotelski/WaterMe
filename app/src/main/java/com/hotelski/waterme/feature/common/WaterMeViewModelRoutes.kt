@@ -65,6 +65,7 @@ fun HomeRoute(
 fun PlantsRoute(
     onAddPlant: () -> Unit,
     onOpenPlant: (String) -> Unit,
+    onEditPlant: (String) -> Unit,
     plantsViewModel: PlantsViewModel = viewModel(),
 ) {
     val uiState by plantsViewModel.uiState.collectAsStateWithLifecycle()
@@ -74,6 +75,7 @@ fun PlantsRoute(
             when (effect) {
                 PlantsEffect.NavigateToAddPlant -> onAddPlant()
                 is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
+                is PlantsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
             }
         }
     }

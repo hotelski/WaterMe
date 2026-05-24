@@ -1,7 +1,6 @@
 package com.hotelski.waterme.feature.plants
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,22 +9,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -33,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,11 +47,9 @@ import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.ui.theme.CardWhite
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.FreshGreen
 import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
@@ -72,6 +69,8 @@ sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
     data class PlantClicked(val plantId: String) : PlantsEvent
+    data class EditPlantClicked(val plantId: String) : PlantsEvent
+    data class NotesAndLogsClicked(val plantId: String) : PlantsEvent
     data class SearchQueryChanged(val value: String) : PlantsEvent
 }
 
@@ -107,11 +106,9 @@ fun PlantsScreen(
                     .fillMaxSize()
                     .background(GardenBackground),
                 contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 104.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
-                    PlantsGardenHeader(uiState)
-                }
+                item { PlantsListHeader(uiState) }
                 item {
                     PlantSearchField(
                         value = uiState.searchQuery,
@@ -122,8 +119,8 @@ fun PlantsScreen(
                 when {
                     uiState.isEmpty -> item {
                         WaterMeEmptyState(
-                            title = "Your plant shelf is empty",
-                            message = "Plants you add will appear here with their photo, care status, and next reminder.",
+                            title = "Your plant list is empty",
+                            message = "Add a plant to keep its reminder, note, and logs in one place.",
                             icon = Icons.Rounded.LocalFlorist,
                         )
                     }
@@ -136,11 +133,11 @@ fun PlantsScreen(
                         )
                     }
 
-                    else -> itemsIndexed(uiState.plants, key = { _, plant -> plant.id }) { index, plant ->
-                        FancyPlantCard(
+                    else -> items(uiState.plants, key = { plant -> plant.id }) { plant ->
+                        PlantListRow(
                             plant = plant,
-                            accentColor = plantAccentColor(index),
-                            onClick = { onEvent(PlantsEvent.PlantClicked(plant.id)) },
+                            onEdit = { onEvent(PlantsEvent.EditPlantClicked(plant.id)) },
+                            onNotesAndLogs = { onEvent(PlantsEvent.NotesAndLogsClicked(plant.id)) },
                         )
                     }
                 }
@@ -150,7 +147,7 @@ fun PlantsScreen(
 }
 
 @Composable
-private fun PlantsGardenHeader(
+private fun PlantsListHeader(
     uiState: PlantsUiState,
     modifier: Modifier = Modifier,
 ) {
@@ -158,67 +155,32 @@ private fun PlantsGardenHeader(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(24.dp),
         color = SoftCream,
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(LeafGreen.copy(alpha = 0.13f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Eco,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = LeafGreen,
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Your green corner",
+                    text = "Plant list",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Ink,
                 )
                 Text(
-                    text = "${uiState.plants.size} plants in care",
+                    text = "${uiState.plants.size} plants organized by reminder and care log",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MutedInk,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GardenMetric(label = "$dueTodayCount due today", color = if (dueTodayCount > 0) Clay else LeafGreen)
-                    GardenMetric(label = "Soft light", color = MistBlue)
-                }
             }
+            StatusPill(
+                label = "$dueTodayCount due",
+                color = if (dueTodayCount > 0) Clay else LeafGreen,
+            )
         }
-    }
-}
-
-@Composable
-private fun GardenMetric(
-    label: String,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.14f),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            maxLines = 1,
-        )
     }
 }
 
@@ -235,112 +197,83 @@ private fun PlantSearchField(
         label = { Text("Search plants") },
         singleLine = true,
         leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
     )
 }
 
 @Composable
-private fun FancyPlantCard(
+private fun PlantListRow(
     plant: PlantCardUiModel,
-    accentColor: Color,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onNotesAndLogs: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(30.dp),
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
         color = CardWhite,
-        tonalElevation = 2.dp,
-        shadowElevation = 3.dp,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 PlantPhotoTile(
                     photoUri = plant.photoUri,
                     plantName = plant.name,
-                    size = 96.dp,
+                    size = 58.dp,
                 )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = plant.name,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (plant.dueTaskCount > 0) {
-                            PlantStatusPill("${plant.dueTaskCount} due", Clay)
-                        }
-                    }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = plant.plantType,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MutedInk,
+                        text = plant.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (plant.nextCareLabel != null) {
-                        PlantStatusPill(plant.nextCareLabel, accentColor)
+                    if (plant.dueTaskCount > 0) {
+                        StatusPill("${plant.dueTaskCount} due today", Clay)
                     }
                 }
-            }
-            if (plant.notes.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = accentColor.copy(alpha = 0.10f),
-                ) {
-                    Text(
-                        text = plant.notes,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Ink,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        imageVector = Icons.Rounded.Edit,
+                        contentDescription = "Edit ${plant.name}",
+                        tint = LeafGreen,
                     )
                 }
             }
-            Row(
+
+            Text(
+                text = plant.scheduleSummary,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedInk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            OutlinedButton(
+                onClick = onNotesAndLogs,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(accentColor),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Care profile",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MutedInk,
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Rounded.LocalFlorist,
-                    contentDescription = null,
-                    tint = accentColor,
-                )
+                Icon(Icons.AutoMirrored.Rounded.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Show note + ${plant.careLogCount} logs")
             }
         }
     }
 }
 
 @Composable
-private fun PlantStatusPill(
+private fun StatusPill(
     label: String,
     color: Color,
     modifier: Modifier = Modifier,
@@ -360,14 +293,6 @@ private fun PlantStatusPill(
         )
     }
 }
-
-private fun plantAccentColor(index: Int): Color =
-    when (index % 4) {
-        0 -> LeafGreen
-        1 -> FreshGreen
-        2 -> MistBlue
-        else -> Clay
-    }
 
 @Preview(showBackground = true)
 @Composable

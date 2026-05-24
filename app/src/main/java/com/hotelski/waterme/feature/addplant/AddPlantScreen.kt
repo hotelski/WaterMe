@@ -17,8 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.LocalFlorist
@@ -42,8 +43,8 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareTypeBadge
@@ -56,11 +57,9 @@ import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.ui.theme.CardWhite
-import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
@@ -80,6 +79,7 @@ enum class AddPlantFrequencyOption(
     EVERY_7_DAYS("Every 7 days", 7),
     EVERY_14_DAYS("Every 14 days", 14),
     EVERY_30_DAYS("Every 30 days", 30),
+    CUSTOM("Custom", 0),
 }
 
 enum class AddPlantReminderTimeOption(
@@ -91,6 +91,7 @@ enum class AddPlantReminderTimeOption(
     LATE_MORNING("9:00 AM", 9, 0),
     EVENING("6:00 PM", 18, 0),
     NIGHT("8:00 PM", 20, 0),
+    CUSTOM("Custom", -1, -1),
 }
 
 data class AddPlantUiState(
@@ -101,7 +102,10 @@ data class AddPlantUiState(
     val selectedPhotoUri: String? = null,
     val reminderCareType: CareType = CareType.WATERING,
     val frequency: AddPlantFrequencyOption = AddPlantFrequencyOption.EVERY_3_DAYS,
+    val customFrequencyDays: String = "",
     val reminderTime: AddPlantReminderTimeOption = AddPlantReminderTimeOption.LATE_MORNING,
+    val customReminderHour: String = "",
+    val customReminderMinute: String = "",
     val startDateMillis: Long = 0L,
     val startDateLabel: String = "Today",
     val showStartDatePicker: Boolean = false,
@@ -125,7 +129,10 @@ sealed interface AddPlantEvent {
     data class NotesChanged(val value: String) : AddPlantEvent
     data class ReminderCareTypeSelected(val careType: CareType) : AddPlantEvent
     data class FrequencySelected(val frequency: AddPlantFrequencyOption) : AddPlantEvent
+    data class CustomFrequencyDaysChanged(val value: String) : AddPlantEvent
     data class ReminderTimeSelected(val time: AddPlantReminderTimeOption) : AddPlantEvent
+    data class CustomReminderHourChanged(val value: String) : AddPlantEvent
+    data class CustomReminderMinuteChanged(val value: String) : AddPlantEvent
     data class StartDateSelected(val millis: Long?) : AddPlantEvent
 }
 
@@ -141,7 +148,7 @@ fun AddPlantScreen(
         topBar = {
             WaterMeTopBar(
                 title = "New Plant",
-                navigationIcon = Icons.Rounded.ArrowBack,
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack,
                 navigationContentDescription = "Back",
                 onNavigationClick = { onEvent(AddPlantEvent.BackClicked) },
             )
@@ -333,12 +340,49 @@ private fun ReminderCard(
                     )
                 }
             }
+            if (uiState.frequency == AddPlantFrequencyOption.CUSTOM) {
+                OutlinedTextField(
+                    value = uiState.customFrequencyDays,
+                    onValueChange = { onEvent(AddPlantEvent.CustomFrequencyDaysChanged(it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Every X days") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(18.dp),
+                    suffix = { Text("days") },
+                )
+            }
             ChipRow(title = "Notification time") {
                 AddPlantReminderTimeOption.entries.forEach { time ->
                     FilterChip(
                         selected = uiState.reminderTime == time,
                         onClick = { onEvent(AddPlantEvent.ReminderTimeSelected(time)) },
                         label = { Text(time.label) },
+                    )
+                }
+            }
+            if (uiState.reminderTime == AddPlantReminderTimeOption.CUSTOM) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedTextField(
+                        value = uiState.customReminderHour,
+                        onValueChange = { onEvent(AddPlantEvent.CustomReminderHourChanged(it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Hour") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(18.dp),
+                    )
+                    OutlinedTextField(
+                        value = uiState.customReminderMinute,
+                        onValueChange = { onEvent(AddPlantEvent.CustomReminderMinuteChanged(it)) },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("Minute") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(18.dp),
                     )
                 }
             }

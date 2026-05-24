@@ -30,6 +30,12 @@ fun PlantWithDetails.toPlantCardUiModel(
             .filter { it.isEnabled && it.deletedAt == null }
             .minByOrNull { it.nextDueAt }
             ?.let { "Next: ${it.careType.shortLabel()} ${it.nextDueAt.toDueDateLabel(clock)}" },
+        scheduleSummary = reminders
+            .filter { it.isEnabled && it.deletedAt == null }
+            .minByOrNull { it.nextDueAt }
+            ?.toPlantScheduleSummary(clock)
+            ?: "No reminder set",
+        careLogCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE },
         notes = plant.notes,
     )
 
@@ -207,3 +213,10 @@ private fun HistoryAction.displayLabel(): String =
 
 private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM d")
 private val calendarDateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
+private val reminderTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+
+private fun ReminderEntity.toPlantScheduleSummary(clock: Clock): String {
+    val frequency = if (frequencyDays == 1) "Every day" else "Every $frequencyDays days"
+    val time = java.time.LocalTime.of(preferredHour, preferredMinute).format(reminderTimeFormatter)
+    return "${careType.label()} - $frequency - $time - starts ${nextDueAt.toDueDateLabel(clock)}"
+}
