@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 
 sealed interface PlantsEffect {
     data object NavigateToAddPlant : PlantsEffect
-    data class NavigateToPlantDetails(val plantId: String) : PlantsEffect
     data class NavigateToEditPlant(val plantId: String) : PlantsEffect
 }
 
@@ -34,6 +33,7 @@ class PlantsViewModel(
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
 
     private val searchQuery = MutableStateFlow("")
+    private val expandedPlantIds = MutableStateFlow<Set<String>>(emptySet())
     private val actionState = MutableStateFlow(PlantsActionState())
     private val _effects = MutableSharedFlow<PlantsEffect>()
 
@@ -43,8 +43,9 @@ class PlantsViewModel(
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeTasksDueBy(endOfTodayMillis()),
         searchQuery,
+        expandedPlantIds,
         actionState,
-    ) { plants, tasksDueToday, query, action ->
+    ) { plants, tasksDueToday, query, expandedIds, action ->
         val normalizedQuery = query.trim()
         val dueCountsByPlantId = tasksDueToday.groupingBy { it.plantId }.eachCount()
         val plantCards = plants
@@ -60,6 +61,7 @@ class PlantsViewModel(
             isLoading = false,
             plants = plantCards,
             searchQuery = query,
+            expandedPlantIds = expandedIds,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )
@@ -78,11 +80,18 @@ class PlantsViewModel(
     fun onEvent(event: PlantsEvent) {
         when (event) {
             PlantsEvent.AddPlantClicked -> emitEffect(PlantsEffect.NavigateToAddPlant)
-            is PlantsEvent.PlantClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
             is PlantsEvent.EditPlantClicked -> emitEffect(PlantsEffect.NavigateToEditPlant(event.plantId))
-            is PlantsEvent.NotesAndLogsClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
+            is PlantsEvent.NotesAndLogsClicked -> toggleNotesAndLogs(event.plantId)
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
+        }
+    }
+
+    private fun toggleNotesAndLogs(plantId: String) {
+        expandedPlantIds.value = if (plantId in expandedPlantIds.value) {
+            expandedPlantIds.value - plantId
+        } else {
+            expandedPlantIds.value + plantId
         }
     }
 

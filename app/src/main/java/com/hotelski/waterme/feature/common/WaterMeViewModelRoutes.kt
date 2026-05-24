@@ -64,7 +64,6 @@ fun HomeRoute(
 @Composable
 fun PlantsRoute(
     onAddPlant: () -> Unit,
-    onOpenPlant: (String) -> Unit,
     onEditPlant: (String) -> Unit,
     plantsViewModel: PlantsViewModel = viewModel(),
 ) {
@@ -74,7 +73,6 @@ fun PlantsRoute(
         plantsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantsEffect.NavigateToAddPlant -> onAddPlant()
-                is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
                 is PlantsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
             }
         }

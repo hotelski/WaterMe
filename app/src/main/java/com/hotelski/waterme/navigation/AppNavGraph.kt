@@ -70,7 +70,6 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.Plants.route) {
             PlantsRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
-                onOpenPlant = { plantId -> navigationActions.navigateToPlantDetails(plantId) },
                 onEditPlant = navigationActions::navigateToEditPlant,
             )
         }

@@ -13,6 +13,7 @@ data class PlantCardUiModel(
     val nextCareLabel: String? = null,
     val scheduleSummary: String = "No reminder set",
     val careLogCount: Int = 0,
+    val recentCareLogs: List<CareHistoryUiModel> = emptyList(),
     val notes: String = "",
 )
 

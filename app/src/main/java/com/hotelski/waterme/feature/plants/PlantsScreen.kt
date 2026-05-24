@@ -1,5 +1,7 @@
 package com.hotelski.waterme.feature.plants
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.FloatingActionButton
@@ -45,6 +49,7 @@ import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
+import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.ui.theme.CardWhite
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.GardenBackground
@@ -58,6 +63,7 @@ data class PlantsUiState(
     val isLoading: Boolean = false,
     val plants: List<PlantCardUiModel> = emptyList(),
     val searchQuery: String = "",
+    val expandedPlantIds: Set<String> = emptySet(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
 ) {
@@ -68,7 +74,6 @@ data class PlantsUiState(
 sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
-    data class PlantClicked(val plantId: String) : PlantsEvent
     data class EditPlantClicked(val plantId: String) : PlantsEvent
     data class NotesAndLogsClicked(val plantId: String) : PlantsEvent
     data class SearchQueryChanged(val value: String) : PlantsEvent
@@ -136,6 +141,7 @@ fun PlantsScreen(
                     else -> items(uiState.plants, key = { plant -> plant.id }) { plant ->
                         PlantListRow(
                             plant = plant,
+                            isExpanded = plant.id in uiState.expandedPlantIds,
                             onEdit = { onEvent(PlantsEvent.EditPlantClicked(plant.id)) },
                             onNotesAndLogs = { onEvent(PlantsEvent.NotesAndLogsClicked(plant.id)) },
                         )
@@ -204,12 +210,15 @@ private fun PlantSearchField(
 @Composable
 private fun PlantListRow(
     plant: PlantCardUiModel,
+    isExpanded: Boolean,
     onEdit: () -> Unit,
     onNotesAndLogs: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         shape = RoundedCornerShape(22.dp),
         color = CardWhite,
         tonalElevation = 1.dp,
@@ -266,7 +275,77 @@ private fun PlantListRow(
             ) {
                 Icon(Icons.AutoMirrored.Rounded.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Show note + ${plant.careLogCount} logs")
+                Text(if (isExpanded) "Hide note + logs" else "Show note + ${plant.careLogCount} logs")
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                PlantNotesAndLogs(plant = plant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlantNotesAndLogs(
+    plant: PlantCardUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(SoftCream, RoundedCornerShape(18.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "Note",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = LeafGreen,
+        )
+        Text(
+            text = plant.notes.ifBlank { "No note added yet." },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ink,
+        )
+
+        Text(
+            text = "Recent logs",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = LeafGreen,
+        )
+        if (plant.recentCareLogs.isEmpty()) {
+            Text(
+                text = "No care logs yet.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedInk,
+            )
+        } else {
+            plant.recentCareLogs.forEach { log ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "${log.dateLabel} - ${log.careType.label()} - ${log.actionLabel}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink,
+                    )
+                    if (log.notes.isNotBlank()) {
+                        Text(
+                            text = log.notes,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedInk,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }

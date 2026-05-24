@@ -58,8 +58,8 @@ class WaterMeNavigationActions(
         }
     }
 
-    fun onPlantSaved(plantId: String) {
-        navigateToPlantDetails(plantId) {
+    fun onPlantSaved(_plantId: String) {
+        navController.navigate(WaterMeRoute.Plants.route) {
             popUpTo(WaterMeRoute.AddPlant.route) {
                 inclusive = true
             }
@@ -67,8 +67,8 @@ class WaterMeNavigationActions(
         }
     }
 
-    fun onPlantUpdated(plantId: String) {
-        navigateToPlantDetails(plantId) {
+    fun onPlantUpdated(_plantId: String) {
+        navController.navigate(WaterMeRoute.Plants.route) {
             popUpTo(WaterMeRoute.EditPlant.route) {
                 inclusive = true
             }

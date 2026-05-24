@@ -36,6 +36,11 @@ fun PlantWithDetails.toPlantCardUiModel(
             ?.toPlantScheduleSummary(clock)
             ?: "No reminder set",
         careLogCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE },
+        recentCareLogs = careHistory
+            .filter { it.action != HistoryAction.HEALTH_NOTE }
+            .sortedByDescending { it.performedAt }
+            .take(3)
+            .map { it.toCareHistoryUiModel(plant.name, clock) },
         notes = plant.notes,
     )
 
