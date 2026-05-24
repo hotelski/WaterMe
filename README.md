@@ -39,3 +39,8 @@ The Room database schema, relationships, DAO examples, reminder rules, notificat
 ## Architecture
 
 The recommended Kotlin, Jetpack Compose, MVVM, Room, WorkManager, Hilt, Navigation Compose, and Material 3 architecture is defined in [docs/android-architecture.md](docs/android-architecture.md).
+
+## Navigation
+
+Navigation Compose routes, bottom navigation, screen transitions, argument passing, and example screen event navigation calls are implemented in `app/src/main/java/com/hotelski/waterme/navigation`.
+The full navigation and back-stack user flow is documented in [docs/navigation-user-flow.md](docs/navigation-user-flow.md).

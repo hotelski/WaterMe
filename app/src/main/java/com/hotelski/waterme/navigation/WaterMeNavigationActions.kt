@@ -1,0 +1,82 @@
+package com.hotelski.waterme.navigation
+
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavOptionsBuilder
+
+class WaterMeNavigationActions(
+    private val navController: NavController,
+) {
+    fun navigateToTopLevel(destination: TopLevelDestination) {
+        navController.navigate(destination.route.route) {
+            launchSingleTop = true
+            restoreState = true
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+        }
+    }
+
+    fun navigateFromOnboardingToToday() {
+        navController.navigate(WaterMeRoute.Today.route) {
+            popUpTo(WaterMeRoute.Onboarding.route) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun navigateToAddPlant() {
+        navController.navigate(WaterMeRoute.AddPlant.route)
+    }
+
+    fun navigateToPlantDetails(plantId: String, builder: NavOptionsBuilder.() -> Unit = {}) {
+        navController.navigate(WaterMeRoute.PlantDetails.createRoute(plantId), builder)
+    }
+
+    fun navigateToEditPlant(plantId: String) {
+        navController.navigate(WaterMeRoute.EditPlant.createRoute(plantId))
+    }
+
+    fun navigateToReminderSetup(plantId: String? = null) {
+        navController.navigate(WaterMeRoute.ReminderSetup.createRoute(plantId))
+    }
+
+    fun navigateToCalendar() {
+        navController.navigate(WaterMeRoute.Calendar.route) {
+            launchSingleTop = true
+        }
+    }
+
+    fun navigateToCareHistory(plantId: String? = null) {
+        navController.navigate(WaterMeRoute.CareHistory.createRoute(plantId))
+    }
+
+    fun navigateToSettings() {
+        navController.navigate(WaterMeRoute.Settings.route) {
+            launchSingleTop = true
+        }
+    }
+
+    fun onPlantSaved(plantId: String) {
+        navigateToPlantDetails(plantId) {
+            popUpTo(WaterMeRoute.AddPlant.route) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun onPlantUpdated(plantId: String) {
+        navigateToPlantDetails(plantId) {
+            popUpTo(WaterMeRoute.EditPlant.route) {
+                inclusive = true
+            }
+            launchSingleTop = true
+        }
+    }
+
+    fun back() {
+        navController.popBackStack()
+    }
+}
