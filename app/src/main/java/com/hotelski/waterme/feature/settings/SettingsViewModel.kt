@@ -3,6 +3,7 @@ package com.hotelski.waterme.feature.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.hotelski.waterme.BuildConfig
 import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.data.local.entity.BackupSyncProvider
 import com.hotelski.waterme.data.local.entity.HistoryAction
@@ -10,6 +11,9 @@ import com.hotelski.waterme.data.local.entity.MeasurementUnits
 import com.hotelski.waterme.data.local.entity.NotificationPermissionState
 import com.hotelski.waterme.data.local.entity.ThemePreference
 import com.hotelski.waterme.notifications.NotificationPermissionHelper
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +31,8 @@ sealed interface SettingsEffect {
 private data class SettingsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val showDeleteAllDataConfirmation: Boolean = false,
+    val isDeletingAllData: Boolean = false,
 )
 
 class SettingsViewModel(
@@ -35,7 +41,7 @@ class SettingsViewModel(
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
-    private val settingsRepository = WaterMeAppContainer.settingsRepository(appContext)
+    private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
 
     private val actionState = MutableStateFlow(SettingsActionState())
     private val _effects = MutableSharedFlow<SettingsEffect>()
@@ -43,22 +49,35 @@ class SettingsViewModel(
     val effects = _effects.asSharedFlow()
 
     val uiState = combine(
-        settingsRepository.observeSettings(WaterMeAppContainer.LOCAL_USER_ID),
+        settingsDataStore.settings,
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
         actionState,
     ) { settings, plants, careHistory, action ->
         SettingsUiState(
             isLoading = false,
-            notificationsEnabled = settings?.notificationsEnabled ?: true,
-            notificationPermissionLabel = settings?.notificationPermissionState.toPermissionLabel(),
-            themePreference = (settings?.darkModePreference ?: ThemePreference.SYSTEM).toUiPreference(),
-            measurementUnits = (settings?.measurementUnits ?: MeasurementUnits.METRIC).toUiUnits(),
-            backupSyncEnabled = settings?.backupSyncEnabled ?: false,
+            profileName = settings.profileName,
+            notificationsEnabled = settings.notificationsEnabled,
+            notificationPermissionLabel = settings.notificationPermissionState.toPermissionLabel(),
+            defaultReminderHour = settings.defaultReminderHour,
+            defaultReminderMinute = settings.defaultReminderMinute,
+            themePreference = settings.themePreference.toUiPreference(),
+            darkModeEnabled = settings.themePreference == ThemePreference.DARK,
+            measurementUnits = settings.measurementUnits.toUiUnits(),
+            backupSyncEnabled = settings.backupSyncEnabled,
+            backupProviderLabel = settings.backupSyncProvider.toProviderLabel(),
+            lastBackupLabel = settings.lastBackupAt.toTimestampLabel("Never backed up"),
+            lastRestoreLabel = settings.lastRestoreAt.toTimestampLabel("Never restored"),
+            localOnlyMode = settings.localOnlyMode,
+            analyticsEnabled = settings.analyticsEnabled,
+            diagnosticsEnabled = settings.diagnosticsEnabled,
+            appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             plantCount = plants.size,
             activeReminderCount = plants.sumOf { plant -> plant.reminders.count { it.isEnabled && it.deletedAt == null } },
             careHistoryCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE },
             healthNoteCount = careHistory.count { it.action == HistoryAction.HEALTH_NOTE },
+            showDeleteAllDataConfirmation = action.showDeleteAllDataConfirmation,
+            isDeletingAllData = action.isDeletingAllData,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )
@@ -78,10 +97,21 @@ class SettingsViewModel(
         when (event) {
             SettingsEvent.ShowOnboardingClicked -> emitEffect(SettingsEffect.NavigateToOnboarding)
             SettingsEvent.RequestNotificationPermissionClicked -> emitEffect(SettingsEffect.RequestNotificationPermission)
+            is SettingsEvent.ProfileNameChanged -> updateProfileName(event.value)
             is SettingsEvent.NotificationsChanged -> updateNotifications(event.enabled)
+            is SettingsEvent.DefaultReminderTimeChanged -> updateDefaultReminderTime(event.hour, event.minute)
             is SettingsEvent.ThemePreferenceChanged -> updateTheme(event.preference)
+            is SettingsEvent.DarkModeChanged -> updateDarkMode(event.enabled)
             is SettingsEvent.MeasurementUnitsChanged -> updateUnits(event.units)
             is SettingsEvent.BackupSyncChanged -> updateBackup(event.enabled)
+            SettingsEvent.BackupNowClicked -> markBackupCompleted()
+            SettingsEvent.RestoreBackupClicked -> markRestoreCompleted()
+            is SettingsEvent.LocalOnlyModeChanged -> updateLocalOnlyMode(event.enabled)
+            is SettingsEvent.AnalyticsChanged -> updateAnalytics(event.enabled)
+            is SettingsEvent.DiagnosticsChanged -> updateDiagnostics(event.enabled)
+            SettingsEvent.DeleteAllDataClicked -> actionState.value = actionState.value.copy(showDeleteAllDataConfirmation = true)
+            SettingsEvent.DismissDeleteAllDataClicked -> actionState.value = actionState.value.copy(showDeleteAllDataConfirmation = false)
+            SettingsEvent.ConfirmDeleteAllDataClicked -> deleteAllData()
             SettingsEvent.RetryClicked -> seedDatabase()
         }
     }
@@ -92,6 +122,15 @@ class SettingsViewModel(
             permissionState = if (granted) NotificationPermissionState.GRANTED else NotificationPermissionState.DENIED,
             successMessage = if (granted) "Notifications enabled." else "Notifications disabled.",
         )
+    }
+
+    private fun updateProfileName(value: String) {
+        viewModelScope.launch {
+            val trimmedName = value.take(MAX_PROFILE_NAME_LENGTH)
+            runCatching { settingsDataStore.updateProfileName(trimmedName) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Profile updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
     }
 
     private fun updateNotifications(enabled: Boolean) {
@@ -115,8 +154,7 @@ class SettingsViewModel(
     ) {
         viewModelScope.launch {
             runCatching {
-                settingsRepository.updateNotificationSettings(
-                    userId = WaterMeAppContainer.LOCAL_USER_ID,
+                settingsDataStore.updateNotificationSettings(
                     enabled = enabled,
                     permissionState = permissionState,
                 )
@@ -126,27 +164,29 @@ class SettingsViewModel(
         }
     }
 
+    private fun updateDefaultReminderTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updateDefaultReminderTime(hour, minute) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Default reminder time updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
     private fun updateTheme(preference: SettingsThemePreference) {
         viewModelScope.launch {
-            runCatching {
-                settingsRepository.updateThemePreference(
-                    userId = WaterMeAppContainer.LOCAL_USER_ID,
-                    themePreference = preference.toDatabasePreference(),
-                )
-            }
+            runCatching { settingsDataStore.updateThemePreference(preference.toDataStorePreference()) }
                 .onSuccess { actionState.value = SettingsActionState(successMessage = "Appearance updated.") }
                 .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
         }
     }
 
+    private fun updateDarkMode(enabled: Boolean) {
+        updateTheme(if (enabled) SettingsThemePreference.DARK else SettingsThemePreference.SYSTEM)
+    }
+
     private fun updateUnits(units: SettingsMeasurementUnits) {
         viewModelScope.launch {
-            runCatching {
-                settingsRepository.updateMeasurementUnits(
-                    userId = WaterMeAppContainer.LOCAL_USER_ID,
-                    measurementUnits = units.toDatabaseUnits(),
-                )
-            }
+            runCatching { settingsDataStore.updateMeasurementUnits(units.toDataStoreUnits()) }
                 .onSuccess { actionState.value = SettingsActionState(successMessage = "Units updated.") }
                 .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
         }
@@ -155,15 +195,67 @@ class SettingsViewModel(
     private fun updateBackup(enabled: Boolean) {
         viewModelScope.launch {
             runCatching {
-                settingsRepository.updateBackupSync(
-                    userId = WaterMeAppContainer.LOCAL_USER_ID,
+                settingsDataStore.updateBackupSync(
                     enabled = enabled,
                     provider = if (enabled) BackupSyncProvider.GOOGLE_DRIVE else BackupSyncProvider.NONE,
-                    lastBackupAt = null,
-                    lastSyncedAt = null,
                 )
             }
                 .onSuccess { actionState.value = SettingsActionState(successMessage = "Backup preference updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun markBackupCompleted() {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.markBackupCompleted(System.currentTimeMillis()) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Backup snapshot saved locally.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun markRestoreCompleted() {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.markRestoreCompleted(System.currentTimeMillis()) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Restore check completed.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun updateLocalOnlyMode(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updatePrivacySettings(localOnlyMode = enabled) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Privacy preference updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun updateAnalytics(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updatePrivacySettings(analyticsEnabled = enabled) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Analytics preference updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun updateDiagnostics(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updatePrivacySettings(diagnosticsEnabled = enabled) }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "Diagnostics preference updated.") }
+                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun deleteAllData() {
+        viewModelScope.launch {
+            actionState.value = SettingsActionState(
+                showDeleteAllDataConfirmation = false,
+                isDeletingAllData = true,
+            )
+            runCatching {
+                WaterMeAppContainer.deleteAllData(appContext)
+                settingsDataStore.clearAfterDeleteAllData()
+            }
+                .onSuccess { actionState.value = SettingsActionState(successMessage = "All local WaterMe data was deleted.") }
                 .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
         }
     }
@@ -180,11 +272,11 @@ class SettingsViewModel(
         viewModelScope.launch { _effects.emit(effect) }
     }
 
-    private fun NotificationPermissionState?.toPermissionLabel(): String =
+    private fun NotificationPermissionState.toPermissionLabel(): String =
         when (this) {
             NotificationPermissionState.GRANTED -> "Granted"
             NotificationPermissionState.DENIED -> "Denied"
-            NotificationPermissionState.NOT_REQUESTED, null -> "Not requested"
+            NotificationPermissionState.NOT_REQUESTED -> "Not requested"
         }
 
     private fun ThemePreference.toUiPreference(): SettingsThemePreference =
@@ -194,7 +286,7 @@ class SettingsViewModel(
             ThemePreference.DARK -> SettingsThemePreference.DARK
         }
 
-    private fun SettingsThemePreference.toDatabasePreference(): ThemePreference =
+    private fun SettingsThemePreference.toDataStorePreference(): ThemePreference =
         when (this) {
             SettingsThemePreference.SYSTEM -> ThemePreference.SYSTEM
             SettingsThemePreference.LIGHT -> ThemePreference.LIGHT
@@ -207,12 +299,31 @@ class SettingsViewModel(
             MeasurementUnits.IMPERIAL -> SettingsMeasurementUnits.IMPERIAL
         }
 
-    private fun SettingsMeasurementUnits.toDatabaseUnits(): MeasurementUnits =
+    private fun SettingsMeasurementUnits.toDataStoreUnits(): MeasurementUnits =
         when (this) {
             SettingsMeasurementUnits.METRIC -> MeasurementUnits.METRIC
             SettingsMeasurementUnits.IMPERIAL -> MeasurementUnits.IMPERIAL
         }
 
+    private fun BackupSyncProvider.toProviderLabel(): String =
+        when (this) {
+            BackupSyncProvider.NONE -> "Local only"
+            BackupSyncProvider.GOOGLE_DRIVE -> "Google Drive"
+            BackupSyncProvider.CLOUD_SYNC -> "Cloud sync"
+        }
+
+    private fun Long?.toTimestampLabel(emptyLabel: String): String =
+        this?.let { timestamp ->
+            Instant.ofEpochMilli(timestamp)
+                .atZone(ZoneId.systemDefault())
+                .format(timestampFormatter)
+        } ?: emptyLabel
+
     private fun Throwable.toUserMessage(): String =
         message?.takeIf { it.isNotBlank() } ?: "WaterMe could not update settings."
+
+    private companion object {
+        const val MAX_PROFILE_NAME_LENGTH = 40
+        val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
+    }
 }

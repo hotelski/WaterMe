@@ -58,6 +58,20 @@ object WaterMeSeedData {
         }
     }
 
+    suspend fun ensureLocalUser(database: WaterMeDatabase, nowMillis: Long = System.currentTimeMillis()) {
+        database.withTransaction {
+            database.userDao().upsertUser(
+                UserEntity(
+                    userId = LOCAL_USER_ID,
+                    displayName = "Plant keeper",
+                    createdAt = nowMillis,
+                    updatedAt = nowMillis,
+                ),
+            )
+            database.userSettingsDao().upsertSettings(defaultSettings(nowMillis))
+        }
+    }
+
     private fun defaultSettings(nowMillis: Long): UserSettingsEntity =
         UserSettingsEntity(
             userId = LOCAL_USER_ID,

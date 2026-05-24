@@ -3,16 +3,21 @@ package com.hotelski.waterme.appstate
 import android.content.Context
 import com.hotelski.waterme.data.local.WaterMeDatabase
 import com.hotelski.waterme.data.local.WaterMeSeedData
+import com.hotelski.waterme.data.preferences.SettingsDataStoreManager
 import com.hotelski.waterme.data.repository.RoomCareRepository
 import com.hotelski.waterme.data.repository.RoomPlantRepository
 import com.hotelski.waterme.data.repository.RoomReminderRepository
 import com.hotelski.waterme.data.repository.RoomSettingsRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object WaterMeAppContainer {
     const val LOCAL_USER_ID = WaterMeSeedData.LOCAL_USER_ID
 
     @Volatile
     private var databaseInstance: WaterMeDatabase? = null
+    @Volatile
+    private var settingsDataStoreInstance: SettingsDataStoreManager? = null
 
     fun database(context: Context): WaterMeDatabase =
         databaseInstance ?: synchronized(this) {
@@ -31,7 +36,21 @@ object WaterMeAppContainer {
     fun settingsRepository(context: Context): RoomSettingsRepository =
         RoomSettingsRepository(database(context))
 
+    fun settingsDataStore(context: Context): SettingsDataStoreManager =
+        settingsDataStoreInstance ?: synchronized(this) {
+            settingsDataStoreInstance ?: SettingsDataStoreManager(context).also { settingsDataStoreInstance = it }
+        }
+
     suspend fun seedIfEmpty(context: Context) {
+        if (settingsDataStore(context).shouldSkipSeedData()) return
         WaterMeSeedData.seedIfEmpty(database(context))
+    }
+
+    suspend fun deleteAllData(context: Context) {
+        withContext(Dispatchers.IO) {
+            val database = database(context)
+            database.clearAllTables()
+            WaterMeSeedData.ensureLocalUser(database)
+        }
     }
 }
