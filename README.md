@@ -35,3 +35,7 @@ The full mobile UI/UX flow, screen copy, navigation model, empty states, colors,
 ## Data And Logic
 
 The Room database schema, relationships, DAO examples, reminder rules, notification scheduling, care history, and settings logic are defined in [docs/database-and-app-logic.md](docs/database-and-app-logic.md).
+
+## Architecture
+
+The recommended Kotlin, Jetpack Compose, MVVM, Room, WorkManager, Hilt, Navigation Compose, and Material 3 architecture is defined in [docs/android-architecture.md](docs/android-architecture.md).
