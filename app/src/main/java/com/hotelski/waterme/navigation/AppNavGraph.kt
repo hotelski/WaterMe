@@ -92,6 +92,7 @@ fun AppNavGraph(
                 onBack = navigationActions::back,
                 onEditPlant = navigationActions::navigateToEditPlant,
                 onViewHistory = { plantId -> navigationActions.navigateToCareHistory(plantId) },
+                onPlantDeleted = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
         }
 

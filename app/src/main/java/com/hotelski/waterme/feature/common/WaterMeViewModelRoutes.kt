@@ -168,6 +168,7 @@ fun PlantDetailsRoute(
     onBack: () -> Unit,
     onEditPlant: (String) -> Unit,
     onViewHistory: (String) -> Unit,
+    onPlantDeleted: () -> Unit,
     plantDetailsViewModel: PlantDetailsViewModel = viewModel(),
 ) {
     val uiState by plantDetailsViewModel.uiState.collectAsStateWithLifecycle()
@@ -176,6 +177,7 @@ fun PlantDetailsRoute(
         plantDetailsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantDetailsEffect.NavigateBack -> onBack()
+                PlantDetailsEffect.NavigateToPlantsAfterDelete -> onPlantDeleted()
                 is PlantDetailsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
                 is PlantDetailsEffect.NavigateToCareHistory -> onViewHistory(effect.plantId)
             }

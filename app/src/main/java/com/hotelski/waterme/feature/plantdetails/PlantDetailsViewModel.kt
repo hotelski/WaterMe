@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 
 sealed interface PlantDetailsEffect {
     data object NavigateBack : PlantDetailsEffect
+    data object NavigateToPlantsAfterDelete : PlantDetailsEffect
     data class NavigateToEditPlant(val plantId: String) : PlantDetailsEffect
     data class NavigateToCareHistory(val plantId: String) : PlantDetailsEffect
 }
@@ -42,6 +43,8 @@ private data class HealthNoteDraftState(
 private data class PlantDetailsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val isDeleting: Boolean = false,
+    val showDeleteConfirmation: Boolean = false,
 )
 
 private data class PlantDetailsData(
@@ -90,12 +93,16 @@ class PlantDetailsViewModel(
         PlantDetailsUiState(
             isLoading = false,
             plant = plantUi,
-            reminders = data.reminders.filter { it.deletedAt == null }.map { it.toReminderUiModel() },
+            reminders = data.reminders
+                .filter { it.deletedAt == null }
+                .sortedBy { it.nextDueAt }
+                .map { it.toReminderUiModel() },
             pendingTasks = if (plantUi == null) {
                 emptyList()
             } else {
                 data.tasks
                     .filter { it.status == TaskStatus.PENDING || it.status == TaskStatus.SNOOZED }
+                    .sortedBy { it.effectiveDueAt }
                     .map { it.toCareTaskUiModel(plantUi) }
             },
             careHistory = data.history
@@ -106,6 +113,8 @@ class PlantDetailsViewModel(
                 .map { it.toHealthNoteUiModel(plantUi?.name.orEmpty()) },
             healthNoteDraft = draft.note,
             selectedHealthMood = draft.mood,
+            isDeleting = action.isDeleting,
+            showDeleteConfirmation = action.showDeleteConfirmation,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )
@@ -122,6 +131,9 @@ class PlantDetailsViewModel(
             PlantDetailsEvent.BackClicked -> emitEffect(PlantDetailsEffect.NavigateBack)
             PlantDetailsEvent.EditClicked -> emitEffect(PlantDetailsEffect.NavigateToEditPlant(plantId))
             PlantDetailsEvent.ViewAllHistoryClicked -> emitEffect(PlantDetailsEffect.NavigateToCareHistory(plantId))
+            PlantDetailsEvent.DeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = true) }
+            PlantDetailsEvent.DismissDeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = false) }
+            PlantDetailsEvent.ConfirmDeleteClicked -> deletePlant()
             PlantDetailsEvent.AddHealthNoteClicked -> addHealthNote()
             is PlantDetailsEvent.CompleteTask -> completeTask(event.taskId)
             is PlantDetailsEvent.SkipTask -> skipTask(event.taskId)
@@ -129,6 +141,18 @@ class PlantDetailsViewModel(
             is PlantDetailsEvent.HealthNoteChanged -> updateHealthNote(event.value)
             is PlantDetailsEvent.HealthMoodSelected -> healthDraft.update { it.copy(mood = event.mood) }
             PlantDetailsEvent.RetryClicked -> actionState.value = PlantDetailsActionState()
+        }
+    }
+
+    private fun deletePlant() {
+        viewModelScope.launch {
+            actionState.value = PlantDetailsActionState(isDeleting = true, showDeleteConfirmation = false)
+            runCatching { plantRepository.deletePlant(plantId) }
+                .onSuccess {
+                    actionState.value = PlantDetailsActionState(successMessage = "Plant deleted.")
+                    _effects.emit(PlantDetailsEffect.NavigateToPlantsAfterDelete)
+                }
+                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
         }
     }
 
