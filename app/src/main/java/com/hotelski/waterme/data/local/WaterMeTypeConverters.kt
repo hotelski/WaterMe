@@ -8,6 +8,7 @@ import com.hotelski.waterme.data.local.entity.NotificationPermissionState
 import com.hotelski.waterme.data.local.entity.TaskStatus
 import com.hotelski.waterme.data.local.entity.ThemePreference
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.HealthMood
 
 class WaterMeTypeConverters {
     @TypeConverter
@@ -15,6 +16,12 @@ class WaterMeTypeConverters {
 
     @TypeConverter
     fun stringToCareType(value: String): CareType = CareType.valueOf(value)
+
+    @TypeConverter
+    fun healthMoodToString(value: HealthMood?): String? = value?.name
+
+    @TypeConverter
+    fun stringToHealthMood(value: String?): HealthMood? = value?.let { HealthMood.valueOf(it) }
 
     @TypeConverter
     fun taskStatusToString(value: TaskStatus): String = value.name

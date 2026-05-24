@@ -31,6 +31,7 @@ data class CalendarUiState(
     val isLoading: Boolean = false,
     val days: List<CalendarDayUiModel> = emptyList(),
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 ) {
     val isEmpty: Boolean
         get() = !isLoading && days.all { it.tasks.isEmpty() }

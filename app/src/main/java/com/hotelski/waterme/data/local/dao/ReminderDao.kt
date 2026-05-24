@@ -52,6 +52,19 @@ interface ReminderDao {
     )
     suspend fun countRemindersForPlant(plantId: String): Int
 
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM reminders AS r
+        INNER JOIN plants AS p ON p.plant_id = r.plant_id
+        WHERE p.user_id = :userId
+            AND p.deleted_at IS NULL
+            AND r.deleted_at IS NULL
+            AND r.is_enabled = 1
+        """,
+    )
+    suspend fun countActiveRemindersForUser(userId: String): Int
+
     @Upsert
     suspend fun upsertReminder(reminder: ReminderEntity)
 

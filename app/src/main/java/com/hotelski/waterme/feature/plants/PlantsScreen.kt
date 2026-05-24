@@ -38,6 +38,7 @@ data class PlantsUiState(
     val plants: List<PlantCardUiModel> = emptyList(),
     val searchQuery: String = "",
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 ) {
     val isEmpty: Boolean
         get() = !isLoading && plants.isEmpty() && searchQuery.isBlank()

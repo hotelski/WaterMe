@@ -1,0 +1,167 @@
+package com.hotelski.waterme.feature.common
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hotelski.waterme.feature.addplant.AddPlantEffect
+import com.hotelski.waterme.feature.addplant.AddPlantScreen
+import com.hotelski.waterme.feature.addplant.AddPlantViewModel
+import com.hotelski.waterme.feature.calendar.CalendarEffect
+import com.hotelski.waterme.feature.calendar.CalendarScreen
+import com.hotelski.waterme.feature.calendar.CalendarViewModel
+import com.hotelski.waterme.feature.plantdetails.PlantDetailsEffect
+import com.hotelski.waterme.feature.plantdetails.PlantDetailsScreen
+import com.hotelski.waterme.feature.plantdetails.PlantDetailsViewModel
+import com.hotelski.waterme.feature.plants.PlantsEffect
+import com.hotelski.waterme.feature.plants.PlantsScreen
+import com.hotelski.waterme.feature.plants.PlantsViewModel
+import com.hotelski.waterme.feature.settings.SettingsEffect
+import com.hotelski.waterme.feature.settings.SettingsScreen
+import com.hotelski.waterme.feature.settings.SettingsViewModel
+import com.hotelski.waterme.feature.today.HomeEffect
+import com.hotelski.waterme.feature.today.HomeViewModel
+import com.hotelski.waterme.feature.today.TodayScreen
+
+@Composable
+fun HomeRoute(
+    onAddPlant: () -> Unit,
+    onOpenPlant: (String) -> Unit,
+    homeViewModel: HomeViewModel = viewModel(),
+) {
+    val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(homeViewModel) {
+        homeViewModel.effects.collect { effect ->
+            when (effect) {
+                HomeEffect.NavigateToAddPlant -> onAddPlant()
+                is HomeEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
+            }
+        }
+    }
+
+    TodayScreen(
+        uiState = uiState,
+        onEvent = homeViewModel::onEvent,
+    )
+}
+
+@Composable
+fun PlantsRoute(
+    onAddPlant: () -> Unit,
+    onOpenPlant: (String) -> Unit,
+    plantsViewModel: PlantsViewModel = viewModel(),
+) {
+    val uiState by plantsViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(plantsViewModel) {
+        plantsViewModel.effects.collect { effect ->
+            when (effect) {
+                PlantsEffect.NavigateToAddPlant -> onAddPlant()
+                is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
+            }
+        }
+    }
+
+    PlantsScreen(
+        uiState = uiState,
+        onEvent = plantsViewModel::onEvent,
+    )
+}
+
+@Composable
+fun AddPlantRoute(
+    onBack: () -> Unit,
+    onOpenPhotoPicker: () -> Unit,
+    onPlantCreated: (String) -> Unit,
+    addPlantViewModel: AddPlantViewModel = viewModel(),
+) {
+    val uiState by addPlantViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(addPlantViewModel) {
+        addPlantViewModel.effects.collect { effect ->
+            when (effect) {
+                AddPlantEffect.NavigateBack -> onBack()
+                AddPlantEffect.OpenPhotoPicker -> onOpenPhotoPicker()
+                is AddPlantEffect.NavigateToPlantDetails -> onPlantCreated(effect.plantId)
+            }
+        }
+    }
+
+    AddPlantScreen(
+        uiState = uiState,
+        onEvent = addPlantViewModel::onEvent,
+    )
+}
+
+@Composable
+fun PlantDetailsRoute(
+    onBack: () -> Unit,
+    onEditPlant: (String) -> Unit,
+    onViewHistory: (String) -> Unit,
+    plantDetailsViewModel: PlantDetailsViewModel = viewModel(),
+) {
+    val uiState by plantDetailsViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(plantDetailsViewModel) {
+        plantDetailsViewModel.effects.collect { effect ->
+            when (effect) {
+                PlantDetailsEffect.NavigateBack -> onBack()
+                is PlantDetailsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
+                is PlantDetailsEffect.NavigateToCareHistory -> onViewHistory(effect.plantId)
+            }
+        }
+    }
+
+    PlantDetailsScreen(
+        uiState = uiState,
+        onEvent = plantDetailsViewModel::onEvent,
+    )
+}
+
+@Composable
+fun CalendarRoute(
+    onOpenPlant: (String) -> Unit,
+    onScrollToToday: () -> Unit,
+    calendarViewModel: CalendarViewModel = viewModel(),
+) {
+    val uiState by calendarViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(calendarViewModel) {
+        calendarViewModel.effects.collect { effect ->
+            when (effect) {
+                CalendarEffect.ScrollToToday -> onScrollToToday()
+                is CalendarEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
+            }
+        }
+    }
+
+    CalendarScreen(
+        uiState = uiState,
+        onEvent = calendarViewModel::onEvent,
+    )
+}
+
+@Composable
+fun SettingsRoute(
+    onShowOnboarding: () -> Unit,
+    onRequestNotificationPermission: () -> Unit,
+    settingsViewModel: SettingsViewModel = viewModel(),
+) {
+    val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(settingsViewModel) {
+        settingsViewModel.effects.collect { effect ->
+            when (effect) {
+                SettingsEffect.NavigateToOnboarding -> onShowOnboarding()
+                SettingsEffect.RequestNotificationPermission -> onRequestNotificationPermission()
+            }
+        }
+    }
+
+    SettingsScreen(
+        uiState = uiState,
+        onEvent = settingsViewModel::onEvent,
+    )
+}

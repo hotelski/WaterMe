@@ -59,6 +59,7 @@ data class SettingsUiState(
     val careHistoryCount: Int = 0,
     val healthNoteCount: Int = 0,
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 )
 
 sealed interface SettingsEvent {

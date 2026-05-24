@@ -9,8 +9,10 @@ import com.hotelski.waterme.data.local.entity.CareHistoryEntity
 import com.hotelski.waterme.data.local.entity.CareTaskEntity
 import com.hotelski.waterme.data.local.entity.HistoryAction
 import com.hotelski.waterme.data.local.entity.TaskStatus
+import com.hotelski.waterme.data.local.model.CareHistoryWithPlant
 import com.hotelski.waterme.data.local.model.CareTaskWithPlant
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.HealthMood
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -32,8 +34,17 @@ class RoomCareRepository(
     fun observeUpcomingTasks(startMillis: Long, endMillis: Long): Flow<List<CareTaskWithPlant>> =
         careTaskDao.observeUpcomingTasks(startMillis, endMillis)
 
+    fun observeTasksForPlant(plantId: String): Flow<List<CareTaskEntity>> =
+        careTaskDao.observeTasksForPlant(plantId)
+
     fun observeCareHistoryForPlant(plantId: String): Flow<List<CareHistoryEntity>> =
         careHistoryDao.observeHistoryForPlant(plantId)
+
+    fun observeCareHistoryForUser(userId: String): Flow<List<CareHistoryWithPlant>> =
+        careHistoryDao.observeHistoryForUser(userId)
+
+    fun observeRecentHealthNotes(userId: String, limit: Int = 5): Flow<List<CareHistoryWithPlant>> =
+        careHistoryDao.observeRecentHealthNotesForUser(userId, limit)
 
     suspend fun markTaskCompleted(
         taskId: String,
@@ -92,6 +103,32 @@ class RoomCareRepository(
             ),
         )
     }
+
+    suspend fun logHealthNote(
+        plantId: String,
+        mood: HealthMood,
+        performedAt: Long = System.currentTimeMillis(),
+        notes: String,
+    ) {
+        careHistoryDao.insertHistory(
+            CareHistoryEntity(
+                historyId = UUID.randomUUID().toString(),
+                plantId = plantId,
+                careType = CareType.WATERING,
+                action = HistoryAction.HEALTH_NOTE,
+                healthMood = mood,
+                performedAt = performedAt,
+                notes = notes.trim(),
+                createdAt = performedAt,
+            ),
+        )
+    }
+
+    suspend fun countCareHistoryForUser(userId: String): Int =
+        careHistoryDao.countHistoryForUser(userId)
+
+    suspend fun countHealthNotesForUser(userId: String): Int =
+        careHistoryDao.countHealthNotesForUser(userId)
 
     private suspend fun scheduleNextTaskAfter(
         task: CareTaskEntity,

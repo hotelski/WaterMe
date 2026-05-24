@@ -64,6 +64,7 @@ data class PlantDetailsUiState(
     val healthNoteDraft: String = "",
     val selectedHealthMood: HealthMood = HealthMood.ATTENTION,
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 )
 
 sealed interface PlantDetailsEvent {

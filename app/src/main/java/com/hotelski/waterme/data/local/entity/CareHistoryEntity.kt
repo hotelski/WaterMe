@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.HealthMood
 
 @Entity(
     tableName = "care_history",
@@ -50,6 +51,8 @@ data class CareHistoryEntity(
     val careType: CareType,
     @ColumnInfo(name = "action")
     val action: HistoryAction,
+    @ColumnInfo(name = "health_mood")
+    val healthMood: HealthMood? = null,
     @ColumnInfo(name = "performed_at")
     val performedAt: Long,
     @ColumnInfo(name = "notes")

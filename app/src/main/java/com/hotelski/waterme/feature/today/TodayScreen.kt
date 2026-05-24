@@ -50,6 +50,7 @@ data class TodayUiState(
     val plantCount: Int = 0,
     val reminderCount: Int = 0,
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 ) {
     val isEmpty: Boolean
         get() = !isLoading && tasks.isEmpty()

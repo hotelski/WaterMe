@@ -19,6 +19,9 @@ class RoomReminderRepository(
     fun observeRemindersForPlant(plantId: String): Flow<List<ReminderEntity>> =
         reminderDao.observeRemindersForPlant(plantId)
 
+    suspend fun countActiveRemindersForUser(userId: String): Int =
+        reminderDao.countActiveRemindersForUser(userId)
+
     suspend fun addReminder(
         plantId: String,
         careType: CareType,

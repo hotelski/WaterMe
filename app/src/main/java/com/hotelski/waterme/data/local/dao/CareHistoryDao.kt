@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.hotelski.waterme.data.local.entity.CareHistoryEntity
+import com.hotelski.waterme.data.local.model.CareHistoryWithPlant
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -21,9 +22,72 @@ interface CareHistoryDao {
     @Query("SELECT * FROM care_history ORDER BY performed_at DESC")
     fun observeAllHistory(): Flow<List<CareHistoryEntity>>
 
+    @Query(
+        """
+        SELECT
+            h.history_id,
+            h.plant_id,
+            p.name AS plant_name,
+            h.care_type,
+            h.action,
+            h.health_mood,
+            h.performed_at,
+            h.notes
+        FROM care_history AS h
+        INNER JOIN plants AS p ON p.plant_id = h.plant_id
+        WHERE p.user_id = :userId AND p.deleted_at IS NULL
+        ORDER BY h.performed_at DESC
+        """,
+    )
+    fun observeHistoryForUser(userId: String): Flow<List<CareHistoryWithPlant>>
+
+    @Query(
+        """
+        SELECT
+            h.history_id,
+            h.plant_id,
+            p.name AS plant_name,
+            h.care_type,
+            h.action,
+            h.health_mood,
+            h.performed_at,
+            h.notes
+        FROM care_history AS h
+        INNER JOIN plants AS p ON p.plant_id = h.plant_id
+        WHERE p.user_id = :userId
+            AND p.deleted_at IS NULL
+            AND h.action = 'HEALTH_NOTE'
+        ORDER BY h.performed_at DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeRecentHealthNotesForUser(userId: String, limit: Int): Flow<List<CareHistoryWithPlant>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHistory(history: CareHistoryEntity)
 
     @Query("SELECT COUNT(*) FROM care_history WHERE plant_id = :plantId")
     suspend fun countHistoryForPlant(plantId: String): Int
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM care_history AS h
+        INNER JOIN plants AS p ON p.plant_id = h.plant_id
+        WHERE p.user_id = :userId AND p.deleted_at IS NULL
+        """,
+    )
+    suspend fun countHistoryForUser(userId: String): Int
+
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM care_history AS h
+        INNER JOIN plants AS p ON p.plant_id = h.plant_id
+        WHERE p.user_id = :userId
+            AND p.deleted_at IS NULL
+            AND h.action = 'HEALTH_NOTE'
+        """,
+    )
+    suspend fun countHealthNotesForUser(userId: String): Int
 }

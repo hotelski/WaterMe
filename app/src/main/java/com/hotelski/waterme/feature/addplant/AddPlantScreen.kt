@@ -45,6 +45,11 @@ import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
+data class AddPlantFieldErrors(
+    val name: String? = null,
+    val reminders: Map<CareType, String> = emptyMap(),
+)
+
 data class AddPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -54,10 +59,13 @@ data class AddPlantUiState(
     val notes: String = "",
     val selectedPhotoUri: String? = null,
     val reminders: List<ReminderDraftUiModel> = defaultReminderDrafts(),
+    val fieldErrors: AddPlantFieldErrors = AddPlantFieldErrors(),
     val errorMessage: String? = null,
+    val successMessage: String? = null,
+    val createdPlantId: String? = null,
 ) {
     val canSave: Boolean
-        get() = name.isNotBlank() && !isSaving
+        get() = name.isNotBlank() && !isSaving && !isLoading
 }
 
 private fun defaultReminderDrafts(): List<ReminderDraftUiModel> =
@@ -136,6 +144,7 @@ private fun AddPlantContent(
                 location = uiState.location,
                 notes = uiState.notes,
                 photoUri = uiState.selectedPhotoUri,
+                nameError = uiState.fieldErrors.name,
                 onEvent = onEvent,
             )
         }
@@ -145,6 +154,7 @@ private fun AddPlantContent(
         items(uiState.reminders, key = { it.careType.name }) { reminder ->
             ReminderDraftCard(
                 reminder = reminder,
+                errorMessage = uiState.fieldErrors.reminders[reminder.careType],
                 onEvent = onEvent,
             )
         }
@@ -168,6 +178,7 @@ private fun PlantProfileFormCard(
     location: String,
     notes: String,
     photoUri: String?,
+    nameError: String?,
     onEvent: (AddPlantEvent) -> Unit,
 ) {
     WaterMeCard {
@@ -198,6 +209,10 @@ private fun PlantProfileFormCard(
                 label = { Text("Plant name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                isError = nameError != null,
+                supportingText = if (nameError == null) null else {
+                    { Text(nameError) }
+                },
             )
             OutlinedTextField(
                 value = plantType,
@@ -228,6 +243,7 @@ private fun PlantProfileFormCard(
 @Composable
 private fun ReminderDraftCard(
     reminder: ReminderDraftUiModel,
+    errorMessage: String?,
     onEvent: (AddPlantEvent) -> Unit,
 ) {
     WaterMeCard {
@@ -256,6 +272,7 @@ private fun ReminderDraftCard(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.weight(1f),
+                        isError = errorMessage != null,
                     )
                     OutlinedTextField(
                         value = reminder.startsInDays,
@@ -265,6 +282,13 @@ private fun ReminderDraftCard(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.weight(1f),
+                        isError = errorMessage != null,
+                    )
+                }
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                     )
                 }
             }
