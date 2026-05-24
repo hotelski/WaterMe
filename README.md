@@ -31,3 +31,7 @@ gradle :app:assembleDebug
 ## Design
 
 The full mobile UI/UX flow, screen copy, navigation model, empty states, colors, and actions are defined in [docs/ui-ux-flow.md](docs/ui-ux-flow.md).
+
+## Data And Logic
+
+The Room database schema, relationships, DAO examples, reminder rules, notification scheduling, care history, and settings logic are defined in [docs/database-and-app-logic.md](docs/database-and-app-logic.md).
