@@ -55,6 +55,9 @@ object WaterMeSeedData {
             database.careHistoryDao().insertHistory(
                 history(pothos.plantId, CareType.FERTILIZING, "Half-strength liquid fertilizer.", nowMillis - 21 * DAY_MILLIS),
             )
+            database.careHistoryDao().insertHistory(
+                history(monstera.plantId, CareType.WATERING, "Deep watered and wiped leaves.", nowMillis - 2 * DAY_MILLIS),
+            )
         }
     }
 

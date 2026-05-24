@@ -57,6 +57,8 @@ data class CareHistoryEntity(
     val performedAt: Long,
     @ColumnInfo(name = "notes")
     val notes: String? = null,
+    @ColumnInfo(name = "photo_uri")
+    val photoUri: String? = null,
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
 )

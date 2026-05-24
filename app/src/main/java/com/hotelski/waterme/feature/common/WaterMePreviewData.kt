@@ -106,6 +106,7 @@ object WaterMePreviewData {
     val history = listOf(
         CareHistoryUiModel(
             id = "history-water",
+            plantId = "plant-monstera",
             plantName = "Monstera Deliciosa",
             careType = CareType.WATERING,
             actionLabel = "Completed",
@@ -114,6 +115,7 @@ object WaterMePreviewData {
         ),
         CareHistoryUiModel(
             id = "history-prune",
+            plantId = "plant-pothos",
             plantName = "Golden Pothos",
             careType = CareType.PRUNING,
             actionLabel = "Completed",
@@ -122,6 +124,7 @@ object WaterMePreviewData {
         ),
         CareHistoryUiModel(
             id = "history-skip",
+            plantId = "plant-snake",
             plantName = "Snake Plant",
             careType = CareType.WATERING,
             actionLabel = "Skipped",

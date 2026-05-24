@@ -54,11 +54,14 @@ data class ReminderDraftUiModel(
 
 data class CareHistoryUiModel(
     val id: String,
+    val plantId: String = "",
     val plantName: String,
     val careType: CareType,
     val actionLabel: String,
     val dateLabel: String,
     val notes: String,
+    val performedAtMillis: Long = 0L,
+    val photoUri: String? = null,
 )
 
 data class HealthNoteUiModel(

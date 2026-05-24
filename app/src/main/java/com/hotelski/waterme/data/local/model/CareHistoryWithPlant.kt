@@ -22,4 +22,6 @@ data class CareHistoryWithPlant(
     val performedAt: Long,
     @ColumnInfo(name = "notes")
     val notes: String?,
+    @ColumnInfo(name = "photo_uri")
+    val photoUri: String?,
 )

@@ -43,6 +43,21 @@ class RoomCareRepository(
     fun observeCareHistoryForUser(userId: String): Flow<List<CareHistoryWithPlant>> =
         careHistoryDao.observeHistoryForUser(userId)
 
+    fun observeFilteredCareHistoryForUser(
+        userId: String,
+        plantId: String?,
+        careType: CareType?,
+        startMillis: Long?,
+        endMillis: Long?,
+    ): Flow<List<CareHistoryWithPlant>> =
+        careHistoryDao.observeFilteredHistoryForUser(
+            userId = userId,
+            plantId = plantId,
+            careType = careType?.name,
+            startMillis = startMillis,
+            endMillis = endMillis,
+        )
+
     fun observeRecentHealthNotes(userId: String, limit: Int = 5): Flow<List<CareHistoryWithPlant>> =
         careHistoryDao.observeRecentHealthNotesForUser(userId, limit)
 
@@ -90,6 +105,7 @@ class RoomCareRepository(
         careType: CareType,
         performedAt: Long = System.currentTimeMillis(),
         notes: String? = null,
+        photoUri: String? = null,
     ) {
         careHistoryDao.insertHistory(
             CareHistoryEntity(
@@ -98,10 +114,33 @@ class RoomCareRepository(
                 careType = careType,
                 action = HistoryAction.MANUAL_LOG,
                 performedAt = performedAt,
-                notes = notes,
+                notes = notes?.trim()?.takeIf { it.isNotBlank() },
+                photoUri = photoUri?.trim()?.takeIf { it.isNotBlank() },
                 createdAt = performedAt,
             ),
         )
+    }
+
+    suspend fun updateCareHistoryEntry(
+        historyId: String,
+        plantId: String,
+        careType: CareType,
+        performedAt: Long,
+        notes: String?,
+        photoUri: String?,
+    ) {
+        careHistoryDao.updateHistoryEntry(
+            historyId = historyId,
+            plantId = plantId,
+            careType = careType,
+            performedAt = performedAt,
+            notes = notes?.trim()?.takeIf { it.isNotBlank() },
+            photoUri = photoUri?.trim()?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    suspend fun deleteCareHistoryEntry(historyId: String) {
+        careHistoryDao.deleteHistoryEntry(historyId)
     }
 
     suspend fun logHealthNote(

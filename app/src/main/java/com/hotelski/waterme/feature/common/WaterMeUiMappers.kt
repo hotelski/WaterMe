@@ -88,21 +88,27 @@ fun CareHistoryEntity.toCareHistoryUiModel(
 ): CareHistoryUiModel =
     CareHistoryUiModel(
         id = historyId,
+        plantId = plantId,
         plantName = plantName,
         careType = careType,
         actionLabel = action.displayLabel(),
         dateLabel = performedAt.toDueDateLabel(clock),
         notes = notes.orEmpty(),
+        performedAtMillis = performedAt,
+        photoUri = photoUri,
     )
 
 fun CareHistoryWithPlant.toCareHistoryUiModel(clock: Clock = Clock.systemDefaultZone()): CareHistoryUiModel =
     CareHistoryUiModel(
         id = historyId,
+        plantId = plantId,
         plantName = plantName,
         careType = careType,
         actionLabel = action.displayLabel(),
         dateLabel = performedAt.toDueDateLabel(clock),
         notes = notes.orEmpty(),
+        performedAtMillis = performedAt,
+        photoUri = photoUri,
     )
 
 fun CareHistoryEntity.toHealthNoteUiModel(

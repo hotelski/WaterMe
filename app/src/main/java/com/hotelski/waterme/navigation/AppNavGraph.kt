@@ -15,15 +15,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.hotelski.waterme.feature.common.AddPlantRoute
 import com.hotelski.waterme.feature.common.CalendarRoute
+import com.hotelski.waterme.feature.common.CareHistoryRoute
 import com.hotelski.waterme.feature.common.EditPlantRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
 import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.history.CareHistoryEvent
-import com.hotelski.waterme.feature.history.CareHistoryScreen
-import com.hotelski.waterme.feature.history.CareHistoryUiState
 import com.hotelski.waterme.feature.onboarding.OnboardingEvent
 import com.hotelski.waterme.feature.onboarding.OnboardingScreen
 import com.hotelski.waterme.feature.onboarding.OnboardingUiState
@@ -161,15 +159,8 @@ fun AppNavGraph(
                 },
             ),
         ) {
-            CareHistoryScreen(
-                uiState = CareHistoryUiState(entries = WaterMePreviewData.history),
-                onEvent = { event ->
-                    when (event) {
-                        CareHistoryEvent.BackClicked -> navigationActions.back()
-                        is CareHistoryEvent.FilterSelected -> Unit
-                        CareHistoryEvent.RetryClicked -> Unit
-                    }
-                },
+            CareHistoryRoute(
+                onBack = navigationActions::back,
             )
         }
 

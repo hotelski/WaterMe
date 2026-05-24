@@ -15,6 +15,9 @@ import com.hotelski.waterme.feature.addplant.AddPlantViewModel
 import com.hotelski.waterme.feature.calendar.CalendarEffect
 import com.hotelski.waterme.feature.calendar.CalendarScreen
 import com.hotelski.waterme.feature.calendar.CalendarViewModel
+import com.hotelski.waterme.feature.history.CareHistoryEffect
+import com.hotelski.waterme.feature.history.CareHistoryScreen
+import com.hotelski.waterme.feature.history.CareHistoryViewModel
 import com.hotelski.waterme.feature.editplant.EditPlantEffect
 import com.hotelski.waterme.feature.editplant.EditPlantScreen
 import com.hotelski.waterme.feature.editplant.EditPlantViewModel
@@ -210,6 +213,40 @@ fun CalendarRoute(
     CalendarScreen(
         uiState = uiState,
         onEvent = calendarViewModel::onEvent,
+    )
+}
+
+@Composable
+fun CareHistoryRoute(
+    onBack: () -> Unit,
+    careHistoryViewModel: CareHistoryViewModel = viewModel(),
+) {
+    val context = LocalContext.current
+    val uiState by careHistoryViewModel.uiState.collectAsStateWithLifecycle()
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+        careHistoryViewModel.onPhotoSelected(uri?.toString())
+    }
+
+    LaunchedEffect(careHistoryViewModel) {
+        careHistoryViewModel.effects.collect { effect ->
+            when (effect) {
+                CareHistoryEffect.NavigateBack -> onBack()
+                CareHistoryEffect.OpenPhotoPicker -> photoPicker.launch(arrayOf("image/*"))
+            }
+        }
+    }
+
+    CareHistoryScreen(
+        uiState = uiState,
+        onEvent = careHistoryViewModel::onEvent,
     )
 }
 
