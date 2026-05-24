@@ -44,3 +44,7 @@ The recommended Kotlin, Jetpack Compose, MVVM, Room, WorkManager, Hilt, Navigati
 
 Navigation Compose routes, bottom navigation, screen transitions, argument passing, and example screen event navigation calls are implemented in `app/src/main/java/com/hotelski/waterme/navigation`.
 The full navigation and back-stack user flow is documented in [docs/navigation-user-flow.md](docs/navigation-user-flow.md).
+
+## Reminders And Notifications
+
+The WorkManager reminder scheduler, notification helper, worker classes, snooze/skip/complete actions, Android 13+ permission checks, and ViewModel integration example are implemented in `app/src/main/java/com/hotelski/waterme/notifications` and documented in [docs/reminder-notification-system.md](docs/reminder-notification-system.md).

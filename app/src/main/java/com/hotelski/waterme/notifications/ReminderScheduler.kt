@@ -1,60 +1,271 @@
 package com.hotelski.waterme.notifications
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.hotelski.waterme.model.CareReminder
+import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.Plant
+import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 object ReminderScheduler {
-    private val reminderTime = LocalTime.of(9, 0)
+    private val defaultReminderTime = LocalTime.of(9, 0)
 
     fun scheduleAll(context: Context, plants: List<Plant>) {
         plants.forEach { plant ->
             plant.reminders
                 .filter { it.enabled }
-                .forEach { schedule(context, plant, it) }
+                .forEach { reminder -> schedule(context, plant, reminder) }
         }
     }
 
     fun schedule(context: Context, plant: Plant, reminder: CareReminder) {
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val pendingIntent = pendingIntent(context, plant, reminder)
-        val triggerAt = reminder.nextDueDate
-            .atTime(reminderTime)
-            .atZone(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-            .coerceAtLeast(System.currentTimeMillis() + SAME_DAY_DELAY_MS)
-
-        alarmManager.cancel(pendingIntent)
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-    }
-
-    private fun pendingIntent(
-        context: Context,
-        plant: Plant,
-        reminder: CareReminder,
-    ): PendingIntent {
-        val requestCode = requestCode(plant.id, reminder.type.name)
-        val intent = Intent(context, CareReminderReceiver::class.java).apply {
-            putExtra(CareReminderReceiver.EXTRA_PLANT_NAME, plant.name)
-            putExtra(CareReminderReceiver.EXTRA_CARE_TYPE, reminder.type.label.lowercase())
-            putExtra(CareReminderReceiver.EXTRA_REQUEST_CODE, requestCode)
-        }
-        return PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        scheduleReminder(
+            context = context,
+            schedule = reminder.toSchedule(plant),
         )
     }
 
-    private fun requestCode(plantId: String, type: String): Int =
-        "$plantId:$type".hashCode()
+    fun scheduleWateringReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleCareTypeReminder(
+            context = context,
+            plantId = plantId,
+            plantName = plantName,
+            reminderId = reminderId,
+            careType = CareType.WATERING,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+        )
+    }
 
-    private const val SAME_DAY_DELAY_MS = 15_000L
+    fun scheduleFertilizingReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleCareTypeReminder(
+            context = context,
+            plantId = plantId,
+            plantName = plantName,
+            reminderId = reminderId,
+            careType = CareType.FERTILIZING,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+        )
+    }
+
+    fun scheduleRepottingReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleCareTypeReminder(
+            context = context,
+            plantId = plantId,
+            plantName = plantName,
+            reminderId = reminderId,
+            careType = CareType.REPOTTING,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+        )
+    }
+
+    fun scheduleMistingReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleCareTypeReminder(
+            context = context,
+            plantId = plantId,
+            plantName = plantName,
+            reminderId = reminderId,
+            careType = CareType.MISTING,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+        )
+    }
+
+    fun schedulePruningReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleCareTypeReminder(
+            context = context,
+            plantId = plantId,
+            plantName = plantName,
+            reminderId = reminderId,
+            careType = CareType.PRUNING,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+        )
+    }
+
+    fun scheduleReminder(
+        context: Context,
+        schedule: CareReminderSchedule,
+    ) {
+        if (!schedule.notificationsEnabled) return
+
+        val delayMillis = (schedule.dueAtMillis - System.currentTimeMillis()).coerceAtLeast(MINIMUM_DELAY_MS)
+        val request = OneTimeWorkRequestBuilder<CareReminderWorker>()
+            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .setInputData(schedule.toWorkData())
+            .addTag(WORK_TAG_CARE_REMINDERS)
+            .addTag(reminderTag(schedule.reminderId))
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            uniqueWorkName(schedule),
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+    }
+
+    fun snooze(
+        context: Context,
+        schedule: CareReminderSchedule,
+        duration: Duration = DEFAULT_SNOOZE_DURATION,
+    ) {
+        val snoozedUntil = System.currentTimeMillis() + duration.toMillis()
+        ReminderEventStore.recordSnoozed(context, schedule, snoozedUntil)
+        NotificationHelper(context).cancel(schedule)
+
+        scheduleReminder(
+            context = context,
+            schedule = schedule.copy(
+                dueAtMillis = snoozedUntil,
+                taskId = "${schedule.taskId}-snoozed-${snoozedUntil}",
+            ),
+        )
+    }
+
+    fun skip(context: Context, schedule: CareReminderSchedule) {
+        val skippedAt = System.currentTimeMillis()
+        ReminderEventStore.recordSkipped(context, schedule, skippedAt)
+        cancelTask(context, schedule)
+        NotificationHelper(context).cancel(schedule)
+        rescheduleNextReminder(context, schedule, fromMillis = schedule.dueAtMillis)
+    }
+
+    fun markCompleted(context: Context, schedule: CareReminderSchedule) {
+        val completedAt = System.currentTimeMillis()
+        ReminderEventStore.recordCompleted(context, schedule, completedAt)
+        cancelTask(context, schedule)
+        NotificationHelper(context).cancel(schedule)
+        rescheduleNextReminder(context, schedule, fromMillis = completedAt)
+    }
+
+    fun rescheduleNextReminder(
+        context: Context,
+        schedule: CareReminderSchedule,
+        fromMillis: Long,
+    ) {
+        val nextDueAt = nextDueAfter(fromMillis, schedule.frequencyDays)
+        scheduleReminder(
+            context = context,
+            schedule = schedule.copy(
+                taskId = "${schedule.reminderId}-${nextDueAt}",
+                dueAtMillis = nextDueAt,
+            ),
+        )
+    }
+
+    fun cancelTask(context: Context, schedule: CareReminderSchedule) {
+        WorkManager.getInstance(context).cancelUniqueWork(uniqueWorkName(schedule))
+    }
+
+    fun cancelReminder(context: Context, reminderId: String) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(reminderTag(reminderId))
+    }
+
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(WORK_TAG_CARE_REMINDERS)
+    }
+
+    fun uniqueWorkName(schedule: CareReminderSchedule): String =
+        "care-reminder-${schedule.reminderId}-${schedule.taskId}"
+
+    fun reminderTag(reminderId: String): String =
+        "care-reminder-id-$reminderId"
+
+    private fun scheduleCareTypeReminder(
+        context: Context,
+        plantId: String,
+        plantName: String,
+        reminderId: String,
+        careType: CareType,
+        dueAtMillis: Long,
+        frequencyDays: Int,
+    ) {
+        scheduleReminder(
+            context = context,
+            schedule = CareReminderSchedule(
+                plantId = plantId,
+                plantName = plantName,
+                reminderId = reminderId,
+                taskId = "$reminderId-$dueAtMillis",
+                careType = careType,
+                dueAtMillis = dueAtMillis,
+                frequencyDays = frequencyDays,
+            ),
+        )
+    }
+
+    private fun CareReminder.toSchedule(plant: Plant): CareReminderSchedule {
+        val dueAtMillis = nextDueDate
+            .atTime(defaultReminderTime)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+        return CareReminderSchedule(
+            plantId = plant.id,
+            plantName = plant.name,
+            reminderId = id,
+            taskId = "$id-$dueAtMillis",
+            careType = type,
+            dueAtMillis = dueAtMillis,
+            frequencyDays = frequencyDays,
+            notificationsEnabled = enabled,
+        )
+    }
+
+    private fun nextDueAfter(fromMillis: Long, frequencyDays: Int): Long {
+        val interval = Duration.ofDays(frequencyDays.coerceAtLeast(1).toLong()).toMillis()
+        val now = System.currentTimeMillis()
+        var nextDueAt = fromMillis + interval
+        while (nextDueAt <= now) {
+            nextDueAt += interval
+        }
+        return nextDueAt
+    }
+
+    private val DEFAULT_SNOOZE_DURATION: Duration = Duration.ofHours(3)
+    private const val WORK_TAG_CARE_REMINDERS = "waterme-care-reminders"
+    private const val MINIMUM_DELAY_MS = 1_000L
 }

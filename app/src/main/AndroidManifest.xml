@@ -11,6 +11,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WaterMe">
         <receiver
+            android:name=".notifications.ReminderActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".notifications.CareReminderReceiver"
             android:exported="false" />
 

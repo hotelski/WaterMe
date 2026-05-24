@@ -7,7 +7,7 @@ import android.os.Build
 import com.hotelski.waterme.R
 
 object NotificationChannels {
-    const val CARE_CHANNEL_ID = "waterme_plant_care"
+    const val CARE_CHANNEL_ID = "plant_care_reminders"
 
     fun ensureCreated(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
