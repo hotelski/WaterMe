@@ -27,7 +27,7 @@ class PlantRepository(context: Context) {
     }
 
     fun savePlants(plants: List<Plant>) {
-        preferences.edit().putString(KEY_PLANTS, plants.toJson().toString()).apply()
+        preferences.edit().putString(KEY_PLANTS, plants.toPlantJson().toString()).apply()
     }
 
     private fun parsePlants(array: JSONArray): List<Plant> =
@@ -86,7 +86,7 @@ class PlantRepository(context: Context) {
         }
     }
 
-    private fun List<Plant>.toJson(): JSONArray =
+    private fun List<Plant>.toPlantJson(): JSONArray =
         JSONArray().also { array -> forEach { array.put(it.toJson()) } }
 
     private fun Plant.toJson(): JSONObject =
@@ -97,11 +97,11 @@ class PlantRepository(context: Context) {
             .put("location", location)
             .put("notes", notes)
             .put("photoUri", photoUri.orEmpty())
-            .put("reminders", reminders.toJson())
-            .put("careHistory", careHistory.toJson())
-            .put("healthNotes", healthNotes.toJson())
+            .put("reminders", reminders.toReminderJson())
+            .put("careHistory", careHistory.toCareHistoryJson())
+            .put("healthNotes", healthNotes.toHealthNoteJson())
 
-    private fun List<CareReminder>.toJson(): JSONArray =
+    private fun List<CareReminder>.toReminderJson(): JSONArray =
         JSONArray().also { array ->
             forEach { reminder ->
                 array.put(
@@ -115,7 +115,7 @@ class PlantRepository(context: Context) {
             }
         }
 
-    private fun List<CareHistoryEntry>.toJson(): JSONArray =
+    private fun List<CareHistoryEntry>.toCareHistoryJson(): JSONArray =
         JSONArray().also { array ->
             forEach { entry ->
                 array.put(
@@ -128,7 +128,7 @@ class PlantRepository(context: Context) {
             }
         }
 
-    private fun List<HealthNote>.toJson(): JSONArray =
+    private fun List<HealthNote>.toHealthNoteJson(): JSONArray =
         JSONArray().also { array ->
             forEach { note ->
                 array.put(
