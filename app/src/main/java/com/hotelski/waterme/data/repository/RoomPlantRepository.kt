@@ -97,6 +97,28 @@ class RoomPlantRepository(
         }
     }
 
+    suspend fun replacePrimaryPhoto(
+        plantId: String,
+        localUri: String?,
+        nowMillis: Long = System.currentTimeMillis(),
+    ) {
+        if (localUri.isNullOrBlank()) return
+
+        database.withTransaction {
+            plantPhotoDao.clearPrimaryPhoto(plantId, nowMillis)
+            plantPhotoDao.upsertPhoto(
+                PlantPhotoEntity(
+                    photoId = UUID.randomUUID().toString(),
+                    plantId = plantId,
+                    localUri = localUri,
+                    isPrimary = true,
+                    createdAt = nowMillis,
+                    updatedAt = nowMillis,
+                ),
+            )
+        }
+    }
+
     suspend fun deletePlant(plantId: String, nowMillis: Long = System.currentTimeMillis()) {
         plantDao.softDeletePlant(plantId, nowMillis)
     }

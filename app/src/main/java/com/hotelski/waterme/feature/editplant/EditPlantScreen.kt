@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,19 +49,27 @@ import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
+data class EditPlantFieldErrors(
+    val name: String? = null,
+    val reminders: Map<CareType, String> = emptyMap(),
+)
+
 data class EditPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val isDeleting: Boolean = false,
     val name: String = "",
     val plantType: String = "",
     val location: String = "",
     val notes: String = "",
     val primaryPhotoUri: String? = null,
     val reminders: List<ReminderDraftUiModel> = emptyList(),
+    val fieldErrors: EditPlantFieldErrors = EditPlantFieldErrors(),
     val errorMessage: String? = null,
+    val successMessage: String? = null,
 ) {
     val canSave: Boolean
-        get() = name.isNotBlank() && !isSaving
+        get() = name.isNotBlank() && !isSaving && !isDeleting && !isLoading
 }
 
 sealed interface EditPlantEvent {
@@ -75,6 +84,7 @@ sealed interface EditPlantEvent {
     data class NotesChanged(val value: String) : EditPlantEvent
     data class ReminderEnabledChanged(val careType: CareType, val enabled: Boolean) : EditPlantEvent
     data class ReminderEveryDaysChanged(val careType: CareType, val value: String) : EditPlantEvent
+    data class ReminderStartsInChanged(val careType: CareType, val value: String) : EditPlantEvent
 }
 
 @Composable
@@ -124,80 +134,20 @@ private fun EditPlantContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            WaterMeCard {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        PlantPhotoTile(uiState.primaryPhotoUri, uiState.name, size = 86.dp)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Plant profile", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            Text("Update the details, room, notes, and care schedule.", color = MutedInk)
-                            androidx.compose.material3.TextButton(onClick = { onEvent(EditPlantEvent.ChangePhotoClicked) }) {
-                                Text("Change photo")
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = uiState.name,
-                        onValueChange = { onEvent(EditPlantEvent.NameChanged(it)) },
-                        label = { Text("Plant name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = uiState.plantType,
-                        onValueChange = { onEvent(EditPlantEvent.PlantTypeChanged(it)) },
-                        label = { Text("Plant type") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = uiState.location,
-                        onValueChange = { onEvent(EditPlantEvent.LocationChanged(it)) },
-                        label = { Text("Location") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = uiState.notes,
-                        onValueChange = { onEvent(EditPlantEvent.NotesChanged(it)) },
-                        label = { Text("Notes") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(118.dp),
-                    )
-                }
-            }
+            PlantProfileCard(
+                uiState = uiState,
+                onEvent = onEvent,
+            )
         }
 
         item { WaterMeSectionHeader("Reminder Schedule") }
 
         items(uiState.reminders, key = { it.careType.name }) { reminder ->
-            WaterMeCard {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CareTypeBadge(reminder.careType)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(reminder.careType.label(), style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            Text("Every ${reminder.everyDays.ifBlank { "?" }} days", color = MutedInk)
-                        }
-                        Switch(
-                            checked = reminder.enabled,
-                            onCheckedChange = { onEvent(EditPlantEvent.ReminderEnabledChanged(reminder.careType, it)) },
-                        )
-                    }
-                    if (reminder.enabled) {
-                        OutlinedTextField(
-                            value = reminder.everyDays,
-                            onValueChange = { onEvent(EditPlantEvent.ReminderEveryDaysChanged(reminder.careType, it)) },
-                            label = { Text("Every") },
-                            suffix = { Text("days") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                        )
-                    }
-                }
-            }
+            ReminderScheduleCard(
+                reminder = reminder,
+                errorMessage = uiState.fieldErrors.reminders[reminder.careType],
+                onEvent = onEvent,
+            )
         }
 
         item {
@@ -211,10 +161,121 @@ private fun EditPlantContent(
             OutlinedButton(
                 onClick = { onEvent(EditPlantEvent.DeleteClicked) },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !uiState.isDeleting && !uiState.isSaving,
             ) {
                 Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = Clay)
                 Spacer(Modifier.width(8.dp))
-                Text("Delete plant", color = Clay)
+                Text(if (uiState.isDeleting) "Deleting..." else "Delete plant", color = Clay)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlantProfileCard(
+    uiState: EditPlantUiState,
+    onEvent: (EditPlantEvent) -> Unit,
+) {
+    val nameSupportingText: @Composable (() -> Unit)? =
+        uiState.fieldErrors.name?.let { message -> { Text(message) } }
+
+    WaterMeCard {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                PlantPhotoTile(uiState.primaryPhotoUri, uiState.name, size = 86.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Plant profile", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                    Text("Update the details, room, notes, and care schedule.", color = MutedInk)
+                    androidx.compose.material3.TextButton(onClick = { onEvent(EditPlantEvent.ChangePhotoClicked) }) {
+                        Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Change photo")
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = uiState.name,
+                onValueChange = { onEvent(EditPlantEvent.NameChanged(it)) },
+                label = { Text("Plant name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = uiState.fieldErrors.name != null,
+                supportingText = nameSupportingText,
+            )
+            OutlinedTextField(
+                value = uiState.plantType,
+                onValueChange = { onEvent(EditPlantEvent.PlantTypeChanged(it)) },
+                label = { Text("Plant type") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = uiState.location,
+                onValueChange = { onEvent(EditPlantEvent.LocationChanged(it)) },
+                label = { Text("Location") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = { onEvent(EditPlantEvent.NotesChanged(it)) },
+                label = { Text("Notes") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(118.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReminderScheduleCard(
+    reminder: ReminderDraftUiModel,
+    errorMessage: String?,
+    onEvent: (EditPlantEvent) -> Unit,
+) {
+    WaterMeCard {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                CareTypeBadge(reminder.careType)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(reminder.careType.label(), style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                    Text("Every ${reminder.everyDays.ifBlank { "?" }} days", color = MutedInk)
+                }
+                Switch(
+                    checked = reminder.enabled,
+                    onCheckedChange = { onEvent(EditPlantEvent.ReminderEnabledChanged(reminder.careType, it)) },
+                )
+            }
+            if (reminder.enabled) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = reminder.everyDays,
+                        onValueChange = { onEvent(EditPlantEvent.ReminderEveryDaysChanged(reminder.careType, it)) },
+                        label = { Text("Every") },
+                        suffix = { Text("days") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        isError = errorMessage != null,
+                    )
+                    OutlinedTextField(
+                        value = reminder.startsInDays,
+                        onValueChange = { onEvent(EditPlantEvent.ReminderStartsInChanged(reminder.careType, it)) },
+                        label = { Text("Starts in") },
+                        suffix = { Text("days") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        isError = errorMessage != null,
+                    )
+                }
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
     }

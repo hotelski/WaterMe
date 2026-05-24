@@ -1,8 +1,12 @@
 package com.hotelski.waterme.feature.common
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hotelski.waterme.feature.addplant.AddPlantEffect
@@ -11,6 +15,9 @@ import com.hotelski.waterme.feature.addplant.AddPlantViewModel
 import com.hotelski.waterme.feature.calendar.CalendarEffect
 import com.hotelski.waterme.feature.calendar.CalendarScreen
 import com.hotelski.waterme.feature.calendar.CalendarViewModel
+import com.hotelski.waterme.feature.editplant.EditPlantEffect
+import com.hotelski.waterme.feature.editplant.EditPlantScreen
+import com.hotelski.waterme.feature.editplant.EditPlantViewModel
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsEffect
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsScreen
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsViewModel
@@ -77,13 +84,28 @@ fun AddPlantRoute(
     onPlantCreated: (String) -> Unit,
     addPlantViewModel: AddPlantViewModel = viewModel(),
 ) {
+    val context = LocalContext.current
     val uiState by addPlantViewModel.uiState.collectAsStateWithLifecycle()
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+        addPlantViewModel.onPhotoSelected(uri?.toString())
+    }
 
     LaunchedEffect(addPlantViewModel) {
         addPlantViewModel.effects.collect { effect ->
             when (effect) {
                 AddPlantEffect.NavigateBack -> onBack()
-                AddPlantEffect.OpenPhotoPicker -> onOpenPhotoPicker()
+                AddPlantEffect.OpenPhotoPicker -> {
+                    onOpenPhotoPicker()
+                    photoPicker.launch(arrayOf("image/*"))
+                }
                 is AddPlantEffect.NavigateToPlantDetails -> onPlantCreated(effect.plantId)
             }
         }
@@ -92,6 +114,48 @@ fun AddPlantRoute(
     AddPlantScreen(
         uiState = uiState,
         onEvent = addPlantViewModel::onEvent,
+    )
+}
+
+@Composable
+fun EditPlantRoute(
+    onBack: () -> Unit,
+    onPlantUpdated: (String) -> Unit,
+    onPlantDeleted: () -> Unit,
+    onOpenPhotoPicker: () -> Unit,
+    editPlantViewModel: EditPlantViewModel = viewModel(),
+) {
+    val context = LocalContext.current
+    val uiState by editPlantViewModel.uiState.collectAsStateWithLifecycle()
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+        editPlantViewModel.onPhotoSelected(uri?.toString())
+    }
+
+    LaunchedEffect(editPlantViewModel) {
+        editPlantViewModel.effects.collect { effect ->
+            when (effect) {
+                EditPlantEffect.NavigateBack -> onBack()
+                EditPlantEffect.OpenPhotoPicker -> {
+                    onOpenPhotoPicker()
+                    photoPicker.launch(arrayOf("image/*"))
+                }
+                is EditPlantEffect.NavigateToPlantDetails -> onPlantUpdated(effect.plantId)
+                EditPlantEffect.NavigateToPlantsAfterDelete -> onPlantDeleted()
+            }
+        }
+    }
+
+    EditPlantScreen(
+        uiState = uiState,
+        onEvent = editPlantViewModel::onEvent,
     )
 }
 

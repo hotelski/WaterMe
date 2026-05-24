@@ -103,6 +103,69 @@ class RoomReminderRepository(
         }
     }
 
+    suspend fun saveReminderForPlant(
+        plantId: String,
+        careType: CareType,
+        enabled: Boolean,
+        frequencyDays: Int,
+        nextDueAt: Long,
+        preferredHour: Int,
+        preferredMinute: Int,
+        notificationsEnabled: Boolean,
+        nowMillis: Long = System.currentTimeMillis(),
+    ) {
+        val current = reminderDao.getReminderForPlantAndType(plantId, careType)
+
+        if (!enabled) {
+            if (current != null) {
+                setReminderEnabled(current.reminderId, enabled = false, nowMillis = nowMillis)
+            }
+            return
+        }
+
+        if (current == null) {
+            addReminder(
+                plantId = plantId,
+                careType = careType,
+                frequencyDays = frequencyDays,
+                nextDueAt = nextDueAt,
+                preferredHour = preferredHour,
+                preferredMinute = preferredMinute,
+                notificationsEnabled = notificationsEnabled,
+                nowMillis = nowMillis,
+            )
+            return
+        }
+
+        database.withTransaction {
+            reminderDao.upsertReminder(
+                current.copy(
+                    frequencyDays = frequencyDays,
+                    preferredHour = preferredHour,
+                    preferredMinute = preferredMinute,
+                    nextDueAt = nextDueAt,
+                    isEnabled = true,
+                    notificationsEnabled = notificationsEnabled,
+                    updatedAt = nowMillis,
+                ),
+            )
+            careTaskDao.cancelOpenTasksForReminder(current.reminderId, nowMillis)
+            careTaskDao.upsertTask(
+                CareTaskEntity(
+                    taskId = UUID.randomUUID().toString(),
+                    plantId = plantId,
+                    reminderId = current.reminderId,
+                    careType = careType,
+                    scheduledFor = nextDueAt,
+                    effectiveDueAt = nextDueAt,
+                    status = TaskStatus.PENDING,
+                    createdAt = nowMillis,
+                    updatedAt = nowMillis,
+                ),
+            )
+        }
+    }
+
     suspend fun setReminderEnabled(
         reminderId: String,
         enabled: Boolean,

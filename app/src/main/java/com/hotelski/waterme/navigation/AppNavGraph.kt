@@ -15,14 +15,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.hotelski.waterme.feature.common.AddPlantRoute
 import com.hotelski.waterme.feature.common.CalendarRoute
+import com.hotelski.waterme.feature.common.EditPlantRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
 import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.editplant.EditPlantEvent
-import com.hotelski.waterme.feature.editplant.EditPlantScreen
-import com.hotelski.waterme.feature.editplant.EditPlantUiState
 import com.hotelski.waterme.feature.history.CareHistoryEvent
 import com.hotelski.waterme.feature.history.CareHistoryScreen
 import com.hotelski.waterme.feature.history.CareHistoryUiState
@@ -98,34 +96,12 @@ fun AppNavGraph(
         waterMeComposable(
             route = WaterMeRoute.EditPlant.route,
             arguments = listOf(navArgument(WaterMeRoute.EditPlant.PLANT_ID_ARG) { type = NavType.StringType }),
-        ) { entry ->
-            val plantId = entry.arguments
-                ?.getString(WaterMeRoute.EditPlant.PLANT_ID_ARG)
-                .orMissingPlantId()
-
-            EditPlantScreen(
-                uiState = EditPlantUiState(
-                    name = WaterMePreviewData.plantDetails.name,
-                    plantType = WaterMePreviewData.plantDetails.plantType,
-                    location = WaterMePreviewData.plantDetails.location,
-                    notes = WaterMePreviewData.plantDetails.notes,
-                    reminders = WaterMePreviewData.reminderDrafts,
-                ),
-                onEvent = { event ->
-                    when (event) {
-                        EditPlantEvent.BackClicked -> navigationActions.back()
-                        EditPlantEvent.SaveClicked -> navigationActions.onPlantUpdated(plantId)
-                        EditPlantEvent.DeleteClicked -> navigationActions.navigateToTopLevel(TopLevelDestination.Plants)
-                        EditPlantEvent.ChangePhotoClicked -> Unit
-                        is EditPlantEvent.NameChanged -> Unit
-                        is EditPlantEvent.PlantTypeChanged -> Unit
-                        is EditPlantEvent.LocationChanged -> Unit
-                        is EditPlantEvent.NotesChanged -> Unit
-                        is EditPlantEvent.ReminderEnabledChanged -> Unit
-                        is EditPlantEvent.ReminderEveryDaysChanged -> Unit
-                        EditPlantEvent.RetryClicked -> Unit
-                    }
-                },
+        ) {
+            EditPlantRoute(
+                onBack = navigationActions::back,
+                onPlantUpdated = navigationActions::onPlantUpdated,
+                onPlantDeleted = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
+                onOpenPhotoPicker = {},
             )
         }
 
