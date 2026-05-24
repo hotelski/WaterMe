@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WaterMe</string>
+    <string name="care_notification_channel_name">Plant care reminders</string>
+    <string name="care_notification_channel_description">Notifications for watering, fertilizing, repotting, misting, and pruning.</string>
+</resources>
