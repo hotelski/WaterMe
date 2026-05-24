@@ -27,3 +27,7 @@ Command line builds require JDK 17 and Android SDK 36:
 ```powershell
 gradle :app:assembleDebug
 ```
+
+## Design
+
+The full mobile UI/UX flow, screen copy, navigation model, empty states, colors, and actions are defined in [docs/ui-ux-flow.md](docs/ui-ux-flow.md).
