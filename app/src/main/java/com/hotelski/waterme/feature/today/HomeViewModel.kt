@@ -4,9 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import com.hotelski.waterme.data.local.entity.HistoryAction
 import com.hotelski.waterme.feature.common.endOfTodayMillis
+import com.hotelski.waterme.feature.common.startOfTodayMillis
 import com.hotelski.waterme.feature.common.toCareTaskUiModel
 import com.hotelski.waterme.feature.common.toHealthNoteUiModel
+import com.hotelski.waterme.feature.common.toPlantCardUiModel
+import com.hotelski.waterme.feature.common.toReminderUiModel
+import com.hotelski.waterme.model.HealthMood
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +23,8 @@ import kotlinx.coroutines.launch
 
 sealed interface HomeEffect {
     data object NavigateToAddPlant : HomeEffect
+    data object NavigateToCalendar : HomeEffect
+    data object NavigateToPlants : HomeEffect
     data class NavigateToPlantDetails(val plantId: String) : HomeEffect
 }
 
@@ -39,17 +46,57 @@ class HomeViewModel(
     val effects = _effects.asSharedFlow()
 
     val uiState = combine(
-        careRepository.observeTodayTasks(endOfTodayMillis()),
+        careRepository.observeTasksDueBy(endOfTodayMillis()),
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
-        careRepository.observeRecentHealthNotes(WaterMeAppContainer.LOCAL_USER_ID),
+        careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
         actionState,
-    ) { tasks, plants, healthNotes, action ->
+    ) { tasks, plants, careHistory, action ->
+        val todayStartMillis = startOfTodayMillis()
+        val todayTasks = tasks.filter { it.effectiveDueAt >= todayStartMillis }
+        val overdueTasks = tasks.filter { it.effectiveDueAt < todayStartMillis }
+        val activeReminders = plants.flatMap { plant ->
+            plant.reminders.filter { it.isEnabled && it.deletedAt == null }
+        }
+        val completedTodayCount = careHistory.count {
+            it.action == HistoryAction.COMPLETED && it.performedAt >= todayStartMillis
+        }
+        val dueTaskCount = tasks.size
+        val completedPercent = if (dueTaskCount == 0) {
+            1f
+        } else {
+            completedTodayCount.toFloat() / (completedTodayCount + dueTaskCount).coerceAtLeast(1)
+        }
+        val healthNotes = careHistory
+            .filter { it.action == HistoryAction.HEALTH_NOTE }
+            .take(5)
+
         TodayUiState(
             isLoading = false,
-            tasks = tasks.map { it.toCareTaskUiModel() },
+            tasks = todayTasks.map { it.toCareTaskUiModel() },
+            overdueTasks = overdueTasks.map { it.toCareTaskUiModel() },
+            upcomingReminders = activeReminders
+                .filter { it.nextDueAt > endOfTodayMillis() }
+                .sortedBy { it.nextDueAt }
+                .take(5)
+                .map { it.toReminderUiModel() },
             healthNotes = healthNotes.map { it.toHealthNoteUiModel() },
+            healthSummary = PlantHealthSummaryUiModel(
+                attentionCount = healthNotes.count { it.healthMood == HealthMood.ATTENTION },
+                healthyCount = healthNotes.count { it.healthMood == HealthMood.HEALTHY },
+                newGrowthCount = healthNotes.count { it.healthMood == HealthMood.GROWTH },
+            ),
+            recentlyAddedPlants = plants
+                .sortedByDescending { it.plant.createdAt }
+                .take(4)
+                .map { it.toPlantCardUiModel() },
+            progressStats = DashboardProgressUiModel(
+                completedToday = completedTodayCount,
+                dueToday = dueTaskCount,
+                overdue = overdueTasks.size,
+                completionPercent = completedPercent.coerceIn(0f, 1f),
+            ),
             plantCount = plants.size,
-            reminderCount = plants.sumOf { plant -> plant.reminders.count { it.isEnabled && it.deletedAt == null } },
+            reminderCount = activeReminders.size,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )
@@ -68,6 +115,8 @@ class HomeViewModel(
     fun onEvent(event: TodayEvent) {
         when (event) {
             TodayEvent.AddPlantClicked -> emitEffect(HomeEffect.NavigateToAddPlant)
+            TodayEvent.CalendarClicked -> emitEffect(HomeEffect.NavigateToCalendar)
+            TodayEvent.MyPlantsClicked -> emitEffect(HomeEffect.NavigateToPlants)
             is TodayEvent.PlantClicked -> emitEffect(HomeEffect.NavigateToPlantDetails(event.plantId))
             is TodayEvent.CompleteTask -> completeTask(event.taskId)
             is TodayEvent.SkipTask -> skipTask(event.taskId)

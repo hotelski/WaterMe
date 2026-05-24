@@ -34,7 +34,9 @@ import com.hotelski.waterme.feature.today.TodayScreen
 @Composable
 fun HomeRoute(
     onAddPlant: () -> Unit,
+    onOpenCalendar: () -> Unit,
     onOpenPlant: (String) -> Unit,
+    onOpenPlants: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
@@ -43,6 +45,8 @@ fun HomeRoute(
         homeViewModel.effects.collect { effect ->
             when (effect) {
                 HomeEffect.NavigateToAddPlant -> onAddPlant()
+                HomeEffect.NavigateToCalendar -> onOpenCalendar()
+                HomeEffect.NavigateToPlants -> onOpenPlants()
                 is HomeEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
             }
         }

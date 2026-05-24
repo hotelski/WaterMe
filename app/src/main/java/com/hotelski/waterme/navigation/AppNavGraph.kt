@@ -63,7 +63,9 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.Today.route) {
             HomeRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
+                onOpenCalendar = navigationActions::navigateToCalendar,
                 onOpenPlant = { plantId -> navigationActions.navigateToPlantDetails(plantId) },
+                onOpenPlants = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
         }
 
