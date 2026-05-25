@@ -1,13 +1,13 @@
 package com.hotelski.waterme.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 @Composable
@@ -22,7 +22,7 @@ fun WaterMeNavigationScaffold(
 
     WaterMeTheme {
         Scaffold(
-            containerColor = GardenBackground,
+            containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (showBottomNavigation) {
                     BottomNavigationBar(

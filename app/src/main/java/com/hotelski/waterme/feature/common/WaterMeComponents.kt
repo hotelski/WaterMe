@@ -1,8 +1,12 @@
 package com.hotelski.waterme.feature.common
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -38,11 +43,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,6 +72,8 @@ import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,10 +112,10 @@ fun WaterMeTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = GardenBackground,
-            titleContentColor = Ink,
-            navigationIconContentColor = Ink,
-            actionIconContentColor = Ink,
+            containerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+            actionIconContentColor = MaterialTheme.colorScheme.onBackground,
         ),
     )
 }
@@ -109,18 +123,63 @@ fun WaterMeTopBar(
 @Composable
 fun WaterMeCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = CardWhite,
+    containerColor: Color = Color.Unspecified,
     content: @Composable () -> Unit,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+    WaterMePremiumCard(
+        modifier = modifier,
+        containerColor = containerColor,
+        content = content,
+    )
+}
+
+@Composable
+fun WaterMePremiumCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.Unspecified,
+    accentColor: Color = Color.Unspecified,
+    shape: RoundedCornerShape = RoundedCornerShape(28.dp),
+    content: @Composable () -> Unit,
+) {
+    val darkTheme = isSystemInDarkTheme()
+    val resolvedContainerColor = if (containerColor == Color.Unspecified) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        containerColor
+    }
+    val resolvedAccentColor = if (accentColor == Color.Unspecified) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        accentColor
+    }
+    val outlineColor = if (darkTheme) {
+        Color.White.copy(alpha = 0.07f)
+    } else {
+        Color.White.copy(alpha = 0.78f)
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = if (darkTheme) 0.dp else 12.dp,
+                shape = shape,
+                ambientColor = resolvedAccentColor.copy(alpha = 0.10f),
+                spotColor = resolvedAccentColor.copy(alpha = 0.08f),
+            )
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        resolvedContainerColor.copy(alpha = if (darkTheme) 0.92f else 0.98f),
+                        resolvedContainerColor.copy(alpha = if (darkTheme) 0.86f else 0.92f),
+                    ),
+                ),
+            )
+            .border(1.dp, outlineColor, shape)
+            .padding(16.dp),
     ) {
-        Box(Modifier.padding(16.dp)) {
-            content()
-        }
+        content()
     }
 }
 
@@ -137,9 +196,18 @@ fun WaterMePrimaryButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = LeafGreen),
+            .height(56.dp)
+            .shadow(
+                elevation = if (enabled) 10.dp else 0.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+            ),
+        shape = RoundedCornerShape(22.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -202,37 +270,26 @@ fun WaterMeEmptyState(
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
 ) {
-    WaterMeCard(
+    WaterMePremiumCard(
         modifier = modifier,
-        containerColor = SoftCream,
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f),
+        accentColor = MaterialTheme.colorScheme.primary,
     ) {
         Column(
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = LeafGreen.copy(alpha = 0.12f),
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .size(24.dp),
-                    tint = LeafGreen,
-                )
-            }
+            WaterMeIconBadge(icon = icon, size = 58.dp)
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedInk,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (actionLabel != null && onActionClick != null) {
                 OutlinedButton(
@@ -286,21 +343,144 @@ fun PlantPhotoTile(
     modifier: Modifier = Modifier,
     size: Dp = 72.dp,
 ) {
+    val imageBitmap = rememberPlantImageBitmap(photoUri)
+    val shape = RoundedCornerShape(size * 0.28f)
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(22.dp))
-            .background(LeafGreen.copy(alpha = 0.12f))
-            .border(1.dp, Color.White, RoundedCornerShape(22.dp)),
+            .shadow(
+                elevation = 8.dp,
+                shape = shape,
+                ambientColor = LeafGreen.copy(alpha = 0.16f),
+                spotColor = LeafGreen.copy(alpha = 0.12f),
+            )
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.88f),
+                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
+                    ),
+                ),
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.66f), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageBitmap != null) {
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = "$plantName photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                Icons.Rounded.LocalFlorist,
+                contentDescription = "$plantName photo",
+                modifier = Modifier.size(size * 0.46f),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+fun WaterMeIconBadge(
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    size: Dp = 44.dp,
+    color: Color = Color.Unspecified,
+    contentDescription: String? = null,
+) {
+    val resolvedColor = if (color == Color.Unspecified) MaterialTheme.colorScheme.primary else color
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.34f))
+            .background(resolvedColor.copy(alpha = 0.13f)),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            Icons.Rounded.LocalFlorist,
-            contentDescription = "$plantName photo",
-            modifier = Modifier.size(size * 0.46f),
-            tint = LeafGreen,
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(size * 0.48f),
+            tint = resolvedColor,
         )
     }
+}
+
+@Composable
+fun WaterMeStatusChip(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.13f),
+        contentColor = color,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(15.dp))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun WaterMeFloatingActionButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.shadow(
+            elevation = 14.dp,
+            shape = RoundedCornerShape(24.dp),
+            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
+        ),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+    ) {
+        Icon(icon, contentDescription = contentDescription)
+    }
+}
+
+@Composable
+private fun rememberPlantImageBitmap(photoUri: String?): ImageBitmap? {
+    val context = LocalContext.current
+    val imageState = produceState<ImageBitmap?>(initialValue = null, photoUri) {
+        value = if (photoUri.isNullOrBlank()) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver
+                        .openInputStream(Uri.parse(photoUri))
+                        ?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
+                }.getOrNull()
+            }
+        }
+    }
+    return imageState.value
 }
 
 @Composable

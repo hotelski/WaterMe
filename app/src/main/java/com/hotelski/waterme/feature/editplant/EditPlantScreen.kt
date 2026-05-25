@@ -2,6 +2,7 @@ package com.hotelski.waterme.feature.editplant
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,18 +15,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,18 +39,17 @@ import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareTypeBadge
 import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.ReminderDraftUiModel
-import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
+import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMePrimaryButton
-import com.hotelski.waterme.feature.common.WaterMeSectionHeader
+import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 data class EditPlantFieldErrors(
@@ -95,11 +98,11 @@ fun EditPlantScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = "Edit Plant",
-                navigationIcon = Icons.Rounded.ArrowBack,
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack,
                 navigationContentDescription = "Back",
                 onNavigationClick = { onEvent(EditPlantEvent.BackClicked) },
             )
@@ -129,10 +132,11 @@ private fun EditPlantContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
-        contentPadding = PaddingValues(20.dp),
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        item { EditSheetHandle() }
         item {
             PlantProfileCard(
                 uiState = uiState,
@@ -140,7 +144,7 @@ private fun EditPlantContent(
             )
         }
 
-        item { WaterMeSectionHeader("Reminder Schedule") }
+        item { EditSectionHeader("Reminder schedule", "Turn care types on or off and adjust their cadence.") }
 
         items(uiState.reminders, key = { it.careType.name }) { reminder ->
             ReminderScheduleCard(
@@ -179,14 +183,22 @@ private fun PlantProfileCard(
     val nameSupportingText: @Composable (() -> Unit)? =
         uiState.fieldErrors.name?.let { message -> { Text(message) } }
 
-    WaterMeCard {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    WaterMePremiumCard(shape = RoundedCornerShape(32.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                PlantPhotoTile(uiState.primaryPhotoUri, uiState.name, size = 86.dp)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Plant profile", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                    Text("Update the details, room, notes, and care schedule.", color = MutedInk)
-                    androidx.compose.material3.TextButton(onClick = { onEvent(EditPlantEvent.ChangePhotoClicked) }) {
+                PlantPhotoTile(uiState.primaryPhotoUri, uiState.name, size = 104.dp)
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WaterMeStatusChip(
+                        label = "Profile",
+                        color = MaterialTheme.colorScheme.primary,
+                        icon = Icons.Rounded.PhotoCamera,
+                    )
+                    Text(
+                        "Update the room, notes, and care schedule.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { onEvent(EditPlantEvent.ChangePhotoClicked) }) {
                         Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Change photo")
@@ -201,6 +213,7 @@ private fun PlantProfileCard(
                 singleLine = true,
                 isError = uiState.fieldErrors.name != null,
                 supportingText = nameSupportingText,
+                shape = RoundedCornerShape(18.dp),
             )
             OutlinedTextField(
                 value = uiState.plantType,
@@ -208,6 +221,7 @@ private fun PlantProfileCard(
                 label = { Text("Plant type") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                shape = RoundedCornerShape(18.dp),
             )
             OutlinedTextField(
                 value = uiState.location,
@@ -215,6 +229,7 @@ private fun PlantProfileCard(
                 label = { Text("Location") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                shape = RoundedCornerShape(18.dp),
             )
             OutlinedTextField(
                 value = uiState.notes,
@@ -223,6 +238,7 @@ private fun PlantProfileCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(118.dp),
+                shape = RoundedCornerShape(18.dp),
             )
         }
     }
@@ -234,13 +250,20 @@ private fun ReminderScheduleCard(
     errorMessage: String?,
     onEvent: (EditPlantEvent) -> Unit,
 ) {
-    WaterMeCard {
+    WaterMePremiumCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 CareTypeBadge(reminder.careType)
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(reminder.careType.label(), style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                    Text("Every ${reminder.everyDays.ifBlank { "?" }} days", color = MutedInk)
+                    Text(
+                        reminder.careType.label(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "Every ${reminder.everyDays.ifBlank { "?" }} days",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 Switch(
                     checked = reminder.enabled,
@@ -258,6 +281,7 @@ private fun ReminderScheduleCard(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         isError = errorMessage != null,
+                        shape = RoundedCornerShape(18.dp),
                     )
                     OutlinedTextField(
                         value = reminder.startsInDays,
@@ -268,15 +292,56 @@ private fun ReminderScheduleCard(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         isError = errorMessage != null,
+                        shape = RoundedCornerShape(18.dp),
                     )
                 }
                 if (errorMessage != null) {
                     Text(
                         text = errorMessage,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EditSheetHandle(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(5.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), RoundedCornerShape(999.dp)),
+        )
+    }
+}
+
+@Composable
+private fun EditSectionHeader(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WaterMeIconBadge(icon = Icons.Rounded.Check, size = 42.dp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

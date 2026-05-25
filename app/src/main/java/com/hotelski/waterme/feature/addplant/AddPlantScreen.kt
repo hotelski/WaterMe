@@ -1,6 +1,7 @@
 package com.hotelski.waterme.feature.addplant
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,19 +50,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareTypeBadge
 import com.hotelski.waterme.feature.common.PlantPhotoTile
-import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
+import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePrimaryButton
+import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.model.CareType
-import com.hotelski.waterme.ui.theme.CardWhite
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 data class AddPlantFieldErrors(
@@ -144,7 +142,7 @@ fun AddPlantScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = "New Plant",
@@ -186,10 +184,11 @@ private fun AddPlantContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
-        contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 32.dp),
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 36.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        item { BottomSheetHandle() }
         item {
             AddPlantHero(
                 name = uiState.name,
@@ -234,36 +233,84 @@ private fun AddPlantHero(
     onChoosePhoto: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    WaterMePremiumCard(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(34.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Plant profile",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Create a calm care profile with its first reminder and notes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ImageUploadPanel(
+                name = name.ifBlank { "New plant" },
+                photoUri = photoUri,
+                onChoosePhoto = onChoosePhoto,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomSheetHandle(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(5.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.28f), RoundedCornerShape(999.dp)),
+        )
+    }
+}
+
+@Composable
+private fun ImageUploadPanel(
+    name: String,
+    photoUri: String?,
+    onChoosePhoto: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        color = SoftCream,
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f), RoundedCornerShape(28.dp)),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.70f),
     ) {
         Row(
-            modifier = Modifier.padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PlantPhotoTile(
                 photoUri = photoUri,
-                plantName = name.ifBlank { "New plant" },
-                size = 104.dp,
+                plantName = name,
+                size = 98.dp,
             )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = "Plant profile",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Ink,
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                WaterMeStatusChip(
+                    label = if (photoUri == null) "Image upload" else "Photo ready",
+                    color = LeafGreen,
+                    icon = Icons.Rounded.PhotoCamera,
                 )
                 Text(
-                    text = "A fresh care card for a leafy new companion.",
+                    text = "Add a thumbnail for a richer plant card.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedButton(
                     onClick = onChoosePhoto,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                 ) {
                     Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -281,7 +328,7 @@ private fun PlantNameCard(
     onNameChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = CardWhite) {
+    WaterMePremiumCard(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle(
                 icon = Icons.Rounded.LocalFlorist,
@@ -310,7 +357,7 @@ private fun ReminderCard(
     onEvent: (AddPlantEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = CardWhite) {
+    WaterMePremiumCard(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionTitle(
                 icon = Icons.Rounded.Notifications,
@@ -407,7 +454,7 @@ private fun NotesCard(
     onNotesChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = CardWhite) {
+    WaterMePremiumCard(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle(
                 icon = Icons.Rounded.Spa,
@@ -439,25 +486,18 @@ private fun SectionTitle(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .background(LeafGreen.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = LeafGreen)
-        }
+        WaterMeIconBadge(icon = icon, size = 44.dp, color = MaterialTheme.colorScheme.primary)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedInk,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -473,7 +513,7 @@ private fun ChipRow(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MutedInk,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -493,7 +533,7 @@ private fun StartDateButton(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = LeafGreen.copy(alpha = 0.10f),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.44f),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -501,11 +541,20 @@ private fun StartDateButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Event, contentDescription = null, tint = LeafGreen)
+                Icon(Icons.Rounded.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
                 Column {
-                    Text("Start date", style = MaterialTheme.typography.labelLarge, color = MutedInk)
-                    Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+                    Text(
+                        "Start date",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
             }
             TextButton(onClick = onClick) {

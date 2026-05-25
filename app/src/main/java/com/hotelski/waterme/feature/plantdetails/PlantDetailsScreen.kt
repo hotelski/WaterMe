@@ -23,7 +23,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Eco
@@ -74,7 +75,9 @@ import com.hotelski.waterme.feature.common.ReminderUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeFloatingActionButton
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
+import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMePrimaryButton
 import com.hotelski.waterme.feature.common.WaterMeTopBar
@@ -139,17 +142,26 @@ fun PlantDetailsScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = uiState.plant?.name ?: "Plant Details",
-                navigationIcon = Icons.Rounded.ArrowBack,
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack,
                 navigationContentDescription = "Back",
                 onNavigationClick = { onEvent(PlantDetailsEvent.BackClicked) },
                 actionIcon = Icons.Rounded.Edit,
                 actionContentDescription = "Edit plant",
                 onActionClick = { onEvent(PlantDetailsEvent.EditClicked) },
             )
+        },
+        floatingActionButton = {
+            if (uiState.plant != null) {
+                WaterMeFloatingActionButton(
+                    onClick = { onEvent(PlantDetailsEvent.AddHealthNoteClicked) },
+                    icon = Icons.Rounded.Add,
+                    contentDescription = "Add note",
+                )
+            }
         },
     ) { innerPadding ->
         val blockingError = uiState.errorMessage
@@ -167,15 +179,12 @@ fun PlantDetailsScreen(
             }
 
             else -> {
-                val plant = uiState.plant
-                if (plant != null) {
-                    PlantDetailsContent(
-                        uiState = uiState,
-                        plant = plant,
-                        onEvent = onEvent,
-                        modifier = Modifier.padding(innerPadding),
-                    )
-                }
+                PlantDetailsContent(
+                    uiState = uiState,
+                    plant = requireNotNull(uiState.plant),
+                    onEvent = onEvent,
+                    modifier = Modifier.padding(innerPadding),
+                )
             }
         }
     }
@@ -191,8 +200,8 @@ private fun PlantDetailsContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
-        contentPadding = PaddingValues(20.dp),
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         if (uiState.errorMessage != null) {
@@ -435,7 +444,7 @@ private fun ExpandableDetailsSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(CardWhite)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -451,8 +460,13 @@ private fun ExpandableDetailsSection(
                 Icon(icon, contentDescription = null, tint = LeafGreen)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { expanded = !expanded }) {
                 Icon(
@@ -568,13 +582,18 @@ private fun NotesSection(
     onEvent: (PlantDetailsEvent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        WaterMeCard(modifier = Modifier.animateContentSize()) {
+        WaterMePremiumCard(modifier = Modifier.animateContentSize(), shape = RoundedCornerShape(28.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Plant notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+                Text(
+                    "Plant notes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Text(
                     text = plant.notes.ifBlank { "No notes yet. Use Edit plant to add care preferences, light needs, or soil details." },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -586,13 +605,14 @@ private fun NotesSection(
         )
 
         if (healthNotes.isEmpty()) {
-            WaterMeEmptyState(
-                title = "No health notes",
-                message = "Track yellow leaves, dry soil, pests, or new growth here.",
-                icon = Icons.Rounded.Spa,
-            )
+            NotesEmptyState()
         } else {
-            Text("Recent health notes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+            Text(
+                "Recent health notes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
             healthNotes.take(3).forEach { note -> HealthNoteRow(note = note) }
         }
     }
@@ -604,9 +624,18 @@ private fun HealthNoteComposer(
     selectedMood: HealthMood,
     onEvent: (PlantDetailsEvent) -> Unit,
 ) {
-    WaterMeCard(modifier = Modifier.animateContentSize()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Log a quick observation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+    WaterMePremiumCard(
+        modifier = Modifier.animateContentSize(),
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.36f),
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(
+                "Log a quick observation",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -625,11 +654,51 @@ private fun HealthNoteComposer(
                 label = { Text("Yellow leaves, dry soil, new growth...") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
+                shape = RoundedCornerShape(20.dp),
             )
             WaterMePrimaryButton(
                 label = "Add note",
                 onClick = { onEvent(PlantDetailsEvent.AddHealthNoteClicked) },
                 enabled = draft.isNotBlank(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotesEmptyState() {
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(78.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.Spa,
+                    contentDescription = null,
+                    modifier = Modifier.size(38.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                text = "No health notes",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Track yellow leaves, dry soil, pests, or new growth here.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

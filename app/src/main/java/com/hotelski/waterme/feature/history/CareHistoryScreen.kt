@@ -22,8 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -57,24 +58,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareHistoryUiModel
 import com.hotelski.waterme.feature.common.CareTypeBadge
-import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeFloatingActionButton
+import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
+import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.common.WaterMeSectionHeader
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.accentColor
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.feature.common.shortLabel
 import com.hotelski.waterme.model.CareType
-import com.hotelski.waterme.ui.theme.CardWhite
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 @Composable
@@ -85,16 +82,23 @@ fun CareHistoryScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = "Care History",
-                navigationIcon = Icons.Rounded.ArrowBack,
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack,
                 navigationContentDescription = "Back",
                 onNavigationClick = { onEvent(CareHistoryEvent.BackClicked) },
                 actionIcon = Icons.Rounded.Add,
                 actionContentDescription = "Log care",
                 onActionClick = { onEvent(CareHistoryEvent.AddManualEntryClicked) },
+            )
+        },
+        floatingActionButton = {
+            WaterMeFloatingActionButton(
+                onClick = { onEvent(CareHistoryEvent.AddManualEntryClicked) },
+                icon = Icons.Rounded.Add,
+                contentDescription = "Log care",
             )
         },
     ) { innerPadding ->
@@ -137,8 +141,8 @@ private fun CareHistoryContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
-        contentPadding = PaddingValues(20.dp),
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
@@ -182,13 +186,18 @@ private fun CareHistoryContent(
                 )
             }
         } else {
-            item { WaterMeSectionHeader("Timeline") }
-            items(uiState.entries, key = { it.id }) { entry ->
-                TimelineCareHistoryItem(
-                    entry = entry,
-                    onEdit = { onEvent(CareHistoryEvent.EditEntryClicked(entry)) },
-                    onDelete = { onEvent(CareHistoryEvent.DeleteEntryClicked(entry.id)) },
-                )
+            val groupedEntries = uiState.entries.groupBy { it.dateLabel }
+            groupedEntries.forEach { (dateLabel, entries) ->
+                item(key = "date-$dateLabel") {
+                    TimelineDateHeader(dateLabel = dateLabel)
+                }
+                items(entries, key = { it.id }) { entry ->
+                    TimelineCareHistoryItem(
+                        entry = entry,
+                        onEdit = { onEvent(CareHistoryEvent.EditEntryClicked(entry)) },
+                        onDelete = { onEvent(CareHistoryEvent.DeleteEntryClicked(entry.id)) },
+                    )
+                }
             }
         }
     }
@@ -200,7 +209,11 @@ private fun CareHistorySummaryCard(
     onLogCare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = CardWhite) {
+    WaterMePremiumCard(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+        shape = RoundedCornerShape(32.dp),
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -212,12 +225,12 @@ private fun CareHistorySummaryCard(
                         text = "Plant care journal",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "Completed tasks, manual logs, notes, and care photos.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 FilledTonalButton(onClick = onLogCare) {
@@ -258,7 +271,11 @@ private fun SummaryPill(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MutedInk)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -269,21 +286,24 @@ private fun CareHistoryFilters(
     onEvent: (CareHistoryEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = SoftCream) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    WaterMePremiumCard(
+        modifier = modifier.animateContentSize(),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.36f),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.FilterList, contentDescription = null, tint = LeafGreen)
+                    WaterMeIconBadge(icon = Icons.Rounded.FilterList, size = 42.dp, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Filters",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 if (uiState.hasActiveFilters) {
@@ -346,7 +366,7 @@ private fun FilterRow(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MutedInk,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -365,7 +385,7 @@ private fun CareHistoryMessage(
 ) {
     val message = successMessage ?: errorMessage ?: return
     val color = if (successMessage != null) LeafGreen else Clay
-    WaterMeCard(
+    WaterMePremiumCard(
         modifier = modifier,
         containerColor = color.copy(alpha = 0.10f),
     ) {
@@ -381,9 +401,40 @@ private fun CareHistoryMessage(
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
+    }
+}
+
+@Composable
+private fun TimelineDateHeader(
+    dateLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+        )
+        Text(
+            text = dateLabel,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+        )
     }
 }
 
@@ -399,10 +450,11 @@ private fun TimelineCareHistoryItem(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TimelineMarker(entry.careType)
-        WaterMeCard(
+        WaterMePremiumCard(
             modifier = Modifier
                 .weight(1f)
                 .animateContentSize(),
+            shape = RoundedCornerShape(26.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -415,12 +467,12 @@ private fun TimelineCareHistoryItem(
                             text = "${entry.actionLabel} ${entry.careType.shortLabel().lowercase()}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Ink,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "${entry.plantName} - ${entry.dateLabel}",
+                            text = entry.plantName,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MutedInk,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -436,11 +488,11 @@ private fun TimelineCareHistoryItem(
                 }
                 if (entry.notes.isNotBlank()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Rounded.Notes, contentDescription = null, tint = LeafGreen, modifier = Modifier.size(18.dp))
+                        Icon(Icons.AutoMirrored.Rounded.Notes, contentDescription = null, tint = LeafGreen, modifier = Modifier.size(18.dp))
                         Text(
                             text = entry.notes,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Ink,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -597,7 +649,7 @@ private fun DialogChipSection(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MutedInk,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
