@@ -11,6 +11,7 @@ import com.hotelski.waterme.feature.common.toCareTaskUiModel
 import com.hotelski.waterme.feature.common.toHealthNoteUiModel
 import com.hotelski.waterme.feature.common.toPlantCardUiModel
 import com.hotelski.waterme.feature.common.toReminderUiModel
+import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.model.HealthMood
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,7 @@ class HomeViewModel(
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
+    private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
 
     private val actionState = MutableStateFlow(HomeActionState())
     private val _effects = MutableSharedFlow<HomeEffect>()
@@ -49,8 +51,9 @@ class HomeViewModel(
         careRepository.observeTasksDueBy(endOfTodayMillis()),
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        settingsDataStore.settings,
         actionState,
-    ) { tasks, plants, careHistory, action ->
+    ) { tasks, plants, careHistory, settings, action ->
         val todayStartMillis = startOfTodayMillis()
         val todayTasks = tasks.filter { it.effectiveDueAt >= todayStartMillis }
         val overdueTasks = tasks.filter { it.effectiveDueAt < todayStartMillis }
@@ -97,6 +100,7 @@ class HomeViewModel(
             ),
             plantCount = plants.size,
             reminderCount = activeReminders.size,
+            activeCharacter = activePlantCharacter(careHistory, settings.selectedCharacterId),
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 sealed interface SettingsEffect {
     data object NavigateToOnboarding : SettingsEffect
     data object RequestNotificationPermission : SettingsEffect
+    data object NavigateToCharacters : SettingsEffect
 }
 
 private data class SettingsActionState(
@@ -96,6 +97,7 @@ class SettingsViewModel(
     fun onEvent(event: SettingsEvent) {
         when (event) {
             SettingsEvent.ShowOnboardingClicked -> emitEffect(SettingsEffect.NavigateToOnboarding)
+            SettingsEvent.CharactersClicked -> emitEffect(SettingsEffect.NavigateToCharacters)
             SettingsEvent.RequestNotificationPermissionClicked -> emitEffect(SettingsEffect.RequestNotificationPermission)
             is SettingsEvent.ProfileNameChanged -> updateProfileName(event.value)
             is SettingsEvent.NotificationsChanged -> updateNotifications(event.enabled)

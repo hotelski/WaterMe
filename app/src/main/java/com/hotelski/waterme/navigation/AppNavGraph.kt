@@ -16,6 +16,7 @@ import androidx.navigation.navArgument
 import com.hotelski.waterme.feature.common.AddPlantRoute
 import com.hotelski.waterme.feature.common.CalendarRoute
 import com.hotelski.waterme.feature.common.CareHistoryRoute
+import com.hotelski.waterme.feature.common.CharactersRoute
 import com.hotelski.waterme.feature.common.EditPlantRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
@@ -168,6 +169,13 @@ fun AppNavGraph(
             SettingsRoute(
                 onShowOnboarding = { navController.navigate(WaterMeRoute.Onboarding.route) },
                 onRequestNotificationPermission = {},
+                onOpenCharacters = navigationActions::navigateToCharacters,
+            )
+        }
+
+        waterMeComposable(WaterMeRoute.Characters.route) {
+            CharactersRoute(
+                onBack = navigationActions::back,
             )
         }
     }

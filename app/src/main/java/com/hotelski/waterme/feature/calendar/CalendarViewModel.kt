@@ -9,6 +9,7 @@ import com.hotelski.waterme.feature.common.CareHistoryUiModel
 import com.hotelski.waterme.feature.common.CareTaskUiModel
 import com.hotelski.waterme.feature.common.toCareHistoryUiModel
 import com.hotelski.waterme.feature.common.toCareTaskUiModel
+import com.hotelski.waterme.feature.characters.activePlantCharacter
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -54,6 +55,7 @@ class CalendarViewModel(
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
+    private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
     private val clock = Clock.systemDefaultZone()
 
     private val selectedDate = MutableStateFlow(LocalDate.now(clock))
@@ -104,7 +106,14 @@ class CalendarViewModel(
         )
     }
 
-    val uiState = combine(calendarData, actionState) { data, action ->
+    private val activeCharacter = combine(
+        careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        settingsDataStore.settings,
+    ) { careHistory, settings ->
+        activePlantCharacter(careHistory, settings.selectedCharacterId, clock)
+    }
+
+    val uiState = combine(calendarData, activeCharacter, actionState) { data, character, action ->
         val tasks = data.tasks
         val historyModels = data.history
         val plants = data.plantOptions
@@ -135,6 +144,7 @@ class CalendarViewModel(
             monthlyLogs = filteredMonthLogs,
             selectedPlantId = plantId,
             plantOptions = plants,
+            activeCharacter = character,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )

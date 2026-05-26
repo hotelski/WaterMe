@@ -16,6 +16,7 @@ import com.hotelski.waterme.feature.common.toCareTaskUiModel
 import com.hotelski.waterme.feature.common.toHealthNoteUiModel
 import com.hotelski.waterme.feature.common.toPlantDetailsUiModel
 import com.hotelski.waterme.feature.common.toReminderUiModel
+import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.model.HealthMood
 import com.hotelski.waterme.navigation.WaterMeRoute
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -62,6 +63,7 @@ class PlantDetailsViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val reminderRepository = WaterMeAppContainer.reminderRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
+    private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
 
     private val plantId: String = checkNotNull(savedStateHandle[WaterMeRoute.PlantDetails.PLANT_ID_ARG])
     private val healthDraft = MutableStateFlow(HealthNoteDraftState())
@@ -84,11 +86,19 @@ class PlantDetailsViewModel(
         )
     }
 
+    private val activeCharacter = combine(
+        careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        settingsDataStore.settings,
+    ) { careHistory, settings ->
+        activePlantCharacter(careHistory, settings.selectedCharacterId)
+    }
+
     val uiState = combine(
         plantDetailsData,
+        activeCharacter,
         healthDraft,
         actionState,
-    ) { data, draft, action ->
+    ) { data, character, draft, action ->
         val plantUi = data.plantDetails?.toPlantDetailsUiModel()
         PlantDetailsUiState(
             isLoading = false,
@@ -113,6 +123,7 @@ class PlantDetailsViewModel(
                 .map { it.toHealthNoteUiModel(plantUi?.name.orEmpty()) },
             healthNoteDraft = draft.note,
             selectedHealthMood = draft.mood,
+            activeCharacter = character,
             isDeleting = action.isDeleting,
             showDeleteConfirmation = action.showDeleteConfirmation,
             errorMessage = action.errorMessage,

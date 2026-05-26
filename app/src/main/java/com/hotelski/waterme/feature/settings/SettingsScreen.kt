@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.Restore
@@ -108,6 +109,7 @@ data class SettingsUiState(
 sealed interface SettingsEvent {
     data object RetryClicked : SettingsEvent
     data object ShowOnboardingClicked : SettingsEvent
+    data object CharactersClicked : SettingsEvent
     data object RequestNotificationPermissionClicked : SettingsEvent
     data object BackupNowClicked : SettingsEvent
     data object RestoreBackupClicked : SettingsEvent
@@ -202,6 +204,7 @@ private fun SettingsContent(
         }
 
         item { ProfileSettingsCard(uiState, onEvent) }
+        item { CharacterSettingsCard(onEvent) }
         item { NotificationSettingsCard(uiState, onEvent) }
         item { DefaultReminderTimesCard(uiState, onEvent) }
         item { AppearanceSettingsCard(uiState, onEvent) }
@@ -233,6 +236,28 @@ private fun ProfileSettingsCard(
             singleLine = true,
         )
         SettingsInfoRow("Profile type", "Local WaterMe profile")
+    }
+}
+
+@Composable
+private fun CharacterSettingsCard(
+    onEvent: (SettingsEvent) -> Unit,
+) {
+    SettingsSectionCard(
+        title = "Characters",
+        subtitle = "Choose a plant companion and unlock new styles through care achievements.",
+        icon = Icons.Rounded.LocalFlorist,
+    ) {
+        SettingsInfoRow("Unlocks", "Dynamic achievements")
+        OutlinedButton(
+            onClick = { onEvent(SettingsEvent.CharactersClicked) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Icon(Icons.Rounded.LocalFlorist, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Open character garden")
+        }
     }
 }
 

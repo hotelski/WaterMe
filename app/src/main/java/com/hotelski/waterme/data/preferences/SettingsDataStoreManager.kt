@@ -24,6 +24,7 @@ private val Context.waterMeSettingsDataStore by preferencesDataStore(name = "wat
 
 data class SettingsPreferences(
     val profileName: String = "Plant keeper",
+    val selectedCharacterId: String = DEFAULT_CHARACTER_ID,
     val notificationsEnabled: Boolean = true,
     val notificationPermissionState: NotificationPermissionState = NotificationPermissionState.NOT_REQUESTED,
     val defaultReminderHour: Int = 9,
@@ -41,6 +42,7 @@ data class SettingsPreferences(
 
 object WaterMePreferenceKeys {
     val PROFILE_NAME = stringPreferencesKey("profile_name")
+    val SELECTED_CHARACTER_ID = stringPreferencesKey("selected_character_id")
     val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
     val NOTIFICATION_PERMISSION_STATE = stringPreferencesKey("notification_permission_state")
     val DEFAULT_REMINDER_HOUR = intPreferencesKey("default_reminder_hour")
@@ -75,6 +77,12 @@ class SettingsDataStoreManager(
     suspend fun updateProfileName(name: String) {
         dataStore.edit { preferences ->
             preferences[WaterMePreferenceKeys.PROFILE_NAME] = name.trim().ifBlank { "Plant keeper" }
+        }
+    }
+
+    suspend fun updateSelectedCharacterId(characterId: String) {
+        dataStore.edit { preferences ->
+            preferences[WaterMePreferenceKeys.SELECTED_CHARACTER_ID] = characterId
         }
     }
 
@@ -170,6 +178,7 @@ class SettingsDataStoreManager(
 private fun Preferences.toSettingsPreferences(): SettingsPreferences =
     SettingsPreferences(
         profileName = this[WaterMePreferenceKeys.PROFILE_NAME] ?: "Plant keeper",
+        selectedCharacterId = this[WaterMePreferenceKeys.SELECTED_CHARACTER_ID] ?: DEFAULT_CHARACTER_ID,
         notificationsEnabled = this[WaterMePreferenceKeys.NOTIFICATIONS_ENABLED] ?: true,
         notificationPermissionState = enumPreference(
             this[WaterMePreferenceKeys.NOTIFICATION_PERMISSION_STATE],
@@ -187,6 +196,8 @@ private fun Preferences.toSettingsPreferences(): SettingsPreferences =
         analyticsEnabled = this[WaterMePreferenceKeys.ANALYTICS_ENABLED] ?: false,
         diagnosticsEnabled = this[WaterMePreferenceKeys.DIAGNOSTICS_ENABLED] ?: false,
     )
+
+private const val DEFAULT_CHARACTER_ID = "SPROUT"
 
 private inline fun <reified T : Enum<T>> enumPreference(
     value: String?,

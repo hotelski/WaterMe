@@ -52,6 +52,10 @@ class WaterMeNavigationActions(
         navController.navigate(WaterMeRoute.CareHistory.createRoute(plantId))
     }
 
+    fun navigateToCharacters() {
+        navController.navigate(WaterMeRoute.Characters.route)
+    }
+
     fun navigateToSettings() {
         navController.navigate(WaterMeRoute.Settings.route) {
             launchSingleTop = true

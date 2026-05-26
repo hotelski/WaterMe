@@ -84,6 +84,8 @@ import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.accentColor
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.feature.common.shortLabel
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.HealthMood
 import com.hotelski.waterme.ui.theme.CardWhite
@@ -104,11 +106,15 @@ data class PlantDetailsUiState(
     val healthNotes: List<HealthNoteUiModel> = emptyList(),
     val healthNoteDraft: String = "",
     val selectedHealthMood: HealthMood = HealthMood.ATTENTION,
+    val activeCharacter: PlantCharacterUiModel? = null,
     val isDeleting: Boolean = false,
     val showDeleteConfirmation: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
-)
+) {
+    val shouldShowCharacterCelebration: Boolean
+        get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
+}
 
 sealed interface PlantDetailsEvent {
     data object BackClicked : PlantDetailsEvent
@@ -221,6 +227,14 @@ private fun PlantDetailsContent(
                     message = uiState.successMessage,
                     color = LeafGreen,
                     icon = Icons.Rounded.Check,
+                )
+            }
+        }
+        if (uiState.shouldShowCharacterCelebration) {
+            item {
+                PlantCharacterCelebrationCard(
+                    character = requireNotNull(uiState.activeCharacter),
+                    message = uiState.successMessage.orEmpty(),
                 )
             }
         }

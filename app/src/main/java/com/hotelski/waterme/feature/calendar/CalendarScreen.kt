@@ -68,6 +68,8 @@ import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.accentColor
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.feature.common.shortLabel
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.Ink
@@ -102,11 +104,15 @@ data class CalendarUiState(
     val monthlyLogs: List<CareHistoryUiModel> = emptyList(),
     val selectedPlantId: String? = null,
     val plantOptions: List<CalendarPlantFilterUiModel> = emptyList(),
+    val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
 ) {
     val selectedPlantLabel: String
         get() = plantOptions.firstOrNull { it.id == selectedPlantId }?.name ?: "All plants"
+
+    val shouldShowCharacterCelebration: Boolean
+        get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
 }
 
 sealed interface CalendarEvent {
@@ -192,6 +198,15 @@ private fun CalendarContent(
                 CalendarMessage(
                     successMessage = uiState.successMessage,
                     errorMessage = uiState.errorMessage,
+                )
+            }
+        }
+
+        if (uiState.shouldShowCharacterCelebration) {
+            item {
+                PlantCharacterCelebrationCard(
+                    character = requireNotNull(uiState.activeCharacter),
+                    message = uiState.successMessage.orEmpty(),
                 )
             }
         }

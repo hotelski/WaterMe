@@ -15,6 +15,9 @@ import com.hotelski.waterme.feature.addplant.AddPlantViewModel
 import com.hotelski.waterme.feature.calendar.CalendarEffect
 import com.hotelski.waterme.feature.calendar.CalendarScreen
 import com.hotelski.waterme.feature.calendar.CalendarViewModel
+import com.hotelski.waterme.feature.characters.CharactersEffect
+import com.hotelski.waterme.feature.characters.CharactersScreen
+import com.hotelski.waterme.feature.characters.CharactersViewModel
 import com.hotelski.waterme.feature.history.CareHistoryEffect
 import com.hotelski.waterme.feature.history.CareHistoryScreen
 import com.hotelski.waterme.feature.history.CareHistoryViewModel
@@ -254,6 +257,7 @@ fun CareHistoryRoute(
 fun SettingsRoute(
     onShowOnboarding: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
+    onOpenCharacters: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel(),
 ) {
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -263,6 +267,7 @@ fun SettingsRoute(
             when (effect) {
                 SettingsEffect.NavigateToOnboarding -> onShowOnboarding()
                 SettingsEffect.RequestNotificationPermission -> onRequestNotificationPermission()
+                SettingsEffect.NavigateToCharacters -> onOpenCharacters()
             }
         }
     }
@@ -270,5 +275,26 @@ fun SettingsRoute(
     SettingsScreen(
         uiState = uiState,
         onEvent = settingsViewModel::onEvent,
+    )
+}
+
+@Composable
+fun CharactersRoute(
+    onBack: () -> Unit,
+    charactersViewModel: CharactersViewModel = viewModel(),
+) {
+    val uiState by charactersViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(charactersViewModel) {
+        charactersViewModel.effects.collect { effect ->
+            when (effect) {
+                CharactersEffect.NavigateBack -> onBack()
+            }
+        }
+    }
+
+    CharactersScreen(
+        uiState = uiState,
+        onEvent = charactersViewModel::onEvent,
     )
 }

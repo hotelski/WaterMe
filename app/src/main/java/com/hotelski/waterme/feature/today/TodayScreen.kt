@@ -66,6 +66,8 @@ import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeSectionHeader
 import com.hotelski.waterme.feature.common.WaterMeTopBar
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
 import com.hotelski.waterme.ui.theme.GardenBackground
@@ -103,6 +105,7 @@ data class TodayUiState(
     val progressStats: DashboardProgressUiModel = DashboardProgressUiModel(),
     val plantCount: Int = 0,
     val reminderCount: Int = 0,
+    val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
 ) {
@@ -111,6 +114,9 @@ data class TodayUiState(
 
     val totalOpenTasks: Int
         get() = tasks.size + overdueTasks.size
+
+    val shouldShowCharacterCelebration: Boolean
+        get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
 }
 
 sealed interface TodayEvent {
@@ -192,6 +198,14 @@ private fun PhoneDashboard(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { DashboardHeroCard(uiState) }
+        if (uiState.shouldShowCharacterCelebration) {
+            item {
+                PlantCharacterCelebrationCard(
+                    character = requireNotNull(uiState.activeCharacter),
+                    message = uiState.successMessage.orEmpty(),
+                )
+            }
+        }
         item { QuickActionsCard(onEvent) }
 
         if (uiState.hasNoPlants) {
@@ -249,6 +263,14 @@ private fun TabletDashboard(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { DashboardHeroCard(uiState) }
+            if (uiState.shouldShowCharacterCelebration) {
+                item {
+                    PlantCharacterCelebrationCard(
+                        character = requireNotNull(uiState.activeCharacter),
+                        message = uiState.successMessage.orEmpty(),
+                    )
+                }
+            }
             item { QuickActionsCard(onEvent) }
             dashboardTaskSection(
                 title = "Overdue",

@@ -68,7 +68,11 @@ sealed interface WaterMeRoute {
                 "care-history"
             } else {
                 "care-history?$PLANT_ID_ARG=${Uri.encode(plantId)}"
-            }
+        }
+    }
+
+    data object Characters : WaterMeRoute {
+        override val route = "characters"
     }
 
     data object Settings : WaterMeRoute {
