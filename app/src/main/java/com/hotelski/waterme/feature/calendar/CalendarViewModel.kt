@@ -77,7 +77,7 @@ class CalendarViewModel(
 
     private fun completeTask(taskId: String) {
         viewModelScope.launch {
-            runCatching { careRepository.markTaskCompleted(taskId) }
+            runCatching { careRepository.markCalendarTaskCompleted(taskId) }
                 .onSuccess { actionState.value = CalendarActionState(successMessage = "Care task completed.") }
                 .onFailure { actionState.value = CalendarActionState(errorMessage = it.toUserMessage()) }
         }

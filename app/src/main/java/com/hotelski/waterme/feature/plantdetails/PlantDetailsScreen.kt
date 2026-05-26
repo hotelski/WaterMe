@@ -347,20 +347,6 @@ private fun PlantHeroCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = plant.plantType,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = LeafGreen,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = plant.location,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

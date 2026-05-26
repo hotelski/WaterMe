@@ -21,15 +21,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +46,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareTypeBadge
 import com.hotelski.waterme.feature.common.PlantPhotoTile
-import com.hotelski.waterme.feature.common.ReminderDraftUiModel
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
@@ -57,6 +64,22 @@ data class EditPlantFieldErrors(
     val reminders: Map<CareType, String> = emptyMap(),
 )
 
+enum class EditReminderPeriod {
+    AM,
+    PM,
+}
+
+data class EditReminderDraftUiModel(
+    val careType: CareType,
+    val enabled: Boolean,
+    val everyDays: String,
+    val startDateMillis: Long,
+    val startDateLabel: String,
+    val preferredHour: String,
+    val preferredMinute: String,
+    val preferredPeriod: EditReminderPeriod,
+)
+
 data class EditPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -66,7 +89,8 @@ data class EditPlantUiState(
     val location: String = "",
     val notes: String = "",
     val primaryPhotoUri: String? = null,
-    val reminders: List<ReminderDraftUiModel> = emptyList(),
+    val reminders: List<EditReminderDraftUiModel> = emptyList(),
+    val startDatePickerCareType: CareType? = null,
     val fieldErrors: EditPlantFieldErrors = EditPlantFieldErrors(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
@@ -81,13 +105,18 @@ sealed interface EditPlantEvent {
     data object DeleteClicked : EditPlantEvent
     data object ChangePhotoClicked : EditPlantEvent
     data object RetryClicked : EditPlantEvent
+    data object DismissStartDatePicker : EditPlantEvent
     data class NameChanged(val value: String) : EditPlantEvent
     data class PlantTypeChanged(val value: String) : EditPlantEvent
     data class LocationChanged(val value: String) : EditPlantEvent
     data class NotesChanged(val value: String) : EditPlantEvent
     data class ReminderEnabledChanged(val careType: CareType, val enabled: Boolean) : EditPlantEvent
     data class ReminderEveryDaysChanged(val careType: CareType, val value: String) : EditPlantEvent
-    data class ReminderStartsInChanged(val careType: CareType, val value: String) : EditPlantEvent
+    data class ReminderHourChanged(val careType: CareType, val value: String) : EditPlantEvent
+    data class ReminderMinuteChanged(val careType: CareType, val value: String) : EditPlantEvent
+    data class ReminderPeriodSelected(val careType: CareType, val period: EditReminderPeriod) : EditPlantEvent
+    data class ReminderStartDateClicked(val careType: CareType) : EditPlantEvent
+    data class ReminderStartDateSelected(val millis: Long?) : EditPlantEvent
 }
 
 @Composable
@@ -96,6 +125,16 @@ fun EditPlantScreen(
     onEvent: (EditPlantEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (uiState.startDatePickerCareType != null) {
+        StartDatePickerDialog(
+            initialSelectedDateMillis = uiState.reminders
+                .firstOrNull { it.careType == uiState.startDatePickerCareType }
+                ?.startDateMillis,
+            onDismiss = { onEvent(EditPlantEvent.DismissStartDatePicker) },
+            onConfirm = { selectedMillis -> onEvent(EditPlantEvent.ReminderStartDateSelected(selectedMillis)) },
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -144,7 +183,7 @@ private fun EditPlantContent(
             )
         }
 
-        item { EditSectionHeader("Reminder schedule", "Turn care types on or off and adjust their cadence.") }
+        item { EditSectionHeader("Reminder schedule", "Adjust watering and fertilizing cadence.") }
 
         items(uiState.reminders, key = { it.careType.name }) { reminder ->
             ReminderScheduleCard(
@@ -194,7 +233,7 @@ private fun PlantProfileCard(
                         icon = Icons.Rounded.PhotoCamera,
                     )
                     Text(
-                        "Update the room, notes, and care schedule.",
+                        "Update notes, photo, and care schedule.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -216,22 +255,6 @@ private fun PlantProfileCard(
                 shape = RoundedCornerShape(18.dp),
             )
             OutlinedTextField(
-                value = uiState.plantType,
-                onValueChange = { onEvent(EditPlantEvent.PlantTypeChanged(it)) },
-                label = { Text("Plant type") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-            )
-            OutlinedTextField(
-                value = uiState.location,
-                onValueChange = { onEvent(EditPlantEvent.LocationChanged(it)) },
-                label = { Text("Location") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-            )
-            OutlinedTextField(
                 value = uiState.notes,
                 onValueChange = { onEvent(EditPlantEvent.NotesChanged(it)) },
                 label = { Text("Notes") },
@@ -246,7 +269,7 @@ private fun PlantProfileCard(
 
 @Composable
 private fun ReminderScheduleCard(
-    reminder: ReminderDraftUiModel,
+    reminder: EditReminderDraftUiModel,
     errorMessage: String?,
     onEvent: (EditPlantEvent) -> Unit,
 ) {
@@ -271,28 +294,33 @@ private fun ReminderScheduleCard(
                 )
             }
             if (reminder.enabled) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = reminder.everyDays,
                         onValueChange = { onEvent(EditPlantEvent.ReminderEveryDaysChanged(reminder.careType, it)) },
                         label = { Text("Every") },
                         suffix = { Text("days") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         isError = errorMessage != null,
                         shape = RoundedCornerShape(18.dp),
                     )
-                    OutlinedTextField(
-                        value = reminder.startsInDays,
-                        onValueChange = { onEvent(EditPlantEvent.ReminderStartsInChanged(reminder.careType, it)) },
-                        label = { Text("Starts in") },
-                        suffix = { Text("days") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        isError = errorMessage != null,
-                        shape = RoundedCornerShape(18.dp),
+                    StartDateButton(
+                        label = reminder.startDateLabel,
+                        onClick = { onEvent(EditPlantEvent.ReminderStartDateClicked(reminder.careType)) },
+                    )
+                    NotificationTimeFields(
+                        reminder = reminder,
+                        onHourChanged = {
+                            onEvent(EditPlantEvent.ReminderHourChanged(reminder.careType, it))
+                        },
+                        onMinuteChanged = {
+                            onEvent(EditPlantEvent.ReminderMinuteChanged(reminder.careType, it))
+                        },
+                        onPeriodSelected = {
+                            onEvent(EditPlantEvent.ReminderPeriodSelected(reminder.careType, it))
+                        },
                     )
                 }
                 if (errorMessage != null) {
@@ -303,6 +331,122 @@ private fun ReminderScheduleCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NotificationTimeFields(
+    reminder: EditReminderDraftUiModel,
+    onHourChanged: (String) -> Unit,
+    onMinuteChanged: (String) -> Unit,
+    onPeriodSelected: (EditReminderPeriod) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Notification time",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = reminder.preferredHour,
+                onValueChange = onHourChanged,
+                label = { Text("Hour") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+            )
+            OutlinedTextField(
+                value = reminder.preferredMinute,
+                onValueChange = onMinuteChanged,
+                label = { Text("Minute") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EditReminderPeriod.entries.forEach { period ->
+                    FilterChip(
+                        selected = reminder.preferredPeriod == period,
+                        onClick = { onPeriodSelected(period) },
+                        label = { Text(period.name) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StartDateButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Column {
+                    Text(
+                        text = "Start date",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            TextButton(onClick = onClick) {
+                Text("Choose")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StartDatePickerDialog(
+    initialSelectedDateMillis: Long?,
+    onDismiss: () -> Unit,
+    onConfirm: (Long?) -> Unit,
+) {
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialSelectedDateMillis)
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = { onConfirm(datePickerState.selectedDateMillis) }) {
+                Text("Use date")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    ) {
+        DatePicker(state = datePickerState)
     }
 }
 
@@ -356,7 +500,28 @@ private fun EditPlantScreenPreview() {
                 plantType = WaterMePreviewData.plantDetails.plantType,
                 location = WaterMePreviewData.plantDetails.location,
                 notes = WaterMePreviewData.plantDetails.notes,
-                reminders = WaterMePreviewData.reminderDrafts,
+                reminders = listOf(
+                    EditReminderDraftUiModel(
+                        CareType.WATERING,
+                        enabled = true,
+                        everyDays = "5",
+                        startDateMillis = 0L,
+                        startDateLabel = "Today",
+                        preferredHour = "9",
+                        preferredMinute = "0",
+                        preferredPeriod = EditReminderPeriod.AM,
+                    ),
+                    EditReminderDraftUiModel(
+                        CareType.FERTILIZING,
+                        enabled = false,
+                        everyDays = "30",
+                        startDateMillis = 0L,
+                        startDateLabel = "Jun 25",
+                        preferredHour = "9",
+                        preferredMinute = "0",
+                        preferredPeriod = EditReminderPeriod.AM,
+                    ),
+                ),
             ),
             onEvent = {},
         )

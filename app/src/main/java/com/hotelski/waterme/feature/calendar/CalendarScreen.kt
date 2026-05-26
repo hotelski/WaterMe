@@ -97,6 +97,7 @@ fun CalendarScreen(
                             task = task,
                             onOpenPlant = { onEvent(CalendarEvent.TaskClicked(task.plantId, task.id)) },
                             onComplete = { onEvent(CalendarEvent.CompleteTask(task.id)) },
+                            completeEnabled = day.isToday,
                         )
                     }
                 }

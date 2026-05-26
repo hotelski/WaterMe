@@ -539,13 +539,6 @@ fun PlantCard(
                         CountPill("${plant.dueTaskCount} due")
                     }
                 }
-                Text(
-                    text = "${plant.plantType} - ${plant.location}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
                 if (plant.nextCareLabel != null) {
                     Text(
                         text = plant.nextCareLabel,
@@ -566,6 +559,7 @@ fun CareTaskCard(
     onOpenPlant: () -> Unit,
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
+    completeEnabled: Boolean = true,
     onSkip: (() -> Unit)? = null,
     onSnooze: (() -> Unit)? = null,
 ) {
@@ -606,6 +600,7 @@ fun CareTaskCard(
             ) {
                 Button(
                     onClick = onComplete,
+                    enabled = completeEnabled,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = LeafGreen),
                 ) {

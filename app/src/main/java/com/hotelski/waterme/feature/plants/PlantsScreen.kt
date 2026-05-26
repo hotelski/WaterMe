@@ -13,11 +13,14 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,12 +28,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Schedule
@@ -40,9 +42,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -71,7 +73,6 @@ import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.ui.theme.Clay
@@ -80,11 +81,16 @@ import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 import kotlin.math.roundToInt
 
+enum class PlantCardPanel {
+    NOTES,
+    LOGS,
+}
+
 data class PlantsUiState(
     val isLoading: Boolean = false,
     val plants: List<PlantCardUiModel> = emptyList(),
     val searchQuery: String = "",
-    val expandedPlantIds: Set<String> = emptySet(),
+    val selectedPlantPanels: Map<String, PlantCardPanel> = emptyMap(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
 ) {
@@ -96,7 +102,7 @@ sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
     data class EditPlantClicked(val plantId: String) : PlantsEvent
-    data class NotesAndLogsClicked(val plantId: String) : PlantsEvent
+    data class PlantPanelClicked(val plantId: String, val panel: PlantCardPanel) : PlantsEvent
     data class SearchQueryChanged(val value: String) : PlantsEvent
 }
 
@@ -156,11 +162,10 @@ private fun PlantsContent(
         contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { PlantsListHeader(uiState) }
         item {
-            PlantSearchField(
-                value = uiState.searchQuery,
-                onValueChange = { onEvent(PlantsEvent.SearchQueryChanged(it)) },
+            PlantsListHeader(
+                uiState = uiState,
+                onSearchQueryChanged = { onEvent(PlantsEvent.SearchQueryChanged(it)) },
             )
         }
         if (uiState.errorMessage != null) {
@@ -186,7 +191,7 @@ private fun PlantsContent(
             uiState.plants.isEmpty() -> item {
                 WaterMeEmptyState(
                     title = "No matching plants",
-                    message = "Try another plant name, location, or type.",
+                    message = "Try another plant name or clear the search.",
                     icon = Icons.Rounded.Search,
                 )
             }
@@ -194,9 +199,9 @@ private fun PlantsContent(
             else -> items(uiState.plants, key = { plant -> plant.id }) { plant ->
                 SwipePlantCard(
                     plant = plant,
-                    isExpanded = plant.id in uiState.expandedPlantIds,
+                    selectedPanel = uiState.selectedPlantPanels[plant.id],
                     onEdit = { onEvent(PlantsEvent.EditPlantClicked(plant.id)) },
-                    onNotesAndLogs = { onEvent(PlantsEvent.NotesAndLogsClicked(plant.id)) },
+                    onPanelClick = { panel -> onEvent(PlantsEvent.PlantPanelClicked(plant.id, panel)) },
                 )
             }
         }
@@ -206,6 +211,7 @@ private fun PlantsContent(
 @Composable
 private fun PlantsListHeader(
     uiState: PlantsUiState,
+    onSearchQueryChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dueTodayCount = uiState.plants.sumOf { it.dueTaskCount }
@@ -220,25 +226,17 @@ private fun PlantsListHeader(
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Your indoor garden",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "Reminders, notes, and care rhythm at a glance.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                PlantSearchField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    modifier = Modifier.weight(1f),
+                )
                 WaterMeIconBadge(
                     icon = Icons.Rounded.LocalFlorist,
-                    size = 58.dp,
+                    size = 44.dp,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -304,20 +302,43 @@ private fun PlantSearchField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedTextField(
+    BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        placeholder = { Text("Search by name, room, or type") },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)),
         singleLine = true,
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-        shape = RoundedCornerShape(24.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.24f),
-        ),
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { innerTextField ->
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (value.isBlank()) {
+                        Text(
+                            text = "Search plants",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    innerTextField()
+                }
+            }
+        },
     )
 }
 
@@ -344,12 +365,12 @@ private fun PlantsInlineMessage(
 @Composable
 private fun SwipePlantCard(
     plant: PlantCardUiModel,
-    isExpanded: Boolean,
+    selectedPanel: PlantCardPanel?,
     onEdit: () -> Unit,
-    onNotesAndLogs: () -> Unit,
+    onPanelClick: (PlantCardPanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val actionWidth = 132.dp
+    val actionWidth = 176.dp
     val actionWidthPx = with(LocalDensity.current) { actionWidth.toPx() }
     var rawOffset by remember(plant.id) { mutableFloatStateOf(0f) }
     val offset by animateFloatAsState(
@@ -367,16 +388,16 @@ private fun SwipePlantCard(
                 rawOffset = 0f
                 onEdit()
             },
-            onNotesAndLogs = {
+            onPanelClick = { panel ->
                 rawOffset = 0f
-                onNotesAndLogs()
+                onPanelClick(panel)
             },
         )
         PlantListCard(
             plant = plant,
-            isExpanded = isExpanded,
+            selectedPanel = selectedPanel,
             onEdit = onEdit,
-            onNotesAndLogs = onNotesAndLogs,
+            onPanelClick = onPanelClick,
             modifier = Modifier
                 .offset { IntOffset(offset.roundToInt(), 0) }
                 .pointerInput(plant.id) {
@@ -401,7 +422,7 @@ private fun SwipePlantCard(
 @Composable
 private fun SwipeActions(
     onEdit: () -> Unit,
-    onNotesAndLogs: () -> Unit,
+    onPanelClick: (PlantCardPanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -412,10 +433,17 @@ private fun SwipeActions(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onNotesAndLogs) {
+        IconButton(onClick = { onPanelClick(PlantCardPanel.NOTES) }) {
             Icon(
                 Icons.AutoMirrored.Rounded.Notes,
-                contentDescription = "Show notes and logs",
+                contentDescription = "Show notes",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        IconButton(onClick = { onPanelClick(PlantCardPanel.LOGS) }) {
+            Icon(
+                Icons.Rounded.History,
+                contentDescription = "Show logs",
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -428,9 +456,9 @@ private fun SwipeActions(
 @Composable
 private fun PlantListCard(
     plant: PlantCardUiModel,
-    isExpanded: Boolean,
+    selectedPanel: PlantCardPanel?,
     onEdit: () -> Unit,
-    onNotesAndLogs: () -> Unit,
+    onPanelClick: (PlantCardPanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     WaterMePremiumCard(
@@ -459,13 +487,6 @@ private fun PlantListCard(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            Text(
-                                text = "${plant.plantType} - ${plant.location}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
                         }
                         IconButton(onClick = onEdit, modifier = Modifier.size(42.dp)) {
                             Icon(
@@ -476,20 +497,7 @@ private fun PlantListCard(
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        WaterMeStatusChip(
-                            label = if (plant.dueTaskCount > 0) "${plant.dueTaskCount} due" else "On track",
-                            color = if (plant.dueTaskCount > 0) Clay else LeafGreen,
-                            icon = Icons.Rounded.WaterDrop,
-                        )
-                        if (plant.nextCareLabel != null) {
-                            WaterMeStatusChip(
-                                label = plant.nextCareLabel,
-                                color = MistBlue,
-                                icon = Icons.Rounded.Schedule,
-                            )
-                        }
-                    }
+                    PlantStatusChips(plant = plant)
                 }
             }
 
@@ -527,7 +535,7 @@ private fun PlantListCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    WaterMeStatusChip(
+                    CompactPlantChip(
                         label = "${plant.careLogCount} logs",
                         color = MaterialTheme.colorScheme.primary,
                         icon = Icons.Rounded.History,
@@ -535,35 +543,127 @@ private fun PlantListCard(
                 }
             }
 
-            OutlinedButton(
-                onClick = onNotesAndLogs,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(Icons.AutoMirrored.Rounded.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(if (isExpanded) "Hide notes and logs" else "Show notes and ${plant.careLogCount} logs")
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                PlantPanelButton(
+                    label = "Notes",
+                    icon = Icons.AutoMirrored.Rounded.Notes,
+                    selected = selectedPanel == PlantCardPanel.NOTES,
+                    onClick = { onPanelClick(PlantCardPanel.NOTES) },
+                    modifier = Modifier.weight(1f),
+                )
+                PlantPanelButton(
+                    label = "Logs",
+                    icon = Icons.Rounded.History,
+                    selected = selectedPanel == PlantCardPanel.LOGS,
+                    onClick = { onPanelClick(PlantCardPanel.LOGS) },
+                    modifier = Modifier.weight(1f),
                 )
             }
 
             AnimatedVisibility(
-                visible = isExpanded,
+                visible = selectedPanel != null,
                 enter = fadeIn(tween(180)) + expandVertically(tween(220)),
                 exit = fadeOut(tween(140)) + shrinkVertically(tween(180)),
             ) {
-                PlantNotesAndLogs(plant = plant)
+                when (selectedPanel) {
+                    PlantCardPanel.NOTES -> PlantNotesPanel(plant = plant)
+                    PlantCardPanel.LOGS -> PlantLogsPanel(plant = plant)
+                    null -> Unit
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PlantNotesAndLogs(
+private fun PlantStatusChips(
+    plant: PlantCardUiModel,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        CompactPlantChip(
+                            label = if (plant.dueTaskCount > 0) "${plant.dueTaskCount} due" else "On track",
+                            color = if (plant.dueTaskCount > 0) Clay else LeafGreen,
+                            icon = Icons.Rounded.WaterDrop,
+                        )
+        if (plant.nextCareLabel != null) {
+            CompactPlantChip(
+                label = plant.nextCareLabel,
+                color = MistBlue,
+                icon = Icons.Rounded.Schedule,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactPlantChip(
+    label: String,
+    color: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.13f),
+        contentColor = color,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(13.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlantPanelButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(38.dp),
+        shape = RoundedCornerShape(18.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium)
+        if (selected) {
+            Spacer(Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlantNotesPanel(
     plant: PlantCardUiModel,
     modifier: Modifier = Modifier,
 ) {
@@ -575,27 +675,39 @@ private fun PlantNotesAndLogs(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(
-                text = "Notes",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = plant.notes.ifBlank { "No note added yet." },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        Text(
+            text = "Notes",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = plant.notes.ifBlank { "No note added yet." },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
 
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = "Recent care",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+@Composable
+private fun PlantLogsPanel(
+    plant: PlantCardUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.38f))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "Recent care",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
             if (plant.recentCareLogs.isEmpty()) {
                 Text(
                     text = "No care logs yet.",
@@ -632,7 +744,6 @@ private fun PlantNotesAndLogs(
                     }
                 }
             }
-        }
     }
 }
 

@@ -74,6 +74,19 @@ class RoomCareRepository(
         }
     }
 
+    suspend fun markCalendarTaskCompleted(
+        taskId: String,
+        completedAt: Long = System.currentTimeMillis(),
+        notes: String? = null,
+    ) {
+        val task = careTaskDao.getTask(taskId) ?: return
+        database.withTransaction {
+            careTaskDao.markTaskCompleted(taskId, completedAt)
+            careHistoryDao.insertHistory(task.toHistory(HistoryAction.COMPLETED, task.effectiveDueAt, notes))
+            scheduleNextTaskAfter(task, task.effectiveDueAt, completedAt, isCompletion = true)
+        }
+    }
+
     suspend fun skipTask(
         taskId: String,
         skippedAt: Long = System.currentTimeMillis(),

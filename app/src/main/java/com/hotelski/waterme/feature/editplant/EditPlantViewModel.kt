@@ -7,11 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.data.local.entity.ReminderEntity
 import com.hotelski.waterme.data.local.model.PlantWithDetails
-import com.hotelski.waterme.feature.common.ReminderDraftUiModel
-import com.hotelski.waterme.feature.common.daysFromTodayMillis
-import com.hotelski.waterme.feature.common.startOfTodayMillis
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.navigation.WaterMeRoute
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -54,6 +55,7 @@ class EditPlantViewModel(
             EditPlantEvent.SaveClicked -> savePlant()
             EditPlantEvent.DeleteClicked -> deletePlant()
             EditPlantEvent.RetryClicked -> loadPlant()
+            EditPlantEvent.DismissStartDatePicker -> updateField { copy(startDatePickerCareType = null) }
             is EditPlantEvent.NameChanged -> updateField { copy(name = event.value, fieldErrors = fieldErrors.copy(name = null)) }
             is EditPlantEvent.PlantTypeChanged -> updateField { copy(plantType = event.value) }
             is EditPlantEvent.LocationChanged -> updateField { copy(location = event.value) }
@@ -62,8 +64,20 @@ class EditPlantViewModel(
             is EditPlantEvent.ReminderEveryDaysChanged -> {
                 updateReminder(event.careType) { copy(everyDays = event.value.filter { it.isDigit() }) }
             }
-            is EditPlantEvent.ReminderStartsInChanged -> {
-                updateReminder(event.careType) { copy(startsInDays = event.value.filter { it.isDigit() }) }
+            is EditPlantEvent.ReminderHourChanged -> {
+                updateReminder(event.careType) { copy(preferredHour = event.value.filter { it.isDigit() }.take(MAX_TIME_DIGITS)) }
+            }
+            is EditPlantEvent.ReminderMinuteChanged -> {
+                updateReminder(event.careType) { copy(preferredMinute = event.value.filter { it.isDigit() }.take(MAX_TIME_DIGITS)) }
+            }
+            is EditPlantEvent.ReminderPeriodSelected -> {
+                updateReminder(event.careType) { copy(preferredPeriod = event.period) }
+            }
+            is EditPlantEvent.ReminderStartDateClicked -> updateField {
+                copy(startDatePickerCareType = event.careType)
+            }
+            is EditPlantEvent.ReminderStartDateSelected -> {
+                updateReminderStartDate(event.millis)
             }
         }
     }
@@ -123,13 +137,27 @@ class EditPlantViewModel(
 
                 current.reminders.forEach { reminder ->
                     val frequencyDays = reminder.everyDays.toIntOrNull() ?: reminder.careType.defaultFrequencyDays
-                    val startsInDays = reminder.startsInDays.toLongOrNull() ?: frequencyDays.toLong()
+                    val preferredHour = reminder.resolvedPreferredHour()
+                    val preferredMinute = reminder.preferredMinute.toIntOrNull() ?: DEFAULT_REMINDER_MINUTE
                     reminderRepository.saveReminderForPlant(
                         plantId = plantId,
                         careType = reminder.careType,
                         enabled = reminder.enabled,
                         frequencyDays = frequencyDays,
-                        nextDueAt = daysFromTodayMillis(startsInDays),
+                        nextDueAt = reminder.startDateMillis.toReminderDueAtMillis(preferredHour, preferredMinute),
+                        preferredHour = preferredHour,
+                        preferredMinute = preferredMinute,
+                        notificationsEnabled = true,
+                    )
+                }
+
+                hiddenReminderTypes.forEach { careType ->
+                    reminderRepository.saveReminderForPlant(
+                        plantId = plantId,
+                        careType = careType,
+                        enabled = false,
+                        frequencyDays = careType.defaultFrequencyDays,
+                        nextDueAt = careType.defaultStartDateMillis(),
                         preferredHour = DEFAULT_REMINDER_HOUR,
                         preferredMinute = DEFAULT_REMINDER_MINUTE,
                         notificationsEnabled = true,
@@ -186,10 +214,13 @@ class EditPlantViewModel(
             .filter { it.enabled }
             .mapNotNull { reminder ->
                 val everyDays = reminder.everyDays.toIntOrNull()
-                val startsInDays = reminder.startsInDays.toIntOrNull()
+                val preferredHour = reminder.preferredHour.toIntOrNull()
+                val preferredMinute = reminder.preferredMinute.toIntOrNull()
                 val error = when {
                     everyDays == null || everyDays !in 1..MAX_REMINDER_DAYS -> "Use 1-$MAX_REMINDER_DAYS days."
-                    startsInDays == null || startsInDays !in 0..MAX_REMINDER_DAYS -> "Start in 0-$MAX_REMINDER_DAYS days."
+                    reminder.startDateMillis < todayStartMillis() -> "Choose today or a future start date."
+                    preferredHour == null || preferredHour !in 1..12 -> "Choose an hour between 1 and 12."
+                    preferredMinute == null || preferredMinute !in 0..59 -> "Choose minutes between 0 and 59."
                     else -> null
                 }
                 error?.let { reminder.careType to it }
@@ -209,7 +240,7 @@ class EditPlantViewModel(
 
     private fun updateReminder(
         careType: CareType,
-        reducer: ReminderDraftUiModel.() -> ReminderDraftUiModel,
+        reducer: EditReminderDraftUiModel.() -> EditReminderDraftUiModel,
     ) {
         _uiState.update { state ->
             state.copy(
@@ -223,6 +254,20 @@ class EditPlantViewModel(
         }
     }
 
+    private fun updateReminderStartDate(millis: Long?) {
+        val careType = _uiState.value.startDatePickerCareType ?: return
+        val selectedDateMillis = millis?.toLocalStartMillis()
+            ?: _uiState.value.reminders.firstOrNull { it.careType == careType }?.startDateMillis
+            ?: careType.defaultStartDateMillis()
+        updateReminder(careType) {
+            copy(
+                startDateMillis = selectedDateMillis,
+                startDateLabel = selectedDateMillis.toDateLabel(),
+            )
+        }
+        _uiState.update { it.copy(startDatePickerCareType = null) }
+    }
+
     private fun PlantWithDetails.toEditPlantUiState(): EditPlantUiState {
         val remindersByType = reminders.associateBy { it.careType }
         return EditPlantUiState(
@@ -231,27 +276,83 @@ class EditPlantViewModel(
             location = plant.location,
             notes = plant.notes,
             primaryPhotoUri = primaryPhotoUri(),
-            reminders = CareType.entries.map { careType -> remindersByType.toReminderDraft(careType) },
+            reminders = editableReminderTypes.map { careType -> remindersByType.toReminderDraft(careType) },
         )
     }
 
-    private fun Map<CareType, ReminderEntity>.toReminderDraft(careType: CareType): ReminderDraftUiModel {
+    private fun Map<CareType, ReminderEntity>.toReminderDraft(careType: CareType): EditReminderDraftUiModel {
         val reminder = this[careType]
-        return ReminderDraftUiModel(
+        val startDateMillis = reminder?.nextDueAt?.toLocalStartMillis() ?: careType.defaultStartDateMillis()
+        val preferredHour = reminder?.preferredHour ?: DEFAULT_REMINDER_HOUR
+        return EditReminderDraftUiModel(
             careType = careType,
             enabled = reminder?.isEnabled ?: false,
             everyDays = (reminder?.frequencyDays ?: careType.defaultFrequencyDays).toString(),
-            startsInDays = reminder?.nextDueAt?.daysUntilDue()?.toString() ?: careType.defaultFrequencyDays.toString(),
+            startDateMillis = startDateMillis,
+            startDateLabel = startDateMillis.toDateLabel(),
+            preferredHour = preferredHour.toDisplayHour().toString(),
+            preferredMinute = (reminder?.preferredMinute ?: DEFAULT_REMINDER_MINUTE).toString().padStart(2, '0'),
+            preferredPeriod = if (preferredHour >= 12) EditReminderPeriod.PM else EditReminderPeriod.AM,
         )
     }
 
     private fun PlantWithDetails.primaryPhotoUri(): String? =
         photos.firstOrNull { it.isPrimary }?.localUri ?: photos.firstOrNull()?.localUri
 
-    private fun Long.daysUntilDue(): Long {
-        val millisUntilDue = this - startOfTodayMillis()
-        return (millisUntilDue / DAY_MILLIS).coerceAtLeast(0L)
+    private fun CareType.defaultStartDateMillis(): Long =
+        LocalDate.now()
+            .plusDays(defaultFrequencyDays.toLong())
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+    private fun Long.toLocalStartMillis(): Long =
+        Instant.ofEpochMilli(this)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+    private fun Long.toReminderDueAtMillis(hour: Int, minute: Int): Long =
+        Instant.ofEpochMilli(this)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .atTime(hour, minute)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+    private fun EditReminderDraftUiModel.resolvedPreferredHour(): Int {
+        val hour = preferredHour.toIntOrNull() ?: return DEFAULT_REMINDER_HOUR
+        return when (preferredPeriod) {
+            EditReminderPeriod.AM -> if (hour == 12) 0 else hour
+            EditReminderPeriod.PM -> if (hour == 12) 12 else hour + 12
+        }
     }
+
+    private fun Int.toDisplayHour(): Int =
+        when {
+            this == 0 -> 12
+            this > 12 -> this - 12
+            else -> this
+        }
+
+    private fun Long.toDateLabel(): String {
+        val date = Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
+        val today = LocalDate.now()
+        return when (date) {
+            today -> "Today"
+            today.plusDays(1) -> "Tomorrow"
+            else -> date.format(dateFormatter)
+        }
+    }
+
+    private fun todayStartMillis(): Long =
+        LocalDate.now()
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
 
     private fun emitEffect(effect: EditPlantEffect) {
         viewModelScope.launch { _effects.emit(effect) }
@@ -265,6 +366,9 @@ class EditPlantViewModel(
         const val DEFAULT_REMINDER_MINUTE = 0
         const val MAX_NAME_LENGTH = 80
         const val MAX_REMINDER_DAYS = 365
-        const val DAY_MILLIS = 86_400_000L
+        const val MAX_TIME_DIGITS = 2
+        val editableReminderTypes = listOf(CareType.WATERING, CareType.FERTILIZING)
+        val hiddenReminderTypes = CareType.entries.filterNot { it in editableReminderTypes }
+        val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
     }
 }
