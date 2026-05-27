@@ -106,7 +106,6 @@ class CharactersViewModel(
             runCatching { settingsDataStore.updateSelectedCharacterId(characterId) }
                 .onSuccess {
                     actionState.value = CharactersActionState(
-                        successMessage = "${character.name} selected.",
                         heartBurstKey = System.nanoTime(),
                     )
                 }
