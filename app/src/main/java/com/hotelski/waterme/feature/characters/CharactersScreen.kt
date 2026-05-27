@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
@@ -143,38 +145,68 @@ private fun ActiveCharacterHero(
 ) {
     val activeCharacter = uiState.activeCharacter ?: return
     val activeAccent = Color(activeCharacter.accentColor)
+    val heartRed = Color(0xFFE53935)
     WaterMePremiumCard(
         modifier = modifier,
         containerColor = activeAccent.copy(alpha = 0.14f),
         accentColor = activeAccent,
         shape = RoundedCornerShape(34.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(218.dp),
+            contentAlignment = Alignment.Center,
         ) {
+            CharacterSpeechBubble(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(x = 64.dp, y = 12.dp),
+            )
             PlantCharacterAvatar(
                 character = activeCharacter,
-                size = 118.dp,
+                size = 184.dp,
                 animated = true,
                 heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
+                showBackdrop = false,
+                alwaysShowHearts = true,
+                heartColor = heartRed,
             )
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(20.dp),
-                color = Color.White,
-            ) {
-                Text(
-                    text = activeCharacter.name,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Ink,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterSpeechBubble(
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = 22.dp, y = 5.dp)
+                .size(16.dp)
+                .rotate(45f)
+                .background(Color.White, RoundedCornerShape(4.dp)),
+        )
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = 22.dp,
+                topEnd = 22.dp,
+                bottomEnd = 22.dp,
+                bottomStart = 10.dp,
+            ),
+            color = Color.White,
+            shadowElevation = 2.dp,
+        ) {
+            Text(
+                text = "Hii!",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                style = MaterialTheme.typography.titleMedium,
+                color = Ink,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
         }
     }
 }

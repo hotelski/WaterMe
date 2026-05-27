@@ -53,8 +53,12 @@ fun PlantCharacterAvatar(
     size: Dp = 96.dp,
     animated: Boolean = false,
     heartBurstKey: Any? = null,
+    showBackdrop: Boolean = true,
+    alwaysShowHearts: Boolean = false,
+    heartColor: Color? = null,
 ) {
     val accent = Color(character.accentColor)
+    val resolvedHeartColor = heartColor ?: accent
     val transition = rememberInfiniteTransition(label = "PlantCharacterAvatar")
     val bob by transition.animateFloat(
         initialValue = 0f,
@@ -82,35 +86,47 @@ fun PlantCharacterAvatar(
             .scale(scale),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(RoundedCornerShape(size * 0.30f))
-                .background(accent.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center,
-        ) {
+        if (showBackdrop) {
             Box(
                 modifier = Modifier
-                    .size(size * 0.76f)
-                    .background(accent.copy(alpha = 0.20f), CircleShape),
+                    .size(size)
+                    .clip(RoundedCornerShape(size * 0.30f))
+                    .background(accent.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Image(
-                    painter = painterResource(character.imageResId),
-                    contentDescription = character.name,
+                Box(
                     modifier = Modifier
                         .size(size * 0.76f)
-                        .align(Alignment.Center),
-                    contentScale = ContentScale.Fit,
-                )
+                        .background(accent.copy(alpha = 0.20f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CharacterImage(character = character, size = size * 0.76f)
+                }
             }
+        } else {
+            CharacterImage(character = character, size = size * 0.92f)
         }
         HeartBurstOverlay(
             burstKey = heartBurstKey,
             size = size,
-            color = accent,
+            color = resolvedHeartColor,
+            alwaysVisible = alwaysShowHearts,
         )
     }
+}
+
+@Composable
+private fun CharacterImage(
+    character: PlantCharacterUiModel,
+    size: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Image(
+        painter = painterResource(character.imageResId),
+        contentDescription = character.name,
+        modifier = modifier.size(size),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable
@@ -169,10 +185,21 @@ private fun HeartBurstOverlay(
     burstKey: Any?,
     size: Dp,
     color: Color,
+    alwaysVisible: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val progress = androidx.compose.runtime.remember { Animatable(1f) }
     val isRunning = androidx.compose.runtime.remember { mutableStateOf(false) }
+    val loopTransition = rememberInfiniteTransition(label = "PersistentHeartBurst")
+    val loopProgress by loopTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1550),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "PersistentHeartProgress",
+    )
 
     LaunchedEffect(burstKey) {
         if (burstKey == null) return@LaunchedEffect
@@ -185,7 +212,7 @@ private fun HeartBurstOverlay(
         isRunning.value = false
     }
 
-    if (!isRunning.value) return
+    if (!alwaysVisible && !isRunning.value) return
 
     val value = progress.value
     val alpha = (1f - value).coerceIn(0f, 1f)
@@ -198,24 +225,54 @@ private fun HeartBurstOverlay(
     )
 
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-        hearts.forEachIndexed { index, heart ->
-            Icon(
-                imageVector = Icons.Rounded.Favorite,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(size * 0.18f)
-                    .offset(
-                        x = size * (heart.x + heart.driftX * value),
-                        y = size * (heart.y + heart.driftY * value),
-                    )
-                    .graphicsLayer(
-                        alpha = alpha,
-                        scaleX = heartScale,
-                        scaleY = heartScale,
-                        rotationZ = if (index % 2 == 0) -12f * value else 12f * value,
-                    ),
-                tint = color,
-            )
+        if (alwaysVisible) {
+            hearts.forEachIndexed { index, heart ->
+                val delayedProgress = ((loopProgress + index * 0.18f) % 1f)
+                val loopAlpha = when {
+                    delayedProgress < 0.18f -> delayedProgress / 0.18f
+                    delayedProgress > 0.76f -> (1f - delayedProgress) / 0.24f
+                    else -> 1f
+                }.coerceIn(0f, 1f)
+                val loopScale = 0.78f + delayedProgress * 0.46f
+                Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(size * 0.16f)
+                        .offset(
+                            x = size * (heart.x + heart.driftX * delayedProgress * 0.72f),
+                            y = size * (heart.y + heart.driftY * delayedProgress * 0.72f),
+                        )
+                        .graphicsLayer(
+                            alpha = loopAlpha,
+                            scaleX = loopScale,
+                            scaleY = loopScale,
+                            rotationZ = if (index % 2 == 0) -10f * delayedProgress else 10f * delayedProgress,
+                        ),
+                    tint = color,
+                )
+            }
+        }
+        if (isRunning.value) {
+            hearts.forEachIndexed { index, heart ->
+                Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(size * 0.18f)
+                        .offset(
+                            x = size * (heart.x + heart.driftX * value),
+                            y = size * (heart.y + heart.driftY * value),
+                        )
+                        .graphicsLayer(
+                            alpha = alpha,
+                            scaleX = heartScale,
+                            scaleY = heartScale,
+                            rotationZ = if (index % 2 == 0) -12f * value else 12f * value,
+                        ),
+                    tint = color,
+                )
+            }
         }
     }
 }
