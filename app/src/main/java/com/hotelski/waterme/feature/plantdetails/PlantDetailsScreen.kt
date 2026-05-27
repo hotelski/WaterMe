@@ -111,6 +111,7 @@ data class PlantDetailsUiState(
     val showDeleteConfirmation: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 ) {
     val shouldShowCharacterCelebration: Boolean
         get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
@@ -235,6 +236,7 @@ private fun PlantDetailsContent(
                 PlantCharacterCelebrationCard(
                     character = requireNotNull(uiState.activeCharacter),
                     message = uiState.successMessage.orEmpty(),
+                    heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
                 )
             }
         }

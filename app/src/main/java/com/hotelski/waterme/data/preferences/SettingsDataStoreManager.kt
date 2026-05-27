@@ -15,6 +15,7 @@ import com.hotelski.waterme.data.local.entity.MeasurementUnits
 import com.hotelski.waterme.data.local.entity.NotificationPermissionState
 import com.hotelski.waterme.data.local.entity.ThemePreference
 import java.io.IOException
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -38,6 +39,8 @@ data class SettingsPreferences(
     val localOnlyMode: Boolean = true,
     val analyticsEnabled: Boolean = false,
     val diagnosticsEnabled: Boolean = false,
+    val appOpenDayStreak: Int = 0,
+    val lastAppOpenDayEpoch: Long? = null,
 )
 
 object WaterMePreferenceKeys {
@@ -57,6 +60,8 @@ object WaterMePreferenceKeys {
     val ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
     val DIAGNOSTICS_ENABLED = booleanPreferencesKey("diagnostics_enabled")
     val USER_DATA_CLEARED = booleanPreferencesKey("user_data_cleared")
+    val APP_OPEN_DAY_STREAK = intPreferencesKey("app_open_day_streak")
+    val LAST_APP_OPEN_DAY_EPOCH = longPreferencesKey("last_app_open_day_epoch")
 }
 
 class SettingsDataStoreManager(
@@ -155,6 +160,21 @@ class SettingsDataStoreManager(
         }
     }
 
+    suspend fun recordAppOpen(todayEpochDay: Long = LocalDate.now().toEpochDay()) {
+        dataStore.edit { preferences ->
+            val lastOpenDay = preferences[WaterMePreferenceKeys.LAST_APP_OPEN_DAY_EPOCH]
+            if (lastOpenDay == todayEpochDay) return@edit
+
+            val currentStreak = preferences[WaterMePreferenceKeys.APP_OPEN_DAY_STREAK] ?: 0
+            preferences[WaterMePreferenceKeys.LAST_APP_OPEN_DAY_EPOCH] = todayEpochDay
+            preferences[WaterMePreferenceKeys.APP_OPEN_DAY_STREAK] = if (lastOpenDay == todayEpochDay - 1) {
+                currentStreak + 1
+            } else {
+                1
+            }
+        }
+    }
+
     suspend fun shouldSkipSeedData(): Boolean =
         dataStore.data
             .catch { error ->
@@ -195,6 +215,8 @@ private fun Preferences.toSettingsPreferences(): SettingsPreferences =
         localOnlyMode = this[WaterMePreferenceKeys.LOCAL_ONLY_MODE] ?: true,
         analyticsEnabled = this[WaterMePreferenceKeys.ANALYTICS_ENABLED] ?: false,
         diagnosticsEnabled = this[WaterMePreferenceKeys.DIAGNOSTICS_ENABLED] ?: false,
+        appOpenDayStreak = this[WaterMePreferenceKeys.APP_OPEN_DAY_STREAK] ?: 0,
+        lastAppOpenDayEpoch = this[WaterMePreferenceKeys.LAST_APP_OPEN_DAY_EPOCH],
     )
 
 private const val DEFAULT_CHARACTER_ID = "SPROUT"

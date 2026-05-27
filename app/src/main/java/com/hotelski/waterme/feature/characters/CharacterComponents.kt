@@ -1,10 +1,12 @@
 package com.hotelski.waterme.feature.characters
 
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,17 +22,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -45,6 +52,7 @@ fun PlantCharacterAvatar(
     modifier: Modifier = Modifier,
     size: Dp = 96.dp,
     animated: Boolean = false,
+    heartBurstKey: Any? = null,
 ) {
     val accent = Color(character.accentColor)
     val transition = rememberInfiniteTransition(label = "PlantCharacterAvatar")
@@ -71,50 +79,37 @@ fun PlantCharacterAvatar(
         modifier = modifier
             .size(size)
             .offset(y = bob.dp)
-            .scale(scale)
-            .clip(RoundedCornerShape(size * 0.30f))
-            .background(accent.copy(alpha = 0.15f)),
+            .scale(scale),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .size(size * 0.72f)
-                .clip(CircleShape)
-                .background(accent.copy(alpha = 0.20f)),
+                .size(size)
+                .clip(RoundedCornerShape(size * 0.30f))
+                .background(accent.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 modifier = Modifier
-                    .size(width = size * 0.42f, height = size * 0.34f)
-                    .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(size * 0.10f))
-                    .background(accent.copy(alpha = 0.82f)),
-            )
-            Icon(
-                imageVector = Icons.Rounded.LocalFlorist,
-                contentDescription = character.name,
-                modifier = Modifier
-                    .size(size * 0.46f)
-                    .align(Alignment.Center),
-                tint = accent,
-            )
-            Box(
-                modifier = Modifier
-                    .size(size * 0.08f)
-                    .align(Alignment.Center)
-                    .offset(x = -(size * 0.10f), y = size * 0.08f)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.86f)),
-            )
-            Box(
-                modifier = Modifier
-                    .size(size * 0.08f)
-                    .align(Alignment.Center)
-                    .offset(x = size * 0.10f, y = size * 0.08f)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.86f)),
-            )
+                    .size(size * 0.76f)
+                    .background(accent.copy(alpha = 0.20f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(character.imageResId),
+                    contentDescription = character.name,
+                    modifier = Modifier
+                        .size(size * 0.76f)
+                        .align(Alignment.Center),
+                    contentScale = ContentScale.Fit,
+                )
+            }
         }
+        HeartBurstOverlay(
+            burstKey = heartBurstKey,
+            size = size,
+            color = accent,
+        )
     }
 }
 
@@ -123,6 +118,7 @@ fun PlantCharacterCelebrationCard(
     character: PlantCharacterUiModel,
     message: String,
     modifier: Modifier = Modifier,
+    heartBurstKey: Any? = null,
 ) {
     WaterMePremiumCard(
         modifier = modifier,
@@ -139,6 +135,7 @@ fun PlantCharacterCelebrationCard(
                 character = character,
                 size = 64.dp,
                 animated = true,
+                heartBurstKey = heartBurstKey,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -166,3 +163,66 @@ fun PlantCharacterCelebrationCard(
         }
     }
 }
+
+@Composable
+private fun HeartBurstOverlay(
+    burstKey: Any?,
+    size: Dp,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val progress = androidx.compose.runtime.remember { Animatable(1f) }
+    val isRunning = androidx.compose.runtime.remember { mutableStateOf(false) }
+
+    LaunchedEffect(burstKey) {
+        if (burstKey == null) return@LaunchedEffect
+        isRunning.value = true
+        progress.snapTo(0f)
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 950),
+        )
+        isRunning.value = false
+    }
+
+    if (!isRunning.value) return
+
+    val value = progress.value
+    val alpha = (1f - value).coerceIn(0f, 1f)
+    val heartScale = 0.72f + value * 0.55f
+    val hearts = listOf(
+        HeartSpec(x = -0.30f, y = -0.36f, driftX = -0.18f, driftY = -0.42f),
+        HeartSpec(x = 0.26f, y = -0.34f, driftX = 0.16f, driftY = -0.40f),
+        HeartSpec(x = -0.08f, y = -0.42f, driftX = -0.04f, driftY = -0.52f),
+        HeartSpec(x = 0.08f, y = -0.25f, driftX = 0.08f, driftY = -0.36f),
+    )
+
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        hearts.forEachIndexed { index, heart ->
+            Icon(
+                imageVector = Icons.Rounded.Favorite,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(size * 0.18f)
+                    .offset(
+                        x = size * (heart.x + heart.driftX * value),
+                        y = size * (heart.y + heart.driftY * value),
+                    )
+                    .graphicsLayer(
+                        alpha = alpha,
+                        scaleX = heartScale,
+                        scaleY = heartScale,
+                        rotationZ = if (index % 2 == 0) -12f * value else 12f * value,
+                    ),
+                tint = color,
+            )
+        }
+    }
+}
+
+private data class HeartSpec(
+    val x: Float,
+    val y: Float,
+    val driftX: Float,
+    val driftY: Float,
+)

@@ -2,6 +2,7 @@
 <resources>
     <style name="Theme.WaterMe" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">@color/waterme_primary</item>
     </style>

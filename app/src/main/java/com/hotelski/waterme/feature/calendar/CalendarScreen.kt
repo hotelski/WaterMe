@@ -107,6 +107,7 @@ data class CalendarUiState(
     val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 ) {
     val selectedPlantLabel: String
         get() = plantOptions.firstOrNull { it.id == selectedPlantId }?.name ?: "All plants"
@@ -207,6 +208,7 @@ private fun CalendarContent(
                 PlantCharacterCelebrationCard(
                     character = requireNotNull(uiState.activeCharacter),
                     message = uiState.successMessage.orEmpty(),
+                    heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
                 )
             }
         }

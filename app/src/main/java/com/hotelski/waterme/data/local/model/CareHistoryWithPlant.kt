@@ -12,6 +12,8 @@ data class CareHistoryWithPlant(
     val plantId: String,
     @ColumnInfo(name = "plant_name")
     val plantName: String,
+    @ColumnInfo(name = "plant_type")
+    val plantType: String,
     @ColumnInfo(name = "care_type")
     val careType: CareType,
     @ColumnInfo(name = "action")

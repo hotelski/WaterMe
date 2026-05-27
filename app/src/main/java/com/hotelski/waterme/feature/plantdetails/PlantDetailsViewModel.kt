@@ -44,6 +44,7 @@ private data class HealthNoteDraftState(
 private data class PlantDetailsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
     val isDeleting: Boolean = false,
     val showDeleteConfirmation: Boolean = false,
 )
@@ -88,9 +89,15 @@ class PlantDetailsViewModel(
 
     private val activeCharacter = combine(
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        plantRepository.observePlants(WaterMeAppContainer.LOCAL_USER_ID),
         settingsDataStore.settings,
-    ) { careHistory, settings ->
-        activePlantCharacter(careHistory, settings.selectedCharacterId)
+    ) { careHistory, plants, settings ->
+        activePlantCharacter(
+            careHistory = careHistory,
+            selectedCharacterId = settings.selectedCharacterId,
+            plantsAddedTotal = plants.size,
+            appOpenDayStreak = settings.appOpenDayStreak,
+        )
     }
 
     val uiState = combine(
@@ -128,6 +135,7 @@ class PlantDetailsViewModel(
             showDeleteConfirmation = action.showDeleteConfirmation,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
+            heartBurstKey = action.heartBurstKey,
         )
     }
         .catch { error -> emit(PlantDetailsUiState(errorMessage = error.toUserMessage())) }
@@ -170,7 +178,12 @@ class PlantDetailsViewModel(
     private fun completeTask(taskId: String) {
         viewModelScope.launch {
             runCatching { careRepository.markTaskCompleted(taskId) }
-                .onSuccess { actionState.value = PlantDetailsActionState(successMessage = "Care task completed.") }
+                .onSuccess {
+                    actionState.value = PlantDetailsActionState(
+                        successMessage = "Care task completed.",
+                        heartBurstKey = System.nanoTime(),
+                    )
+                }
                 .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
         }
     }

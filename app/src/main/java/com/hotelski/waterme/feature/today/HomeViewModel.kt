@@ -32,6 +32,7 @@ sealed interface HomeEffect {
 private data class HomeActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 )
 
 class HomeViewModel(
@@ -100,9 +101,15 @@ class HomeViewModel(
             ),
             plantCount = plants.size,
             reminderCount = activeReminders.size,
-            activeCharacter = activePlantCharacter(careHistory, settings.selectedCharacterId),
+            activeCharacter = activePlantCharacter(
+                careHistory = careHistory,
+                selectedCharacterId = settings.selectedCharacterId,
+                plantsAddedTotal = plants.size,
+                appOpenDayStreak = settings.appOpenDayStreak,
+            ),
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
+            heartBurstKey = action.heartBurstKey,
         )
     }
         .catch { error -> emit(TodayUiState(errorMessage = error.toUserMessage())) }
@@ -132,7 +139,12 @@ class HomeViewModel(
     private fun completeTask(taskId: String) {
         viewModelScope.launch {
             runCatching { careRepository.markTaskCompleted(taskId) }
-                .onSuccess { actionState.value = HomeActionState(successMessage = "Care task completed.") }
+                .onSuccess {
+                    actionState.value = HomeActionState(
+                        successMessage = "Care task completed.",
+                        heartBurstKey = System.nanoTime(),
+                    )
+                }
                 .onFailure { actionState.value = HomeActionState(errorMessage = it.toUserMessage()) }
         }
     }

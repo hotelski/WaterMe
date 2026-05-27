@@ -1,7 +1,6 @@
 package com.hotelski.waterme.feature.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,30 +15,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.PrivacyTip
-import androidx.compose.material.icons.rounded.Restore
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Spa
-import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -67,34 +56,15 @@ import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
-enum class SettingsThemePreference {
-    SYSTEM,
-    LIGHT,
-    DARK,
-}
-
-enum class SettingsMeasurementUnits {
-    METRIC,
-    IMPERIAL,
-}
 
 data class SettingsUiState(
     val isLoading: Boolean = false,
     val profileName: String = "Plant keeper",
+    val selectedCharacterName: String = "Sprout",
     val notificationsEnabled: Boolean = true,
     val notificationPermissionLabel: String = "Not requested",
     val defaultReminderHour: Int = 9,
     val defaultReminderMinute: Int = 0,
-    val themePreference: SettingsThemePreference = SettingsThemePreference.SYSTEM,
-    val darkModeEnabled: Boolean = false,
-    val measurementUnits: SettingsMeasurementUnits = SettingsMeasurementUnits.METRIC,
-    val backupSyncEnabled: Boolean = false,
-    val backupProviderLabel: String = "Local only",
-    val lastBackupLabel: String = "Never backed up",
-    val lastRestoreLabel: String = "Never restored",
-    val localOnlyMode: Boolean = true,
-    val analyticsEnabled: Boolean = false,
-    val diagnosticsEnabled: Boolean = false,
     val appVersion: String = "1.0 (1)",
     val plantCount: Int = 0,
     val activeReminderCount: Int = 0,
@@ -111,28 +81,12 @@ sealed interface SettingsEvent {
     data object ShowOnboardingClicked : SettingsEvent
     data object CharactersClicked : SettingsEvent
     data object RequestNotificationPermissionClicked : SettingsEvent
-    data object BackupNowClicked : SettingsEvent
-    data object RestoreBackupClicked : SettingsEvent
     data object DeleteAllDataClicked : SettingsEvent
     data object ConfirmDeleteAllDataClicked : SettingsEvent
     data object DismissDeleteAllDataClicked : SettingsEvent
-    data class ProfileNameChanged(val value: String) : SettingsEvent
     data class NotificationsChanged(val enabled: Boolean) : SettingsEvent
-    data class DefaultReminderTimeChanged(val hour: Int, val minute: Int) : SettingsEvent
-    data class ThemePreferenceChanged(val preference: SettingsThemePreference) : SettingsEvent
-    data class DarkModeChanged(val enabled: Boolean) : SettingsEvent
-    data class MeasurementUnitsChanged(val units: SettingsMeasurementUnits) : SettingsEvent
-    data class BackupSyncChanged(val enabled: Boolean) : SettingsEvent
-    data class LocalOnlyModeChanged(val enabled: Boolean) : SettingsEvent
-    data class AnalyticsChanged(val enabled: Boolean) : SettingsEvent
-    data class DiagnosticsChanged(val enabled: Boolean) : SettingsEvent
 }
 
-private data class ReminderTimeOption(
-    val label: String,
-    val hour: Int,
-    val minute: Int,
-)
 
 @Composable
 fun SettingsScreen(
@@ -202,15 +156,8 @@ private fun SettingsContent(
                 )
             }
         }
-
-        item { ProfileSettingsCard(uiState, onEvent) }
-        item { CharacterSettingsCard(onEvent) }
+        item { CharacterSettingsCard(uiState, onEvent) }
         item { NotificationSettingsCard(uiState, onEvent) }
-        item { DefaultReminderTimesCard(uiState, onEvent) }
-        item { AppearanceSettingsCard(uiState, onEvent) }
-        item { MeasurementUnitsCard(uiState, onEvent) }
-        item { BackupRestoreCard(uiState, onEvent) }
-        item { PrivacySettingsCard(uiState, onEvent) }
         item { GardenStatsCard(uiState) }
         item { AboutAppCard(uiState, onEvent) }
         item { DeleteAllDataCard(uiState, onEvent) }
@@ -218,29 +165,10 @@ private fun SettingsContent(
     }
 }
 
-@Composable
-private fun ProfileSettingsCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Profile",
-        subtitle = "Personalize your local plant care workspace.",
-        icon = Icons.Rounded.AccountCircle,
-    ) {
-        OutlinedTextField(
-            value = uiState.profileName,
-            onValueChange = { onEvent(SettingsEvent.ProfileNameChanged(it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Profile name") },
-            singleLine = true,
-        )
-        SettingsInfoRow("Profile type", "Local WaterMe profile")
-    }
-}
 
 @Composable
 private fun CharacterSettingsCard(
+    uiState: SettingsUiState,
     onEvent: (SettingsEvent) -> Unit,
 ) {
     SettingsSectionCard(
@@ -248,7 +176,7 @@ private fun CharacterSettingsCard(
         subtitle = "Choose a plant companion and unlock new styles through care achievements.",
         icon = Icons.Rounded.LocalFlorist,
     ) {
-        SettingsInfoRow("Unlocks", "Dynamic achievements")
+        SettingsInfoRow("Selected character", uiState.selectedCharacterName)
         OutlinedButton(
             onClick = { onEvent(SettingsEvent.CharactersClicked) },
             modifier = Modifier.fillMaxWidth(),
@@ -277,7 +205,7 @@ private fun NotificationSettingsCard(
             checked = uiState.notificationsEnabled,
             onCheckedChange = { onEvent(SettingsEvent.NotificationsChanged(it)) },
         )
-        SettingsInfoRow("Permission", uiState.notificationPermissionLabel)
+        // SettingsInfoRow("Permission", uiState.notificationPermissionLabel)
         OutlinedButton(
             onClick = { onEvent(SettingsEvent.RequestNotificationPermissionClicked) },
             shape = RoundedCornerShape(18.dp),
@@ -289,155 +217,6 @@ private fun NotificationSettingsCard(
     }
 }
 
-@Composable
-private fun DefaultReminderTimesCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Default reminder time",
-        subtitle = "Choose when new plant reminders start by default.",
-        icon = Icons.Rounded.Schedule,
-    ) {
-        SettingsInfoRow("Current default", formatReminderTime(uiState.defaultReminderHour, uiState.defaultReminderMinute))
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            reminderTimeOptions.forEach { option ->
-                FilterChip(
-                    selected = uiState.defaultReminderHour == option.hour && uiState.defaultReminderMinute == option.minute,
-                    onClick = { onEvent(SettingsEvent.DefaultReminderTimeChanged(option.hour, option.minute)) },
-                    label = { Text(option.label) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppearanceSettingsCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Appearance",
-        subtitle = "Use system colors or keep WaterMe dark.",
-        icon = Icons.Rounded.DarkMode,
-    ) {
-        ToggleSettingRow(
-            title = "Dark mode",
-            description = "Force a calm dark theme preference.",
-            checked = uiState.darkModeEnabled,
-            onCheckedChange = { onEvent(SettingsEvent.DarkModeChanged(it)) },
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SettingsThemePreference.entries.forEach { preference ->
-                FilterChip(
-                    selected = uiState.themePreference == preference,
-                    onClick = { onEvent(SettingsEvent.ThemePreferenceChanged(preference)) },
-                    label = { Text(preference.displayLabel()) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MeasurementUnitsCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Measurement units",
-        subtitle = "Set units for future plant measurements.",
-        icon = Icons.Rounded.Straighten,
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SettingsMeasurementUnits.entries.forEach { units ->
-                FilterChip(
-                    selected = uiState.measurementUnits == units,
-                    onClick = { onEvent(SettingsEvent.MeasurementUnitsChanged(units)) },
-                    label = { Text(units.displayLabel()) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BackupRestoreCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Backup and restore",
-        subtitle = "Prepare your local garden for backup workflows.",
-        icon = Icons.Rounded.Backup,
-    ) {
-        ToggleSettingRow(
-            title = "Backup sync",
-            description = "Keep a backup preference ready for cloud sync.",
-            checked = uiState.backupSyncEnabled,
-            onCheckedChange = { onEvent(SettingsEvent.BackupSyncChanged(it)) },
-        )
-        SettingsInfoRow("Provider", uiState.backupProviderLabel)
-        SettingsInfoRow("Last backup", uiState.lastBackupLabel)
-        SettingsInfoRow("Last restore", uiState.lastRestoreLabel)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(
-                onClick = { onEvent(SettingsEvent.BackupNowClicked) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(18.dp),
-            ) {
-                Text("Back up")
-            }
-            OutlinedButton(
-                onClick = { onEvent(SettingsEvent.RestoreBackupClicked) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(18.dp),
-            ) {
-                Icon(Icons.Rounded.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Restore")
-            }
-        }
-    }
-}
-
-@Composable
-private fun PrivacySettingsCard(
-    uiState: SettingsUiState,
-    onEvent: (SettingsEvent) -> Unit,
-) {
-    SettingsSectionCard(
-        title = "Privacy",
-        subtitle = "Choose what stays local and what can help improve WaterMe.",
-        icon = Icons.Rounded.PrivacyTip,
-    ) {
-        ToggleSettingRow(
-            title = "Local-only mode",
-            description = "Keep plant data on this device.",
-            checked = uiState.localOnlyMode,
-            onCheckedChange = { onEvent(SettingsEvent.LocalOnlyModeChanged(it)) },
-        )
-        ToggleSettingRow(
-            title = "Usage analytics",
-            description = "Allow anonymous app usage signals.",
-            checked = uiState.analyticsEnabled,
-            onCheckedChange = { onEvent(SettingsEvent.AnalyticsChanged(it)) },
-        )
-        ToggleSettingRow(
-            title = "Diagnostics",
-            description = "Share crash and reliability diagnostics.",
-            checked = uiState.diagnosticsEnabled,
-            onCheckedChange = { onEvent(SettingsEvent.DiagnosticsChanged(it)) },
-        )
-    }
-}
 
 @Composable
 private fun GardenStatsCard(uiState: SettingsUiState) {
@@ -663,34 +442,6 @@ private fun DeleteAllDataDialog(
     )
 }
 
-private fun SettingsThemePreference.displayLabel(): String =
-    when (this) {
-        SettingsThemePreference.SYSTEM -> "System"
-        SettingsThemePreference.LIGHT -> "Light"
-        SettingsThemePreference.DARK -> "Dark"
-    }
-
-private fun SettingsMeasurementUnits.displayLabel(): String =
-    when (this) {
-        SettingsMeasurementUnits.METRIC -> "Metric"
-        SettingsMeasurementUnits.IMPERIAL -> "Imperial"
-    }
-
-private fun formatReminderTime(hour: Int, minute: Int): String {
-    val suffix = if (hour < 12) "AM" else "PM"
-    val hour12 = when (val normalizedHour = hour % 12) {
-        0 -> 12
-        else -> normalizedHour
-    }
-    return "$hour12:${minute.toString().padStart(2, '0')} $suffix"
-}
-
-private val reminderTimeOptions = listOf(
-    ReminderTimeOption("8:00 AM", 8, 0),
-    ReminderTimeOption("9:00 AM", 9, 0),
-    ReminderTimeOption("10:00 AM", 10, 0),
-    ReminderTimeOption("6:00 PM", 18, 0),
-)
 
 @Preview(showBackground = true)
 @Composable
@@ -703,10 +454,6 @@ private fun SettingsScreenPreview() {
                 notificationPermissionLabel = "Granted",
                 defaultReminderHour = 9,
                 defaultReminderMinute = 0,
-                backupSyncEnabled = true,
-                backupProviderLabel = "Google Drive",
-                lastBackupLabel = "May 24, 9:00 AM",
-                localOnlyMode = true,
                 plantCount = 12,
                 activeReminderCount = 31,
                 careHistoryCount = 94,

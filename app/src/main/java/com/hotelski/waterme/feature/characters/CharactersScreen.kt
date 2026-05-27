@@ -36,10 +36,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.hotelski.waterme.R
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
@@ -118,11 +120,16 @@ private fun CharactersContent(
             }
         }
         item {
-            AchievementSummaryCard(summary = uiState.achievementSummary)
+            AchievementSummaryCard(
+                summary = uiState.achievementSummary,
+                unlockedCount = uiState.characters.count { it.isUnlocked },
+                totalCount = uiState.characters.size,
+            )
         }
         items(uiState.characters, key = { it.id }) { character ->
             CharacterUnlockCard(
                 character = character,
+                heartBurstKey = uiState.heartBurstKey.takeIf { character.isSelected && it != 0L },
                 onSelect = { onEvent(CharactersEvent.CharacterSelected(character.id)) },
             )
         }
@@ -135,41 +142,37 @@ private fun ActiveCharacterHero(
     modifier: Modifier = Modifier,
 ) {
     val activeCharacter = uiState.activeCharacter ?: return
+    val activeAccent = Color(activeCharacter.accentColor)
     WaterMePremiumCard(
         modifier = modifier,
-        containerColor = Color(activeCharacter.accentColor).copy(alpha = 0.14f),
-        accentColor = Color(activeCharacter.accentColor),
+        containerColor = activeAccent.copy(alpha = 0.14f),
+        accentColor = activeAccent,
         shape = RoundedCornerShape(34.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PlantCharacterAvatar(
                 character = activeCharacter,
-                size = 106.dp,
+                size = 118.dp,
                 animated = true,
+                heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
             )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "Active companion",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color(activeCharacter.accentColor),
-                    fontWeight = FontWeight.SemiBold,
-                )
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+            ) {
                 Text(
                     text = activeCharacter.name,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     color = Ink,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = activeCharacter.celebrationMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
                 )
             }
         }
@@ -179,6 +182,8 @@ private fun ActiveCharacterHero(
 @Composable
 private fun AchievementSummaryCard(
     summary: CharacterAchievementSummary,
+    unlockedCount: Int,
+    totalCount: Int,
     modifier: Modifier = Modifier,
 ) {
     WaterMeCard(modifier = modifier, containerColor = SoftCream) {
@@ -193,7 +198,7 @@ private fun AchievementSummaryCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryMetric("${summary.totalCareLogs}", "care logs", Modifier.weight(1f))
+                SummaryMetric("$unlockedCount/$totalCount", "unlocked", Modifier.weight(1f))
                 SummaryMetric("${summary.wateringLogs}", "watering", Modifier.weight(1f))
                 SummaryMetric("${summary.activeCareDays}", "care days", Modifier.weight(1f))
             }
@@ -222,13 +227,16 @@ private fun SummaryMetric(
 @Composable
 private fun CharacterUnlockCard(
     character: PlantCharacterUiModel,
+    heartBurstKey: Any?,
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val accent = Color(character.accentColor)
+    val accentText = readableAccentTextColor(accent)
+    val buttonContent = readableButtonContentColor(accent)
     WaterMePremiumCard(
         modifier = modifier.animateContentSize(),
-        containerColor = if (character.isSelected) accent.copy(alpha = 0.11f) else MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surface,
         accentColor = accent,
         shape = RoundedCornerShape(30.dp),
     ) {
@@ -242,6 +250,7 @@ private fun CharacterUnlockCard(
                     character = character,
                     size = 78.dp,
                     animated = character.isSelected,
+                    heartBurstKey = heartBurstKey,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -259,7 +268,7 @@ private fun CharacterUnlockCard(
                     Text(
                         text = character.title,
                         style = MaterialTheme.typography.labelLarge,
-                        color = accent,
+                        color = accentText,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -289,7 +298,7 @@ private fun CharacterUnlockCard(
                     Text(
                         text = character.progressLabel,
                         style = MaterialTheme.typography.labelMedium,
-                        color = accent,
+                        color = accentText,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
@@ -305,11 +314,17 @@ private fun CharacterUnlockCard(
 
             if (character.isUnlocked) {
                 Button(
-                    onClick = onSelect,
+                    onClick = if (character.isSelected) {
+                        {}
+                    } else {
+                        onSelect
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !character.isSelected,
                     shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accent),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = accent,
+                        contentColor = buttonContent,
+                    ),
                 ) {
                     Icon(
                         imageVector = if (character.isSelected) Icons.Rounded.Check else Icons.Rounded.LocalFlorist,
@@ -338,6 +353,7 @@ private fun CharacterUnlockCard(
 @Composable
 private fun CharacterStatePill(character: PlantCharacterUiModel) {
     val accent = Color(character.accentColor)
+    val accentText = readableAccentTextColor(accent)
     Surface(
         shape = RoundedCornerShape(999.dp),
         color = when {
@@ -355,7 +371,7 @@ private fun CharacterStatePill(character: PlantCharacterUiModel) {
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
             style = MaterialTheme.typography.labelSmall,
             color = when {
-                character.isSelected -> accent
+                character.isSelected -> accentText
                 character.isUnlocked -> LeafGreen
                 else -> Clay
             },
@@ -364,6 +380,12 @@ private fun CharacterStatePill(character: PlantCharacterUiModel) {
         )
     }
 }
+
+private fun readableAccentTextColor(accent: Color): Color =
+    if (accent.luminance() > 0.42f) Ink else accent
+
+private fun readableButtonContentColor(accent: Color): Color =
+    if (accent.luminance() > 0.55f) Ink else Color.White
 
 @Composable
 private fun CharacterMessageCard(
@@ -409,6 +431,7 @@ private fun previewCharacters(): List<PlantCharacterUiModel> =
     listOf(
         PlantCharacterUiModel(
             id = "SPROUT",
+            imageResId = R.drawable.sprout,
             name = "Sprout",
             title = "First garden friend",
             description = "A calm sprout companion that appears when care is completed.",
@@ -422,17 +445,18 @@ private fun previewCharacters(): List<PlantCharacterUiModel> =
             celebrationMessage = "A little leaf stretch for completed care.",
         ),
         PlantCharacterUiModel(
-            id = "DEW_FERN",
-            name = "Dew Fern",
-            title = "Watering specialist",
+            id = "MOMO_MOSS",
+            imageResId = R.drawable.momo_moss,
+            name = "Momo Moss",
+            title = "Soft moss buddy",
             description = "Unlocks after consistent watering logs.",
             unlockLabel = "Complete 3 watering logs",
             progress = 2,
             target = 3,
             isUnlocked = false,
             isSelected = false,
-            accentColor = 0xFF5FA8A1,
-            celebrationTitle = "Dew Fern perked up",
-            celebrationMessage = "Fresh water logged.",
+            accentColor = 0xFF7FAE58,
+            celebrationTitle = "Momo Moss feels fresh",
+            celebrationMessage = "Soft moss wiggles for every cared plant.",
         ),
     )

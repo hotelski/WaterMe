@@ -108,6 +108,7 @@ data class TodayUiState(
     val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 ) {
     val hasNoPlants: Boolean
         get() = !isLoading && plantCount == 0
@@ -203,6 +204,7 @@ private fun PhoneDashboard(
                 PlantCharacterCelebrationCard(
                     character = requireNotNull(uiState.activeCharacter),
                     message = uiState.successMessage.orEmpty(),
+                    heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
                 )
             }
         }
@@ -268,6 +270,7 @@ private fun TabletDashboard(
                     PlantCharacterCelebrationCard(
                         character = requireNotNull(uiState.activeCharacter),
                         message = uiState.successMessage.orEmpty(),
+                        heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
                     )
                 }
             }

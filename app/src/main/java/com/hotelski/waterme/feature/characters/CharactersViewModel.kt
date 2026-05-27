@@ -20,6 +20,7 @@ data class CharactersUiState(
     val achievementSummary: CharacterAchievementSummary = CharacterAchievementSummary(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 )
 
 sealed interface CharactersEvent {
@@ -35,6 +36,7 @@ sealed interface CharactersEffect {
 private data class CharactersActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 )
 
 class CharactersViewModel(
@@ -42,6 +44,7 @@ class CharactersViewModel(
 ) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
+    private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
     private val actionState = MutableStateFlow(CharactersActionState())
     private val _effects = MutableSharedFlow<CharactersEffect>()
@@ -50,17 +53,27 @@ class CharactersViewModel(
 
     val uiState = combine(
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        plantRepository.observePlants(WaterMeAppContainer.LOCAL_USER_ID),
         settingsDataStore.settings,
         actionState,
-    ) { careHistory, settings, action ->
-        val characters = buildPlantCharacters(careHistory, settings.selectedCharacterId)
+    ) { careHistory, plants, settings, action ->
+        val characters = buildPlantCharacters(
+            careHistory = careHistory,
+            selectedCharacterId = settings.selectedCharacterId,
+            plantsAddedTotal = plants.size,
+            appOpenDayStreak = settings.appOpenDayStreak,
+        )
         CharactersUiState(
             isLoading = false,
             activeCharacter = characters.firstOrNull { it.isSelected },
             characters = characters,
-            achievementSummary = careHistory.toCharacterAchievementSummary(),
+            achievementSummary = careHistory.toCharacterAchievementSummary(
+                plantsAddedTotal = plants.size,
+                appOpenDayStreak = settings.appOpenDayStreak,
+            ),
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
+            heartBurstKey = action.heartBurstKey,
         )
     }
         .catch { error -> emit(CharactersUiState(errorMessage = error.toUserMessage())) }
@@ -91,7 +104,12 @@ class CharactersViewModel(
 
         viewModelScope.launch {
             runCatching { settingsDataStore.updateSelectedCharacterId(characterId) }
-                .onSuccess { actionState.value = CharactersActionState(successMessage = "${character.name} selected.") }
+                .onSuccess {
+                    actionState.value = CharactersActionState(
+                        successMessage = "${character.name} selected.",
+                        heartBurstKey = System.nanoTime(),
+                    )
+                }
                 .onFailure { actionState.value = CharactersActionState(errorMessage = it.toUserMessage()) }
         }
     }

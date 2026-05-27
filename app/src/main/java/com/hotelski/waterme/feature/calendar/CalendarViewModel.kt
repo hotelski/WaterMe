@@ -38,6 +38,7 @@ sealed interface CalendarEffect {
 private data class CalendarActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 )
 
 private data class CalendarDataState(
@@ -108,9 +109,16 @@ class CalendarViewModel(
 
     private val activeCharacter = combine(
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        plantRepository.observePlants(WaterMeAppContainer.LOCAL_USER_ID),
         settingsDataStore.settings,
-    ) { careHistory, settings ->
-        activePlantCharacter(careHistory, settings.selectedCharacterId, clock)
+    ) { careHistory, plants, settings ->
+        activePlantCharacter(
+            careHistory = careHistory,
+            selectedCharacterId = settings.selectedCharacterId,
+            clock = clock,
+            plantsAddedTotal = plants.size,
+            appOpenDayStreak = settings.appOpenDayStreak,
+        )
     }
 
     val uiState = combine(calendarData, activeCharacter, actionState) { data, character, action ->
@@ -147,6 +155,7 @@ class CalendarViewModel(
             activeCharacter = character,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
+            heartBurstKey = action.heartBurstKey,
         )
     }
         .catch { error -> emit(CalendarUiState(errorMessage = error.toUserMessage())) }
@@ -189,7 +198,12 @@ class CalendarViewModel(
 
         viewModelScope.launch {
             runCatching { careRepository.markCalendarTaskCompleted(taskId) }
-                .onSuccess { actionState.value = CalendarActionState(successMessage = "Care task completed.") }
+                .onSuccess {
+                    actionState.value = CalendarActionState(
+                        successMessage = "Care task completed.",
+                        heartBurstKey = System.nanoTime(),
+                    )
+                }
                 .onFailure { actionState.value = CalendarActionState(errorMessage = it.toUserMessage()) }
         }
     }
