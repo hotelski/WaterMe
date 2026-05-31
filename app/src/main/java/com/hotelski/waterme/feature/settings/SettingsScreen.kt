@@ -22,7 +22,6 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -53,7 +52,6 @@ import com.hotelski.waterme.ui.theme.GardenBackground
 import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 
@@ -67,9 +65,6 @@ data class SettingsUiState(
     val defaultReminderMinute: Int = 0,
     val appVersion: String = "1.0 (1)",
     val plantCount: Int = 0,
-    val activeReminderCount: Int = 0,
-    val careHistoryCount: Int = 0,
-    val healthNoteCount: Int = 0,
     val showDeleteAllDataConfirmation: Boolean = false,
     val isDeletingAllData: Boolean = false,
     val errorMessage: String? = null,
@@ -158,7 +153,6 @@ private fun SettingsContent(
         }
         item { CharacterSettingsCard(uiState, onEvent) }
         item { NotificationSettingsCard(uiState, onEvent) }
-        item { GardenStatsCard(uiState) }
         item { AboutAppCard(uiState, onEvent) }
         item { DeleteAllDataCard(uiState, onEvent) }
         item { Spacer(Modifier.height(72.dp)) }
@@ -217,28 +211,6 @@ private fun NotificationSettingsCard(
     }
 }
 
-
-@Composable
-private fun GardenStatsCard(uiState: SettingsUiState) {
-    SettingsSectionCard(
-        title = "Garden stats",
-        subtitle = "A quick look at local WaterMe data.",
-        icon = Icons.Rounded.Spa,
-    ) {
-        if (uiState.plantCount == 0 && uiState.activeReminderCount == 0 && uiState.careHistoryCount == 0) {
-            InlineEmptyState(
-                title = "No garden data",
-                message = "Add plants and care tasks to see local stats here.",
-                icon = Icons.Rounded.Spa,
-            )
-        } else {
-            SettingsInfoRow("Plants tracked", uiState.plantCount.toString())
-            SettingsInfoRow("Active reminders", uiState.activeReminderCount.toString())
-            SettingsInfoRow("Care history entries", uiState.careHistoryCount.toString())
-            SettingsInfoRow("Health notes", uiState.healthNoteCount.toString())
-        }
-    }
-}
 
 @Composable
 private fun AboutAppCard(
@@ -315,28 +287,6 @@ private fun SettingsSectionCard(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
-        }
-    }
-}
-
-@Composable
-private fun InlineEmptyState(
-    title: String,
-    message: String,
-    icon: ImageVector,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SoftCream, RoundedCornerShape(18.dp))
-            .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = LeafGreen)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Ink, fontWeight = FontWeight.Bold)
-            Text(message, color = MutedInk, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -455,9 +405,6 @@ private fun SettingsScreenPreview() {
                 defaultReminderHour = 9,
                 defaultReminderMinute = 0,
                 plantCount = 12,
-                activeReminderCount = 31,
-                careHistoryCount = 94,
-                healthNoteCount = 18,
                 appVersion = "1.0 (1)",
             ),
             onEvent = {},

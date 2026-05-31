@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.BuildConfig
 import com.hotelski.waterme.appstate.WaterMeAppContainer
-import com.hotelski.waterme.data.local.entity.HistoryAction
 import com.hotelski.waterme.data.local.entity.NotificationPermissionState
 import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.notifications.NotificationPermissionHelper
@@ -66,9 +65,6 @@ class SettingsViewModel(
             notificationPermissionLabel = settings.notificationPermissionState.toPermissionLabel(),
             appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             plantCount = plants.size,
-            activeReminderCount = plants.sumOf { plant -> plant.reminders.count { it.isEnabled && it.deletedAt == null } },
-            careHistoryCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE },
-            healthNoteCount = careHistory.count { it.action == HistoryAction.HEALTH_NOTE },
             showDeleteAllDataConfirmation = action.showDeleteAllDataConfirmation,
             isDeletingAllData = action.isDeletingAllData,
             errorMessage = action.errorMessage,

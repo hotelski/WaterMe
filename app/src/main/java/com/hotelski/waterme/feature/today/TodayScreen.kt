@@ -1,8 +1,8 @@
 package com.hotelski.waterme.feature.today
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,58 +16,54 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Snooze
-import androidx.compose.material.icons.rounded.Spa
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.hotelski.waterme.feature.common.CareTaskCard
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterAvatar
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.feature.common.CareTaskUiModel
-import com.hotelski.waterme.feature.common.HealthNoteRow
 import com.hotelski.waterme.feature.common.HealthNoteUiModel
-import com.hotelski.waterme.feature.common.PlantCard
 import com.hotelski.waterme.feature.common.PlantCardUiModel
-import com.hotelski.waterme.feature.common.ReminderRow
 import com.hotelski.waterme.feature.common.ReminderUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.common.WaterMeSectionHeader
 import com.hotelski.waterme.feature.common.WaterMeTopBar
-import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
-import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
+import com.hotelski.waterme.feature.common.accentColor
+import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
 import com.hotelski.waterme.ui.theme.GardenBackground
@@ -75,8 +71,8 @@ import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
+import com.hotelski.waterme.model.CareType
 
 data class DashboardProgressUiModel(
     val completedToday: Int = 0,
@@ -105,6 +101,10 @@ data class TodayUiState(
     val progressStats: DashboardProgressUiModel = DashboardProgressUiModel(),
     val plantCount: Int = 0,
     val reminderCount: Int = 0,
+    val careHistoryCount: Int = 0,
+    val healthNoteCount: Int = 0,
+    val appOpenDayStreak: Int = 0,
+    val completedThisWeek: Int = 0,
     val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
@@ -141,19 +141,18 @@ fun TodayScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = GardenBackground,
         topBar = { WaterMeTopBar(title = "Home") },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onEvent(TodayEvent.AddPlantClicked) },
-                containerColor = LeafGreen,
-                contentColor = Color.White,
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Add plant")
-            }
-        },
     ) { innerPadding ->
         when {
-            uiState.isLoading -> WaterMeLoadingState("Building your plant dashboard...", Modifier.padding(innerPadding))
-            uiState.errorMessage != null -> Box(Modifier.padding(innerPadding).padding(20.dp)) {
+            uiState.isLoading -> WaterMeLoadingState(
+                message = "Preparing your garden...",
+                modifier = Modifier.padding(innerPadding),
+            )
+
+            uiState.errorMessage != null -> Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .padding(20.dp),
+            ) {
                 WaterMeErrorState(
                     message = uiState.errorMessage,
                     onRetryClick = { onEvent(TodayEvent.RetryClicked) },
@@ -181,9 +180,15 @@ private fun HomeDashboard(
             .background(GardenBackground),
     ) {
         if (maxWidth >= 840.dp) {
-            TabletDashboard(uiState = uiState, onEvent = onEvent)
+            TabletDashboard(
+                uiState = uiState,
+                onEvent = onEvent,
+            )
         } else {
-            PhoneDashboard(uiState = uiState, onEvent = onEvent)
+            PhoneDashboard(
+                uiState = uiState,
+                onEvent = onEvent,
+            )
         }
     }
 }
@@ -199,6 +204,11 @@ private fun PhoneDashboard(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { DashboardHeroCard(uiState) }
+
+        item { CharacterGreetingCard(uiState) }
+
+        item { GardenStatsCard(uiState) }
+
         if (uiState.shouldShowCharacterCelebration) {
             item {
                 PlantCharacterCelebrationCard(
@@ -208,41 +218,25 @@ private fun PhoneDashboard(
                 )
             }
         }
-        item { QuickActionsCard(onEvent) }
 
         if (uiState.hasNoPlants) {
             item {
                 WaterMeEmptyState(
-                    title = "Start your plant list",
-                    message = "Add a plant to see care tasks, reminders, notes, and progress here.",
-                    actionLabel = "Add plant",
-                    onActionClick = { onEvent(TodayEvent.AddPlantClicked) },
+                    title = "Your garden is empty",
+                    message = "Add plants from the Plants page and WaterMe will start building your daily care plan.",
                 )
             }
         }
 
-        dashboardTaskSection(
-            title = "Overdue",
-            tasks = uiState.overdueTasks,
-            emptyTitle = "No overdue care",
-            emptyMessage = "Everything urgent is handled.",
-            onEvent = onEvent,
-            showWhenEmpty = uiState.plantCount > 0,
-        )
+        item {
+            CareTasksSection(
+                overdueTasks = uiState.overdueTasks,
+                todayTasks = uiState.tasks,
+                onEvent = onEvent,
+                showWhenEmpty = uiState.plantCount > 0,
+            )
+        }
 
-        dashboardTaskSection(
-            title = "Today",
-            tasks = uiState.tasks,
-            emptyTitle = "No care due today",
-            emptyMessage = "Your plants are on schedule. Upcoming care is waiting below.",
-            onEvent = onEvent,
-            showWhenEmpty = uiState.plantCount > 0,
-        )
-
-        item { ProgressStatsCard(uiState.progressStats) }
-        item { UpcomingRemindersSection(uiState.upcomingReminders) }
-        item { PlantHealthSummaryCard(uiState.healthSummary, uiState.healthNotes) }
-        item { RecentlyAddedPlantsSection(uiState.recentlyAddedPlants, onEvent) }
         item { Spacer(Modifier.height(80.dp)) }
     }
 }
@@ -265,6 +259,9 @@ private fun TabletDashboard(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { DashboardHeroCard(uiState) }
+            item { CharacterGreetingCard(uiState) }
+            item { GardenStatsCard(uiState) }
+
             if (uiState.shouldShowCharacterCelebration) {
                 item {
                     PlantCharacterCelebrationCard(
@@ -274,23 +271,16 @@ private fun TabletDashboard(
                     )
                 }
             }
-            item { QuickActionsCard(onEvent) }
-            dashboardTaskSection(
-                title = "Overdue",
-                tasks = uiState.overdueTasks,
-                emptyTitle = "No overdue care",
-                emptyMessage = "Everything urgent is handled.",
-                onEvent = onEvent,
-                showWhenEmpty = uiState.plantCount > 0,
-            )
-            dashboardTaskSection(
-                title = "Today",
-                tasks = uiState.tasks,
-                emptyTitle = "No care due today",
-                emptyMessage = "Your plants are on schedule.",
-                onEvent = onEvent,
-                showWhenEmpty = uiState.plantCount > 0,
-            )
+
+            if (uiState.hasNoPlants) {
+                item {
+                    WaterMeEmptyState(
+                        title = "Your garden is empty",
+                        message = "Add plants from the Plants page and WaterMe will start building your daily care plan.",
+                    )
+                }
+            }
+
             item { Spacer(Modifier.height(80.dp)) }
         }
 
@@ -300,85 +290,130 @@ private fun TabletDashboard(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { ProgressStatsCard(uiState.progressStats) }
-            item { UpcomingRemindersSection(uiState.upcomingReminders) }
-            item { PlantHealthSummaryCard(uiState.healthSummary, uiState.healthNotes) }
-            item { RecentlyAddedPlantsSection(uiState.recentlyAddedPlants, onEvent) }
-            item { Spacer(Modifier.height(80.dp)) }
-        }
-    }
-}
-
-private fun androidx.compose.foundation.lazy.LazyListScope.dashboardTaskSection(
-    title: String,
-    tasks: List<CareTaskUiModel>,
-    emptyTitle: String,
-    emptyMessage: String,
-    onEvent: (TodayEvent) -> Unit,
-    showWhenEmpty: Boolean,
-) {
-    item { WaterMeSectionHeader(title) }
-    if (tasks.isEmpty()) {
-        if (showWhenEmpty) {
             item {
-                WaterMeEmptyState(
-                    title = emptyTitle,
-                    message = emptyMessage,
-                    icon = if (title == "Overdue") Icons.Rounded.Check else Icons.Rounded.Event,
+                CareTasksSection(
+                    overdueTasks = uiState.overdueTasks,
+                    todayTasks = uiState.tasks,
+                    onEvent = onEvent,
+                    showWhenEmpty = uiState.plantCount > 0,
                 )
             }
-        }
-    } else {
-        items(tasks, key = { "${title}-${it.id}" }) { task ->
-            SwipeCareTaskCard(task = task, onEvent = onEvent)
+
+            item { Spacer(Modifier.height(80.dp)) }
         }
     }
 }
 
 @Composable
 private fun DashboardHeroCard(uiState: TodayUiState) {
-    WaterMeCard(containerColor = LeafGreen) {
-        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    val openTasks = uiState.totalOpenTasks
+
+    val title = when {
+        uiState.hasNoPlants -> "Welcome to WaterMe"
+        uiState.overdueTasks.isNotEmpty() -> "${uiState.overdueTasks.size} overdue task${if (uiState.overdueTasks.size == 1) "" else "s"}"
+        uiState.tasks.isEmpty() -> "All clear today"
+        else -> "${uiState.tasks.size} task${if (uiState.tasks.size == 1) "" else "s"} due today"
+    }
+
+    val message = when {
+        uiState.hasNoPlants -> "Your smart plant care dashboard will appear here once you add plants."
+        openTasks == 0 -> "A quiet day for your garden. Everything looks beautifully on track."
+        uiState.overdueTasks.isNotEmpty() -> "Start with overdue care first to bring your garden back into balance."
+        else -> "Complete today’s care and keep your plants thriving."
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        LeafGreen,
+                        FreshGreen,
+                    ),
+                ),
+                shape = RoundedCornerShape(32.dp),
+            )
+            .padding(22.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(92.dp)
+                .background(
+                    color = Color.White.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(999.dp),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(top = 96.dp)
+                .size(44.dp)
+                .background(
+                    color = Color.White.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(999.dp),
+                ),
+        )
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                Icon(
-                    Icons.Rounded.LocalFlorist,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(18.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.LocalFlorist,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = when {
-                            uiState.hasNoPlants -> "Welcome to WaterMe"
-                            uiState.overdueTasks.isNotEmpty() -> "${uiState.overdueTasks.size} overdue task${if (uiState.overdueTasks.size == 1) "" else "s"}"
-                            uiState.tasks.isEmpty() -> "All clear today"
-                            else -> "${uiState.tasks.size} task${if (uiState.tasks.size == 1) "" else "s"} due today"
-                        },
+                        text = title,
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                     )
+
                     Text(
-                        text = when {
-                            uiState.hasNoPlants -> "Add your first plant and WaterMe will build the care plan."
-                            uiState.totalOpenTasks == 0 -> "Your plants are on schedule. Check upcoming reminders for what is next."
-                            else -> "Log care as you go and WaterMe will keep the next reminder moving."
-                        },
+                        text = message,
                         modifier = Modifier.padding(top = 6.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.88f),
+                        color = Color.White.copy(alpha = 0.90f),
                     )
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DashboardChip("${uiState.plantCount} plants", Modifier.weight(1f))
-                DashboardChip("${uiState.reminderCount} reminders", Modifier.weight(1f))
-                DashboardChip("${uiState.progressStats.completedToday} done", Modifier.weight(1f))
+                DashboardChip(
+                    label = "${uiState.plantCount} plants",
+                    modifier = Modifier.weight(1f),
+                )
+
+                DashboardChip(
+                    label = "${uiState.progressStats.completedToday} done",
+                    modifier = Modifier.weight(1f),
+                )
+
+                DashboardChip(
+                    label = "${uiState.totalOpenTasks} open",
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -391,15 +426,18 @@ private fun DashboardChip(
 ) {
     Box(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .background(
+                color = Color.White.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(999.dp),
+            )
+            .padding(horizontal = 10.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             color = Color.White,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -407,27 +445,201 @@ private fun DashboardChip(
 }
 
 @Composable
-private fun QuickActionsCard(onEvent: (TodayEvent) -> Unit) {
+private fun CharacterGreetingCard(uiState: TodayUiState) {
+    val character = uiState.activeCharacter ?: return
+    val accent = Color(character.accentColor)
+    val shape = RoundedCornerShape(30.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White,
+                        Color(0xFFEAF6EE),
+                    ),
+                ),
+                shape = shape,
+            )
+            .padding(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlantCharacterAvatar(
+                character = character,
+                size = 78.dp,
+                animated = true,
+                showBackdrop = true,
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Hi, I'm ${character.name}",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .background(accent.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "Active",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Ink,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
+                CharacterSpeechBubble(
+                    message = uiState.characterGreetingMessage(),
+                    accent = accent,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CharacterSpeechBubble(
+    message: String,
+    accent: Color,
+) {
+    Box {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 2.dp)
+                .size(12.dp)
+                .background(Color.White, RoundedCornerShape(3.dp)),
+        )
+
+        Text(
+            text = message,
+            modifier = Modifier
+                .padding(start = 6.dp)
+                .fillMaxWidth()
+                .background(Color.White, RoundedCornerShape(18.dp))
+                .padding(horizontal = 13.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MutedInk,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 8.dp, end = 10.dp)
+                .size(7.dp)
+                .background(accent.copy(alpha = 0.30f), RoundedCornerShape(999.dp)),
+        )
+    }
+}
+
+private fun TodayUiState.characterGreetingMessage(): String =
+    when {
+        hasNoPlants -> "Add your first plant and I'll help watch the care rhythm."
+        overdueTasks.isNotEmpty() -> "Let's start with overdue care. Your plants will feel better after this."
+        tasks.isNotEmpty() -> "I found ${tasks.size} care task${if (tasks.size == 1) "" else "s"} for today. Small steps keep the garden thriving."
+        else -> "Everything is calm today. I’ll keep an eye on the next reminder."
+    }
+
+@Composable
+private fun GardenStatsCard(uiState: TodayUiState) {
     WaterMeCard {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            WaterMeSectionHeader("Quick actions")
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Garden stats",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Ink,
+                )
+
+                Text(
+                    text = "Care rhythm and local garden data in one place.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MutedInk,
+                )
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickActionButton(
-                    label = "Add",
-                    icon = Icons.Rounded.Add,
-                    onClick = { onEvent(TodayEvent.AddPlantClicked) },
+                MiniStatCard(
+                    label = "Day streak",
+                    value = uiState.appOpenDayStreak.toString(),
+                    helper = "active days",
+                    color = LeafGreen,
+                    icon = Icons.Rounded.LocalFlorist,
                     modifier = Modifier.weight(1f),
                 )
-                QuickActionButton(
-                    label = "Calendar",
-                    icon = Icons.Rounded.CalendarMonth,
-                    onClick = { onEvent(TodayEvent.CalendarClicked) },
+
+                MiniStatCard(
+                    label = "This week",
+                    value = uiState.completedThisWeek.toString(),
+                    helper = "completed",
+                    color = FreshGreen,
+                    icon = Icons.Rounded.Check,
                     modifier = Modifier.weight(1f),
                 )
-                QuickActionButton(
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniStatCard(
                     label = "Plants",
-                    icon = Icons.Rounded.Spa,
-                    onClick = { onEvent(TodayEvent.MyPlantsClicked) },
+                    value = uiState.plantCount.toString(),
+                    helper = "tracked",
+                    color = LeafGreen,
+                    icon = Icons.Rounded.LocalFlorist,
+                    modifier = Modifier.weight(1f),
+                )
+
+                MiniStatCard(
+                    label = "Reminders",
+                    value = uiState.reminderCount.toString(),
+                    helper = "active",
+                    color = MistBlue,
+                    icon = Icons.Rounded.Event,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniStatCard(
+                    label = "Care logs",
+                    value = uiState.careHistoryCount.toString(),
+                    helper = "history",
+                    color = Clay,
+                    icon = Icons.Rounded.Check,
+                    modifier = Modifier.weight(1f),
+                )
+
+                MiniStatCard(
+                    label = "Health notes",
+                    value = uiState.healthNoteCount.toString(),
+                    helper = "observations",
+                    color = Color(0xFF6AA9A5),
+                    icon = Icons.Rounded.Eco,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -436,23 +648,497 @@ private fun QuickActionsCard(onEvent: (TodayEvent) -> Unit) {
 }
 
 @Composable
-private fun QuickActionButton(
+private fun MiniStatCard(
     label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
+    value: String,
+    helper: String,
+    color: Color,
     modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(18.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp),
+    Column(
+        modifier = modifier
+            .background(
+                color = color.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(22.dp),
+            )
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = value,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(color.copy(alpha = 0.16f), RoundedCornerShape(11.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(17.dp),
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = Ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        Text(
+            text = helper,
+            style = MaterialTheme.typography.labelSmall,
+            color = MutedInk,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+@Composable
+private fun CareTaskOverviewBar(
+    overdueCount: Int,
+    todayCount: Int,
+) {
+    WaterMeCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            CareTaskOverviewMetric(
+                title = if (overdueCount == 0) "All clear" else "Attention",
+                detail = "$overdueCount overdue",
+                color = if (overdueCount == 0) LeafGreen else Clay,
+                icon = Icons.Rounded.Check,
+                modifier = Modifier.weight(1f),
+            )
+
+            CareTaskOverviewMetric(
+                title = "Today",
+                detail = "$todayCount due",
+                color = LeafGreen,
+                icon = Icons.Rounded.Event,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CareTaskOverviewMetric(
+    title: String,
+    detail: String,
+    color: Color,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .background(color.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(color.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CareTasksSection(
+    overdueTasks: List<CareTaskUiModel>,
+    todayTasks: List<CareTaskUiModel>,
+    onEvent: (TodayEvent) -> Unit,
+    showWhenEmpty: Boolean,
+) {
+    val overdueCount = overdueTasks.size
+    val todayCount = todayTasks.size
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CareTasksHeader(
+            overdueCount = overdueCount,
+            todayCount = todayCount,
+        )
+
+        CareTaskOverviewBar(
+            overdueCount = overdueCount,
+            todayCount = todayCount,
+        )
+
+        if (overdueTasks.isEmpty() && todayTasks.isEmpty()) {
+            if (showWhenEmpty) {
+                NoCareTasksCard()
+            }
+        } else {
+            if (overdueTasks.isNotEmpty()) {
+                TaskGroupHeader(
+                    title = "Overdue",
+                    accentColor = Clay,
+                )
+
+                overdueTasks.forEach { task ->
+                    SwipeCareTaskCard(
+                        task = task,
+                        onEvent = onEvent,
+                    )
+                }
+            }
+
+            if (todayTasks.isNotEmpty()) {
+                TaskGroupHeader(
+                    title = "Today",
+                    accentColor = LeafGreen,
+                )
+
+                todayTasks.forEach { task ->
+                    SwipeCareTaskCard(
+                        task = task,
+                        onEvent = onEvent,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoCareTasksCard() {
+    WaterMeCard(
+        containerColor = Color(0xFFEAF6EE),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(LeafGreen.copy(alpha = 0.14f), RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = LeafGreen,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+
+            Text(
+                text = "No care tasks",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+                textAlign = TextAlign.Center,
+            )
+
+            Text(
+                text = "Your plants are calm and on schedule.",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedInk,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CareTasksHeader(
+    overdueCount: Int,
+    todayCount: Int,
+) {
+    val accentColor = if (overdueCount > 0) Clay else LeafGreen
+    val statusLabel = when {
+        overdueCount > 0 -> "$overdueCount overdue"
+        todayCount > 0 -> "$todayCount today"
+        else -> "All clear"
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Care tasks",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+            )
+            Text(
+                text = "Due and overdue plant care.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedInk,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+                .padding(horizontal = 11.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = statusLabel,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = accentColor,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TaskGroupHeader(
+    title: String,
+    accentColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(accentColor, RoundedCornerShape(999.dp)),
+        )
+
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = Ink,
+        )
+    }
+}
+
+@Composable
+private fun HomeCareTaskCard(
+    task: CareTaskUiModel,
+    onOpenPlant: () -> Unit,
+    onComplete: () -> Unit,
+    onSkip: () -> Unit,
+    onSnooze: () -> Unit,
+) {
+    val accentColor = task.careType.accentColor()
+
+    WaterMeCard(
+        modifier = Modifier.clickable(onClick = onOpenPlant),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(accentColor.copy(alpha = 0.14f), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = task.careType.homeTaskIcon(),
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = task.careType.label(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Text(
+                        text = task.plantName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink.copy(alpha = 0.78f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Text(
+                        text = task.plantLocation,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                CareTaskStatusChip(task)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = onComplete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = LeafGreen),
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(
+                        text = "Done",
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onSnooze,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                ) {
+                    Icon(Icons.Rounded.Snooze, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text(
+                        text = "Snooze",
+                        modifier = Modifier.padding(start = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                TextButton(
+                    onClick = onSkip,
+                    modifier = Modifier
+                        .weight(0.72f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = LeafGreen),
+                ) {
+                    Text(
+                        text = "Skip",
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CareTaskStatusChip(task: CareTaskUiModel) {
+    val color = when {
+        task.isOverdue -> Clay
+        task.isSnoozed -> MistBlue
+        else -> LeafGreen
+    }
+    val label = when {
+        task.isOverdue -> "Overdue"
+        task.isSnoozed -> "Snoozed"
+        else -> task.dueLabel
+    }
+
+    Box(
+        modifier = Modifier
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun CareType.homeTaskIcon(): ImageVector =
+    when (this) {
+        CareType.WATERING -> Icons.Rounded.WaterDrop
+        CareType.FERTILIZING -> Icons.Rounded.Eco
+        CareType.REPOTTING -> Icons.Rounded.LocalFlorist
+        CareType.MISTING -> Icons.Rounded.WaterDrop
+        CareType.PRUNING -> Icons.Rounded.Eco
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -467,10 +1153,12 @@ private fun SwipeCareTaskCard(
                     onEvent(TodayEvent.CompleteTask(task.id))
                     true
                 }
+
                 SwipeToDismissBoxValue.EndToStart -> {
                     onEvent(TodayEvent.SnoozeTask(task.id))
                     true
                 }
+
                 SwipeToDismissBoxValue.Settled -> false
             }
         },
@@ -480,6 +1168,7 @@ private fun SwipeCareTaskCard(
         state = dismissState,
         backgroundContent = {
             val targetValue = dismissState.targetValue
+
             val backgroundColor by animateColorAsState(
                 targetValue = when (targetValue) {
                     SwipeToDismissBoxValue.StartToEnd -> FreshGreen
@@ -488,190 +1177,41 @@ private fun SwipeCareTaskCard(
                 },
                 label = "SwipeTaskBackground",
             )
+
             val icon = when (targetValue) {
                 SwipeToDismissBoxValue.StartToEnd -> Icons.Rounded.Check
                 SwipeToDismissBoxValue.EndToStart -> Icons.Rounded.Snooze
                 SwipeToDismissBoxValue.Settled -> Icons.Rounded.Eco
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundColor, RoundedCornerShape(24.dp))
+                    .background(
+                        color = backgroundColor,
+                        shape = RoundedCornerShape(24.dp),
+                    )
                     .padding(horizontal = 20.dp),
                 contentAlignment = when (targetValue) {
                     SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
                     else -> Alignment.CenterStart
                 },
             ) {
-                Icon(icon, contentDescription = null, tint = Color.White)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                )
             }
         },
     ) {
-        CareTaskCard(
+        HomeCareTaskCard(
             task = task,
             onOpenPlant = { onEvent(TodayEvent.PlantClicked(task.plantId)) },
             onComplete = { onEvent(TodayEvent.CompleteTask(task.id)) },
             onSkip = { onEvent(TodayEvent.SkipTask(task.id)) },
             onSnooze = { onEvent(TodayEvent.SnoozeTask(task.id)) },
         )
-    }
-}
-
-@Composable
-private fun ProgressStatsCard(progressStats: DashboardProgressUiModel) {
-    val progress by animateFloatAsState(
-        targetValue = progressStats.completionPercent.coerceIn(0f, 1f),
-        label = "DashboardProgress",
-    )
-
-    WaterMeCard {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            WaterMeSectionHeader("Progress")
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.size(86.dp),
-                        color = LeafGreen,
-                        trackColor = LeafGreen.copy(alpha = 0.14f),
-                        strokeWidth = 8.dp,
-                    )
-                    Text(
-                        text = "${(progress * 100).toInt()}%",
-                        fontWeight = FontWeight.Bold,
-                        color = Ink,
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    ProgressStatRow("Completed today", progressStats.completedToday, LeafGreen)
-                    ProgressStatRow("Still due", progressStats.dueToday, MistBlue)
-                    ProgressStatRow("Overdue", progressStats.overdue, Clay)
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp),
-                        color = LeafGreen,
-                        trackColor = LeafGreen.copy(alpha = 0.12f),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProgressStatRow(
-    label: String,
-    value: Int,
-    color: Color,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .background(color, RoundedCornerShape(4.dp)),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(label, color = MutedInk)
-        }
-        Text(value.toString(), color = Ink, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun UpcomingRemindersSection(reminders: List<ReminderUiModel>) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        WaterMeSectionHeader("Upcoming reminders")
-        if (reminders.isEmpty()) {
-            WaterMeEmptyState(
-                title = "No upcoming reminders",
-                message = "Add or edit a plant schedule to see what is coming next.",
-                icon = Icons.Rounded.CalendarMonth,
-            )
-        } else {
-            reminders.forEach { reminder -> ReminderRow(reminder = reminder) }
-        }
-    }
-}
-
-@Composable
-private fun PlantHealthSummaryCard(
-    summary: PlantHealthSummaryUiModel,
-    healthNotes: List<HealthNoteUiModel>,
-) {
-    WaterMeCard(containerColor = SoftCream) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            WaterMeSectionHeader("Plant health")
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HealthMetric("Attention", summary.attentionCount, Clay, Modifier.weight(1f))
-                HealthMetric("Healthy", summary.healthyCount, LeafGreen, Modifier.weight(1f))
-                HealthMetric("Growth", summary.newGrowthCount, FreshGreen, Modifier.weight(1f))
-            }
-            if (healthNotes.isEmpty()) {
-                Text(
-                    text = "No recent health notes. Log observations from a plant detail page.",
-                    color = MutedInk,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    healthNotes.take(2).forEach { note -> HealthNoteRow(note) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HealthMetric(
-    label: String,
-    value: Int,
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(value.toString(), color = color, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(label, color = MutedInk, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
-private fun RecentlyAddedPlantsSection(
-    plants: List<PlantCardUiModel>,
-    onEvent: (TodayEvent) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        WaterMeSectionHeader("Recently added")
-        if (plants.isEmpty()) {
-            WaterMeEmptyState(
-                title = "No plants yet",
-                message = "Your newest plants will appear here after you add them.",
-                actionLabel = "Add plant",
-                onActionClick = { onEvent(TodayEvent.AddPlantClicked) },
-            )
-        } else {
-            plants.forEach { plant ->
-                PlantCard(
-                    plant = plant,
-                    onClick = { onEvent(TodayEvent.PlantClicked(plant.id)) },
-                )
-            }
-        }
     }
 }
 
@@ -712,9 +1252,12 @@ private fun dashboardPreviewState(): TodayUiState =
     TodayUiState(
         tasks = WaterMePreviewData.tasks.take(2),
         overdueTasks = WaterMePreviewData.tasks.takeLast(1),
-        upcomingReminders = WaterMePreviewData.reminders,
         healthNotes = WaterMePreviewData.healthNotes,
-        healthSummary = PlantHealthSummaryUiModel(attentionCount = 1, healthyCount = 1, newGrowthCount = 1),
+        healthSummary = PlantHealthSummaryUiModel(
+            attentionCount = 1,
+            healthyCount = 1,
+            newGrowthCount = 1,
+        ),
         recentlyAddedPlants = WaterMePreviewData.plants,
         progressStats = DashboardProgressUiModel(
             completedToday = 4,
@@ -724,4 +1267,8 @@ private fun dashboardPreviewState(): TodayUiState =
         ),
         plantCount = WaterMePreviewData.plants.size,
         reminderCount = WaterMePreviewData.reminders.size,
+        careHistoryCount = 8,
+        healthNoteCount = WaterMePreviewData.healthNotes.size,
+        appOpenDayStreak = 5,
+        completedThisWeek = 12,
     )
