@@ -30,6 +30,7 @@ import com.hotelski.waterme.feature.plantdetails.PlantDetailsViewModel
 import com.hotelski.waterme.feature.plants.PlantsEffect
 import com.hotelski.waterme.feature.plants.PlantsScreen
 import com.hotelski.waterme.feature.plants.PlantsViewModel
+import com.hotelski.waterme.feature.legal.LegalDocument
 import com.hotelski.waterme.feature.settings.SettingsEffect
 import com.hotelski.waterme.feature.settings.SettingsScreen
 import com.hotelski.waterme.feature.settings.SettingsViewModel
@@ -43,7 +44,6 @@ fun HomeRoute(
     onAddPlant: () -> Unit,
     onOpenCalendar: () -> Unit,
     onOpenFeedback: () -> Unit,
-    onOpenPlant: (String) -> Unit,
     onOpenPlants: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
 ) {
@@ -56,7 +56,6 @@ fun HomeRoute(
                 HomeEffect.NavigateToCalendar -> onOpenCalendar()
                 HomeEffect.NavigateToFeedback -> onOpenFeedback()
                 HomeEffect.NavigateToPlants -> onOpenPlants()
-                is HomeEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
             }
         }
     }
@@ -65,12 +64,14 @@ fun HomeRoute(
         uiState = uiState,
         onEvent = homeViewModel::onEvent,
         onFeedbackClick = { homeViewModel.onEvent(TodayEvent.FeedbackClicked) },
+        onDonateClick = { homeViewModel.onEvent(TodayEvent.DonateClicked) },
     )
 }
 
 @Composable
 fun PlantsRoute(
     onAddPlant: () -> Unit,
+    onOpenPlant: (String) -> Unit,
     onEditPlant: (String) -> Unit,
     plantsViewModel: PlantsViewModel = viewModel(),
 ) {
@@ -80,6 +81,7 @@ fun PlantsRoute(
         plantsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantsEffect.NavigateToAddPlant -> onAddPlant()
+                is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
                 is PlantsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
             }
         }
@@ -260,6 +262,7 @@ fun CareHistoryRoute(
 @Composable
 fun SettingsRoute(
     onOpenFeedback: () -> Unit,
+    onOpenLegal: (LegalDocument) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenCharacters: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel(),
@@ -270,6 +273,7 @@ fun SettingsRoute(
         settingsViewModel.effects.collect { effect ->
             when (effect) {
                 SettingsEffect.NavigateToFeedback -> onOpenFeedback()
+                is SettingsEffect.NavigateToLegal -> onOpenLegal(effect.document)
                 SettingsEffect.RequestNotificationPermission -> onRequestNotificationPermission()
                 SettingsEffect.NavigateToCharacters -> onOpenCharacters()
             }

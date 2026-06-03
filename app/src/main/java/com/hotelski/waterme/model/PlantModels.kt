@@ -21,6 +21,11 @@ enum class HealthMood(val label: String) {
     GROWTH("New growth"),
 }
 
+enum class PlantEnvironment(val label: String) {
+    INDOOR("Indoor"),
+    OUTDOOR("Outdoor"),
+}
+
 data class CareReminder(
     val id: String = UUID.randomUUID().toString(),
     val type: CareType,

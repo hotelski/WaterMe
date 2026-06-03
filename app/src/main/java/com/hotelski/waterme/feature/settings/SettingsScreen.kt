@@ -1,6 +1,7 @@
 package com.hotelski.waterme.feature.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,21 +16,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.RateReview
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,16 +53,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.hotelski.waterme.data.local.entity.ThemePreference
+import com.hotelski.waterme.data.preferences.TextColorPreference
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMeTopBar
-import com.hotelski.waterme.ui.theme.CardWhite
+import com.hotelski.waterme.feature.legal.LegalDocument
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 
@@ -60,8 +71,11 @@ data class SettingsUiState(
     val isLoading: Boolean = false,
     val profileName: String = "Plant keeper",
     val selectedCharacterName: String = "Sprout",
+    val activeCharacter: PlantCharacterUiModel? = null,
     val notificationsEnabled: Boolean = true,
     val notificationPermissionLabel: String = "Not requested",
+    val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val textColorPreference: TextColorPreference = TextColorPreference.FOREST,
     val defaultReminderHour: Int = 9,
     val defaultReminderMinute: Int = 0,
     val appVersion: String = "1.0 (1)",
@@ -80,7 +94,11 @@ sealed interface SettingsEvent {
     data object DeleteAllDataClicked : SettingsEvent
     data object ConfirmDeleteAllDataClicked : SettingsEvent
     data object DismissDeleteAllDataClicked : SettingsEvent
+    data class LegalDocumentClicked(val document: LegalDocument) : SettingsEvent
     data class NotificationsChanged(val enabled: Boolean) : SettingsEvent
+    data object ColorSchemeResetClicked : SettingsEvent
+    data class ThemePreferenceChanged(val value: ThemePreference) : SettingsEvent
+    data class TextColorPreferenceChanged(val value: TextColorPreference) : SettingsEvent
 }
 
 
@@ -100,7 +118,7 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = { WaterMeTopBar(title = "Settings") },
     ) { innerPadding ->
         val blockingError = uiState.errorMessage
@@ -128,7 +146,7 @@ private fun SettingsContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -144,15 +162,23 @@ private fun SettingsContent(
         }
         if (uiState.successMessage != null) {
             item {
-                SettingsMessageCard(
-                    title = "Saved",
-                    message = uiState.successMessage,
-                    color = LeafGreen,
-                    icon = Icons.Rounded.Check,
-                )
+                if (uiState.activeCharacter != null) {
+                    PlantCharacterCelebrationCard(
+                        character = uiState.activeCharacter,
+                        message = uiState.successMessage,
+                    )
+                } else {
+                    SettingsMessageCard(
+                        title = "Saved",
+                        message = uiState.successMessage,
+                        color = LeafGreen,
+                        icon = Icons.Rounded.Check,
+                    )
+                }
             }
         }
         item { CharacterSettingsCard(uiState, onEvent) }
+        item { ColorSchemeSettingsCard(uiState, onEvent) }
         item { NotificationSettingsCard(uiState, onEvent) }
         item { AboutAppCard(uiState, onEvent) }
         item { DeleteAllDataCard(uiState, onEvent) }
@@ -180,6 +206,118 @@ private fun CharacterSettingsCard(
             Icon(Icons.Rounded.LocalFlorist, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Open character garden")
+        }
+    }
+}
+
+@Composable
+private fun ColorSchemeSettingsCard(
+    uiState: SettingsUiState,
+    onEvent: (SettingsEvent) -> Unit,
+) {
+    SettingsSectionCard(
+        title = "Color Scheme",
+        subtitle = "Switch between day and night mode, then tune the text tone.",
+        icon = Icons.Rounded.Palette,
+    ) {
+        Text("Mode", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            ModeChoiceChip(
+                label = "Reset",
+                icon = Icons.Rounded.RestartAlt,
+                selected = uiState.themePreference == ThemePreference.SYSTEM &&
+                    uiState.textColorPreference == TextColorPreference.FOREST,
+                onClick = { onEvent(SettingsEvent.ColorSchemeResetClicked) },
+                modifier = Modifier.weight(1f),
+            )
+            ModeChoiceChip(
+                label = "Day",
+                icon = Icons.Rounded.LightMode,
+                selected = uiState.themePreference == ThemePreference.LIGHT,
+                onClick = { onEvent(SettingsEvent.ThemePreferenceChanged(ThemePreference.LIGHT)) },
+                modifier = Modifier.weight(1f),
+            )
+            ModeChoiceChip(
+                label = "Night",
+                icon = Icons.Rounded.DarkMode,
+                selected = uiState.themePreference == ThemePreference.DARK,
+                onClick = { onEvent(SettingsEvent.ThemePreferenceChanged(ThemePreference.DARK)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Text("Text color", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextColorPreference.entries.forEach { preference ->
+                TextColorCircleButton(
+                    preference = preference,
+                    selected = uiState.textColorPreference == preference,
+                    onClick = { onEvent(SettingsEvent.TextColorPreferenceChanged(preference)) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModeChoiceChip(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier,
+        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) },
+        label = {
+            Text(
+                text = label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+    )
+}
+
+@Composable
+private fun TextColorCircleButton(
+    preference: TextColorPreference,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(26.dp),
+            shape = CircleShape,
+            color = preference.previewColor(),
+            border = BorderStroke(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+            ),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = preference.settingsLabel(),
+                        modifier = Modifier.size(14.dp),
+                        tint = preference.selectionTint(),
+                    )
+                }
+            }
         }
     }
 }
@@ -224,7 +362,21 @@ private fun AboutAppCard(
         icon = Icons.Rounded.Info,
     ) {
         SettingsInfoRow("App version", uiState.appVersion)
-        SettingsInfoRow("Storage", "Room database + Preferences DataStore")
+        SettingsInfoRow("Data", "Stored locally on this device")
+        SettingsInfoRow("Tracking", "No ads or selling data")
+        SettingsInfoRow("Notifications", "Optional local reminders")
+        LegalDocumentButton(
+            title = "Terms of use",
+            subtitle = "Use, responsibility, and limitations",
+            icon = Icons.Rounded.Gavel,
+            onClick = { onEvent(SettingsEvent.LegalDocumentClicked(LegalDocument.Terms)) },
+        )
+        LegalDocumentButton(
+            title = "Privacy Policy",
+            subtitle = "Local data, photos, feedback, and deletion",
+            icon = Icons.Rounded.Policy,
+            onClick = { onEvent(SettingsEvent.LegalDocumentClicked(LegalDocument.Privacy)) },
+        )
         OutlinedButton(
             onClick = { onEvent(SettingsEvent.FeedbackClicked) },
             modifier = Modifier.fillMaxWidth(),
@@ -238,17 +390,67 @@ private fun AboutAppCard(
 }
 
 @Composable
+private fun LegalDocumentButton(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = LeafGreen)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 private fun DeleteAllDataCard(
     uiState: SettingsUiState,
     onEvent: (SettingsEvent) -> Unit,
 ) {
-    WaterMeCard(containerColor = Color(0xFFFFF4ED)) {
+    WaterMeCard(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Delete, contentDescription = null, tint = Clay)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f), RoundedCornerShape(15.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Delete all data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
-                    Text("Remove plants, reminders, care history, photos, and saved settings from this device.", color = MutedInk)
+                    Text(
+                        "Delete all data",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        "Remove plants, reminders, care history, photos, and saved settings from this device.",
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.78f),
+                    )
                 }
             }
             OutlinedButton(
@@ -256,7 +458,10 @@ private fun DeleteAllDataCard(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.isDeletingAllData,
                 shape = RoundedCornerShape(18.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Clay),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                    disabledContentColor = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.58f),
+                ),
             ) {
                 Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -273,7 +478,7 @@ private fun SettingsSectionCard(
     icon: ImageVector,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    WaterMeCard(containerColor = CardWhite) {
+    WaterMeCard(containerColor = MaterialTheme.colorScheme.surface) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -285,8 +490,17 @@ private fun SettingsSectionCard(
                     Icon(icon, contentDescription = null, tint = LeafGreen)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
@@ -307,8 +521,8 @@ private fun ToggleSettingRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
-            Text(description, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+            Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Switch(
             checked = checked,
@@ -324,24 +538,20 @@ private fun SettingsInfoRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
-            modifier = Modifier.weight(1f),
-            color = MutedInk,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(0.42f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             value,
-            modifier = Modifier.weight(1f),
-            color = Ink,
+            modifier = Modifier.weight(0.58f),
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -357,12 +567,58 @@ private fun SettingsMessageCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = color)
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Ink)
-                Text(message, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
+
+private fun TextColorPreference.settingsLabel(): String =
+    when (this) {
+        TextColorPreference.FOREST -> "Forest"
+        TextColorPreference.MINT -> "Mint"
+        TextColorPreference.BLUE -> "Blue"
+        TextColorPreference.SKY -> "Sky"
+        TextColorPreference.CLAY -> "Clay"
+        TextColorPreference.AMBER -> "Amber"
+        TextColorPreference.ROSE -> "Rose"
+        TextColorPreference.LAVENDER -> "Lavender"
+        TextColorPreference.SLATE -> "Slate"
+        TextColorPreference.HIGH_CONTRAST -> "Contrast"
+    }
+
+private fun TextColorPreference.previewColor(): Color =
+    when (this) {
+        TextColorPreference.FOREST -> LeafGreen
+        TextColorPreference.MINT -> Color(0xFF56A86D)
+        TextColorPreference.BLUE -> Color(0xFF1F5E78)
+        TextColorPreference.SKY -> Color(0xFF3D89B4)
+        TextColorPreference.CLAY -> Color(0xFF6B4A16)
+        TextColorPreference.AMBER -> Color(0xFFA06A08)
+        TextColorPreference.ROSE -> Color(0xFF9C4357)
+        TextColorPreference.LAVENDER -> Color(0xFF7158A6)
+        TextColorPreference.SLATE -> Color(0xFF33424B)
+        TextColorPreference.HIGH_CONTRAST -> Color.Black
+    }
+
+private fun TextColorPreference.selectionTint(): Color =
+    when (this) {
+        TextColorPreference.FOREST,
+        TextColorPreference.MINT,
+        TextColorPreference.SKY,
+        TextColorPreference.AMBER -> Color(0xFF102816)
+        else -> Color.White
+    }
 
 @Composable
 private fun DeleteAllDataDialog(

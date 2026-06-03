@@ -1681,7 +1681,7 @@ private enum class MainTab(
     val title: String,
     val icon: ImageVector,
 ) {
-    Home("Today", Icons.Rounded.Home),
+    Home("Home", Icons.Rounded.Home),
     Plants("Plants", Icons.Rounded.LocalFlorist),
     Calendar("Calendar", Icons.Rounded.Event),
     Settings("Settings", Icons.Rounded.Settings),

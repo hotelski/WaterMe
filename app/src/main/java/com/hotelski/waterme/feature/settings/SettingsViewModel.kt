@@ -6,11 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.BuildConfig
 import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.data.local.entity.NotificationPermissionState
+import com.hotelski.waterme.data.local.entity.ThemePreference
+import com.hotelski.waterme.data.preferences.TextColorPreference
 import com.hotelski.waterme.feature.characters.activePlantCharacter
+import com.hotelski.waterme.feature.legal.LegalDocument
 import com.hotelski.waterme.notifications.NotificationPermissionHelper
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +27,7 @@ import kotlinx.coroutines.launch
 
 sealed interface SettingsEffect {
     data object NavigateToFeedback : SettingsEffect
+    data class NavigateToLegal(val document: LegalDocument) : SettingsEffect
     data object RequestNotificationPermission : SettingsEffect
     data object NavigateToCharacters : SettingsEffect
 }
@@ -43,6 +49,7 @@ class SettingsViewModel(
 
     private val actionState = MutableStateFlow(SettingsActionState())
     private val _effects = MutableSharedFlow<SettingsEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -58,11 +65,14 @@ class SettingsViewModel(
             plantsAddedTotal = plants.size,
             appOpenDayStreak = settings.appOpenDayStreak,
         )
-        SettingsUiState(
-            isLoading = false,
-            selectedCharacterName = selectedCharacter.name,
-            notificationsEnabled = settings.notificationsEnabled,
+            SettingsUiState(
+                isLoading = false,
+                selectedCharacterName = selectedCharacter.name,
+                activeCharacter = selectedCharacter,
+                notificationsEnabled = settings.notificationsEnabled,
             notificationPermissionLabel = settings.notificationPermissionState.toPermissionLabel(),
+            themePreference = settings.themePreference,
+            textColorPreference = settings.textColorPreference,
             appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
             plantCount = plants.size,
             showDeleteAllDataConfirmation = action.showDeleteAllDataConfirmation,
@@ -85,9 +95,13 @@ class SettingsViewModel(
     fun onEvent(event: SettingsEvent) {
         when (event) {
             SettingsEvent.FeedbackClicked -> emitEffect(SettingsEffect.NavigateToFeedback)
+            is SettingsEvent.LegalDocumentClicked -> emitEffect(SettingsEffect.NavigateToLegal(event.document))
             SettingsEvent.CharactersClicked -> emitEffect(SettingsEffect.NavigateToCharacters)
             SettingsEvent.RequestNotificationPermissionClicked -> emitEffect(SettingsEffect.RequestNotificationPermission)
             is SettingsEvent.NotificationsChanged -> updateNotifications(event.enabled)
+            SettingsEvent.ColorSchemeResetClicked -> resetColorScheme()
+            is SettingsEvent.ThemePreferenceChanged -> updateThemePreference(event.value)
+            is SettingsEvent.TextColorPreferenceChanged -> updateTextColorPreference(event.value)
             SettingsEvent.DeleteAllDataClicked -> actionState.value = actionState.value.copy(showDeleteAllDataConfirmation = true)
             SettingsEvent.DismissDeleteAllDataClicked -> actionState.value = actionState.value.copy(showDeleteAllDataConfirmation = false)
             SettingsEvent.ConfirmDeleteAllDataClicked -> deleteAllData()
@@ -129,11 +143,34 @@ class SettingsViewModel(
                     permissionState = permissionState,
                 )
             }
-                .onSuccess { actionState.value = SettingsActionState(successMessage = successMessage) }
-                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+                .onSuccess { showSuccess(successMessage) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
+    private fun updateThemePreference(themePreference: ThemePreference) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updateThemePreference(themePreference) }
+                .onSuccess { showSuccess("Color scheme updated.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun updateTextColorPreference(textColorPreference: TextColorPreference) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.updateTextColorPreference(textColorPreference) }
+                .onSuccess { showSuccess("Text color updated.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun resetColorScheme() {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.resetColorScheme() }
+                .onSuccess { showSuccess("Color scheme reset.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
 
     private fun deleteAllData() {
         viewModelScope.launch {
@@ -145,8 +182,26 @@ class SettingsViewModel(
                 WaterMeAppContainer.deleteAllData(appContext)
                 settingsDataStore.clearAfterDeleteAllData()
             }
-                .onSuccess { actionState.value = SettingsActionState(successMessage = "All local WaterMe data was deleted.") }
-                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+                .onSuccess { showSuccess("All local WaterMe data was deleted.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showSuccess(message: String) {
+        showMessage(successMessage = message)
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+    ) {
+        actionState.value = SettingsActionState(successMessage = successMessage, errorMessage = errorMessage)
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(SuccessMessageVisibleMillis)
+            if (actionState.value.successMessage == successMessage && actionState.value.errorMessage == errorMessage) {
+                actionState.value = actionState.value.copy(successMessage = null, errorMessage = null)
+            }
         }
     }
 
@@ -154,7 +209,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             actionState.value = SettingsActionState()
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
-                .onFailure { actionState.value = SettingsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -182,5 +237,6 @@ class SettingsViewModel(
 
     private companion object {
         val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
+        const val SuccessMessageVisibleMillis = 2_400L
     }
 }

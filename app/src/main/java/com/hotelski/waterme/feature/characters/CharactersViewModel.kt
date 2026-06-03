@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,6 +50,7 @@ class CharactersViewModel(
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
     private val actionState = MutableStateFlow(CharactersActionState())
     private val _effects = MutableSharedFlow<CharactersEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -98,7 +101,7 @@ class CharactersViewModel(
     private fun selectCharacter(characterId: String) {
         val character = uiState.value.characters.firstOrNull { it.id == characterId } ?: return
         if (!character.isUnlocked) {
-            actionState.value = CharactersActionState(errorMessage = "${character.name} is still locked.")
+            showMessage(errorMessage = "${character.name} is still locked.")
             return
         }
 
@@ -109,7 +112,7 @@ class CharactersViewModel(
                         heartBurstKey = System.nanoTime(),
                     )
                 }
-                .onFailure { actionState.value = CharactersActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -117,7 +120,31 @@ class CharactersViewModel(
         viewModelScope.launch {
             actionState.value = CharactersActionState()
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
-                .onFailure { actionState.value = CharactersActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+        heartBurstKey: Long = 0L,
+    ) {
+        actionState.value = CharactersActionState(
+            successMessage = successMessage,
+            errorMessage = errorMessage,
+            heartBurstKey = heartBurstKey,
+        )
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            val current = actionState.value
+            if (
+                current.successMessage == successMessage &&
+                current.errorMessage == errorMessage &&
+                current.heartBurstKey == heartBurstKey
+            ) {
+                actionState.value = current.copy(successMessage = null, errorMessage = null, heartBurstKey = 0L)
+            }
         }
     }
 
@@ -127,4 +154,8 @@ class CharactersViewModel(
 
     private fun Throwable.toUserMessage(): String =
         message?.takeIf { it.isNotBlank() } ?: "WaterMe could not load characters."
+
+    private companion object {
+        const val MESSAGE_VISIBLE_MILLIS = 2_400L
+    }
 }

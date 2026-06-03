@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.hotelski.waterme.data.local.entity.CareHistoryEntity
 import com.hotelski.waterme.data.local.model.CareHistoryWithPlant
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.HealthMood
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -125,6 +126,21 @@ interface CareHistoryDao {
         performedAt: Long,
         notes: String?,
         photoUri: String?,
+    )
+
+    @Query(
+        """
+        UPDATE care_history
+        SET health_mood = :mood,
+            notes = :notes
+        WHERE history_id = :historyId
+            AND action = 'HEALTH_NOTE'
+        """,
+    )
+    suspend fun updateHealthNote(
+        historyId: String,
+        mood: HealthMood,
+        notes: String,
     )
 
     @Query("DELETE FROM care_history WHERE history_id = :historyId")

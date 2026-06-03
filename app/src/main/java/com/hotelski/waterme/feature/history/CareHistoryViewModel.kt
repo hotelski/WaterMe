@@ -14,6 +14,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -174,6 +176,7 @@ class CareHistoryViewModel(
     private val draft = MutableStateFlow(CareHistoryDraftUiState(plantId = initialPlantId.orEmpty()))
     private val actionState = MutableStateFlow(CareHistoryActionState())
     private val _effects = MutableSharedFlow<CareHistoryEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -348,11 +351,11 @@ class CareHistoryViewModel(
             result
                 .onSuccess {
                     draft.value = CareHistoryDraftUiState(plantId = initialPlantId.orEmpty())
-                    actionState.value = CareHistoryActionState(
+                    showMessage(
                         successMessage = if (currentDraft.isEditing) "Care entry updated." else "Care entry added.",
                     )
                 }
-                .onFailure { actionState.value = CareHistoryActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -361,15 +364,29 @@ class CareHistoryViewModel(
         viewModelScope.launch {
             actionState.value = CareHistoryActionState(isDeleting = true, pendingDeleteEntryId = historyId)
             runCatching { careRepository.deleteCareHistoryEntry(historyId) }
-                .onSuccess { actionState.value = CareHistoryActionState(successMessage = "Care entry deleted.") }
-                .onFailure { actionState.value = CareHistoryActionState(errorMessage = it.toUserMessage()) }
+                .onSuccess { showMessage(successMessage = "Care entry deleted.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
     private fun seedIfEmpty() {
         viewModelScope.launch {
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
-                .onFailure { actionState.value = CareHistoryActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+    ) {
+        actionState.value = CareHistoryActionState(successMessage = successMessage, errorMessage = errorMessage)
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            if (actionState.value.successMessage == successMessage && actionState.value.errorMessage == errorMessage) {
+                actionState.value = actionState.value.copy(successMessage = null, errorMessage = null)
+            }
         }
     }
 
@@ -383,5 +400,6 @@ class CareHistoryViewModel(
     private companion object {
         const val MAX_NOTES_LENGTH = 320
         const val MAX_PHOTO_URI_LENGTH = 500
+        const val MESSAGE_VISIBLE_MILLIS = 2_400L
     }
 }

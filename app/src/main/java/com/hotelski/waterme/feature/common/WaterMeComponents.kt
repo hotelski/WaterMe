@@ -59,21 +59,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.HealthMood
-import com.hotelski.waterme.ui.theme.CardWhite
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
-import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -89,6 +85,9 @@ fun WaterMeTopBar(
     actionIcon: ImageVector? = null,
     actionContentDescription: String? = null,
     onActionClick: (() -> Unit)? = null,
+    secondaryActionIcon: ImageVector? = null,
+    secondaryActionContentDescription: String? = null,
+    onSecondaryActionClick: (() -> Unit)? = null,
 ) {
     TopAppBar(
         title = {
@@ -108,6 +107,11 @@ fun WaterMeTopBar(
             }
         },
         actions = {
+            if (secondaryActionIcon != null && onSecondaryActionClick != null) {
+                IconButton(onClick = onSecondaryActionClick) {
+                    Icon(secondaryActionIcon, contentDescription = secondaryActionContentDescription)
+                }
+            }
             if (actionIcon != null && onActionClick != null) {
                 IconButton(onClick = onActionClick) {
                     Icon(actionIcon, contentDescription = actionContentDescription)
@@ -236,7 +240,7 @@ fun WaterMeSectionHeader(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Ink,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         if (actionLabel != null && onActionClick != null) {
             TextButton(onClick = onActionClick) {
@@ -260,7 +264,7 @@ fun WaterMeLoadingState(
     ) {
         CircularProgressIndicator(color = LeafGreen)
         Spacer(Modifier.height(16.dp))
-        Text(message, color = MutedInk, style = MaterialTheme.typography.bodyMedium)
+        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -279,6 +283,7 @@ fun WaterMeEmptyState(
         accentColor = MaterialTheme.colorScheme.primary,
     ) {
         Column(
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -288,11 +293,15 @@ fun WaterMeEmptyState(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
             )
             if (actionLabel != null && onActionClick != null) {
                 OutlinedButton(
@@ -314,7 +323,7 @@ fun WaterMeErrorState(
 ) {
     WaterMeCard(
         modifier = modifier,
-        containerColor = Color(0xFFFFF4ED),
+        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.46f),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Rounded.Info, contentDescription = null, tint = Clay)
@@ -322,9 +331,9 @@ fun WaterMeErrorState(
                 text = "Something went wrong",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = MutedInk)
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (onRetryClick != null) {
                 OutlinedButton(
                     onClick = onRetryClick,
@@ -345,12 +354,12 @@ fun PlantPhotoTile(
     plantName: String,
     modifier: Modifier = Modifier,
     size: Dp = 72.dp,
+    fillContainer: Boolean = false,
 ) {
     val imageBitmap = rememberPlantImageBitmap(photoUri)
     val shape = RoundedCornerShape(size * 0.28f)
     Box(
-        modifier = modifier
-            .size(size)
+        modifier = (if (fillContainer) modifier.fillMaxSize() else modifier.size(size))
             .shadow(
                 elevation = 8.dp,
                 shape = shape,
@@ -543,7 +552,7 @@ fun PlantCard(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -560,7 +569,7 @@ fun PlantCard(
                     )
                 }
             }
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MutedInk)
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -589,19 +598,19 @@ fun CareTaskCard(
                         text = task.careType.label(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = task.plantName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = task.plantLocation,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 StatusPill(task)
@@ -654,9 +663,9 @@ fun ReminderRow(
                     text = reminder.careType.label(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-                Text(reminder.frequencyLabel, style = MaterialTheme.typography.bodyMedium, color = MutedInk)
+                Text(reminder.frequencyLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(reminder.nextDueLabel, style = MaterialTheme.typography.labelLarge, color = LeafGreen)
             }
             CountPill(if (reminder.enabled) "On" else "Off")
@@ -680,14 +689,14 @@ fun CareHistoryRow(
                     text = "${entry.actionLabel} ${entry.careType.shortLabel().lowercase()}",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-                Text(entry.plantName, style = MaterialTheme.typography.bodyMedium, color = MutedInk)
+                Text(entry.plantName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (entry.notes.isNotBlank()) {
                     Text(
                         text = entry.notes,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -723,8 +732,8 @@ fun HealthNoteRow(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(note.plantName, style = MaterialTheme.typography.labelLarge, color = LeafGreen)
-                Text(note.note, style = MaterialTheme.typography.bodyMedium, color = Ink)
-                Text("${note.mood.label()} - ${note.dateLabel}", style = MaterialTheme.typography.bodySmall, color = MutedInk)
+                Text(note.note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text("${note.mood.label()} - ${note.dateLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -797,7 +806,7 @@ private fun WaterMeComponentsPreview() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(GardenBackground)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

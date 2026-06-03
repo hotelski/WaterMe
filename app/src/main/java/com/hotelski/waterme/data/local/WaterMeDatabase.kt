@@ -30,7 +30,7 @@ import com.hotelski.waterme.data.local.entity.UserSettingsEntity
         CareHistoryEntity::class,
         UserSettingsEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(WaterMeTypeConverters::class)

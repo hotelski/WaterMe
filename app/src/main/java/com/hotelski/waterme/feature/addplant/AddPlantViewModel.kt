@@ -50,6 +50,7 @@ class AddPlantViewModel(
                     fieldErrors = fieldErrors.copy(name = null),
                 )
             }
+            is AddPlantEvent.EnvironmentSelected -> updateField { copy(environment = event.environment) }
             is AddPlantEvent.NotesChanged -> updateField { copy(notes = event.value.take(MAX_NOTES_LENGTH)) }
             is AddPlantEvent.ReminderEnabledChanged -> updateReminder(event.careType) {
                 copy(enabled = event.enabled)
@@ -138,6 +139,7 @@ class AddPlantViewModel(
                     name = plantName,
                     plantType = DEFAULT_PLANT_TYPE,
                     location = DEFAULT_PLANT_LOCATION,
+                    environment = current.environment,
                     notes = current.notes,
                     primaryPhotoUri = current.selectedPhotoUri,
                 )

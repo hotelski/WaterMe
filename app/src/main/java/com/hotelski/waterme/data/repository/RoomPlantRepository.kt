@@ -7,6 +7,7 @@ import com.hotelski.waterme.data.local.dao.PlantPhotoDao
 import com.hotelski.waterme.data.local.entity.PlantEntity
 import com.hotelski.waterme.data.local.entity.PlantPhotoEntity
 import com.hotelski.waterme.data.local.model.PlantWithDetails
+import com.hotelski.waterme.model.PlantEnvironment
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -32,6 +33,7 @@ class RoomPlantRepository(
         name: String,
         plantType: String,
         location: String,
+        environment: PlantEnvironment,
         notes: String,
         primaryPhotoUri: String? = null,
         nowMillis: Long = System.currentTimeMillis(),
@@ -45,6 +47,7 @@ class RoomPlantRepository(
                     name = name.trim(),
                     plantType = plantType.trim(),
                     location = location.trim(),
+                    environment = environment,
                     notes = notes.trim(),
                     createdAt = nowMillis,
                     updatedAt = nowMillis,
@@ -71,6 +74,7 @@ class RoomPlantRepository(
         name: String,
         plantType: String,
         location: String,
+        environment: PlantEnvironment,
         notes: String,
         nowMillis: Long = System.currentTimeMillis(),
     ) {
@@ -80,6 +84,7 @@ class RoomPlantRepository(
                 name = name.trim(),
                 plantType = plantType.trim(),
                 location = location.trim(),
+                environment = environment,
                 notes = notes.trim(),
                 updatedAt = nowMillis,
             ),

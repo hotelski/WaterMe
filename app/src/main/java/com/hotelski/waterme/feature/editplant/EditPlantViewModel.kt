@@ -59,6 +59,7 @@ class EditPlantViewModel(
             is EditPlantEvent.NameChanged -> updateField { copy(name = event.value, fieldErrors = fieldErrors.copy(name = null)) }
             is EditPlantEvent.PlantTypeChanged -> updateField { copy(plantType = event.value) }
             is EditPlantEvent.LocationChanged -> updateField { copy(location = event.value) }
+            is EditPlantEvent.EnvironmentSelected -> updateField { copy(environment = event.environment) }
             is EditPlantEvent.NotesChanged -> updateField { copy(notes = event.value) }
             is EditPlantEvent.ReminderEnabledChanged -> updateReminder(event.careType) { copy(enabled = event.enabled) }
             is EditPlantEvent.ReminderEveryDaysChanged -> {
@@ -128,6 +129,7 @@ class EditPlantViewModel(
                     name = current.name,
                     plantType = current.plantType,
                     location = current.location,
+                    environment = current.environment,
                     notes = current.notes,
                 )
 
@@ -274,6 +276,7 @@ class EditPlantViewModel(
             name = plant.name,
             plantType = plant.plantType,
             location = plant.location,
+            environment = plant.environment,
             notes = plant.notes,
             primaryPhotoUri = primaryPhotoUri(),
             reminders = editableReminderTypes.map { careType -> remindersByType.toReminderDraft(careType) },

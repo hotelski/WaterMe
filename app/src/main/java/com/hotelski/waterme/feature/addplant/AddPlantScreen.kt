@@ -23,8 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Park
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material3.Button
@@ -60,6 +62,7 @@ import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.PlantEnvironment
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
@@ -109,6 +112,7 @@ data class AddPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val name: String = "",
+    val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     val notes: String = "",
     val selectedPhotoUri: String? = null,
     val reminders: List<AddPlantReminderDraftUiModel> = emptyList(),
@@ -129,6 +133,7 @@ sealed interface AddPlantEvent {
     data object RetryClicked : AddPlantEvent
     data object DismissStartDatePicker : AddPlantEvent
     data class NameChanged(val value: String) : AddPlantEvent
+    data class EnvironmentSelected(val environment: PlantEnvironment) : AddPlantEvent
     data class NotesChanged(val value: String) : AddPlantEvent
     data class ReminderEnabledChanged(val careType: CareType, val enabled: Boolean) : AddPlantEvent
     data class FrequencySelected(val careType: CareType, val frequency: AddPlantFrequencyOption) : AddPlantEvent
@@ -209,6 +214,12 @@ private fun AddPlantContent(
                 name = uiState.name,
                 nameError = uiState.fieldErrors.name,
                 onNameChanged = { onEvent(AddPlantEvent.NameChanged(it)) },
+            )
+        }
+        item {
+            PlantEnvironmentCard(
+                selected = uiState.environment,
+                onSelected = { onEvent(AddPlantEvent.EnvironmentSelected(it)) },
             )
         }
         item {
@@ -355,6 +366,43 @@ private fun PlantNameCard(
                 },
                 shape = RoundedCornerShape(18.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun PlantEnvironmentCard(
+    selected: PlantEnvironment,
+    onSelected: (PlantEnvironment) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    WaterMePremiumCard(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionTitle(
+                icon = Icons.Rounded.Spa,
+                title = "Plant category",
+                subtitle = "Indoor or outdoor plant.",
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PlantEnvironment.entries.forEach { environment ->
+                    FilterChip(
+                        selected = selected == environment,
+                        onClick = { onSelected(environment) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (environment == PlantEnvironment.INDOOR) {
+                                    Icons.Rounded.Home
+                                } else {
+                                    Icons.Rounded.Park
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        label = { Text(environment.label) },
+                    )
+                }
+            }
         }
     }
 }

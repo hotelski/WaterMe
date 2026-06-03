@@ -19,6 +19,8 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -63,6 +65,7 @@ class CalendarViewModel(
     private val selectedPlantId = MutableStateFlow<String?>(null)
     private val actionState = MutableStateFlow(CalendarActionState())
     private val _effects = MutableSharedFlow<CalendarEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -193,19 +196,19 @@ class CalendarViewModel(
 
     private fun completeTask(taskId: String) {
         if (selectedDate.value.isAfter(LocalDate.now(clock))) {
-            actionState.value = CalendarActionState(errorMessage = "This task cannot be completed before its scheduled day.")
+            showMessage(errorMessage = "This task cannot be completed before its scheduled day.")
             return
         }
 
         viewModelScope.launch {
             runCatching { careRepository.markCalendarTaskCompleted(taskId) }
                 .onSuccess {
-                    actionState.value = CalendarActionState(
+                    showMessage(
                         successMessage = "Care task completed.",
                         heartBurstKey = System.nanoTime(),
                     )
                 }
-                .onFailure { actionState.value = CalendarActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -219,7 +222,31 @@ class CalendarViewModel(
         viewModelScope.launch {
             actionState.value = CalendarActionState()
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
-                .onFailure { actionState.value = CalendarActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+        heartBurstKey: Long = 0L,
+    ) {
+        actionState.value = CalendarActionState(
+            successMessage = successMessage,
+            errorMessage = errorMessage,
+            heartBurstKey = heartBurstKey,
+        )
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            val current = actionState.value
+            if (
+                current.successMessage == successMessage &&
+                current.errorMessage == errorMessage &&
+                current.heartBurstKey == heartBurstKey
+            ) {
+                actionState.value = current.copy(successMessage = null, errorMessage = null, heartBurstKey = 0L)
+            }
         }
     }
 
@@ -283,3 +310,4 @@ private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy")
 private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM d")
 private val fullDateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 private val accessibilityDateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d")
+private const val MESSAGE_VISIBLE_MILLIS = 2_400L

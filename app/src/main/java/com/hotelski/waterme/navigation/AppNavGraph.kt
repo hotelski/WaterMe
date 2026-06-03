@@ -25,6 +25,8 @@ import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.feedback.FeedbackScreen
 import com.hotelski.waterme.feature.feedback.FeedbackUiState
+import com.hotelski.waterme.feature.legal.LegalDocument
+import com.hotelski.waterme.feature.legal.LegalScreen
 import com.hotelski.waterme.feature.reminders.ReminderSetupEvent
 import com.hotelski.waterme.feature.reminders.ReminderSetupScreen
 import com.hotelski.waterme.feature.reminders.ReminderSetupUiState
@@ -53,12 +55,21 @@ fun AppNavGraph(
             )
         }
 
+        waterMeComposable(
+            route = WaterMeRoute.Legal.route,
+            arguments = listOf(navArgument(WaterMeRoute.Legal.DOCUMENT_ARG) { type = NavType.StringType }),
+        ) { entry ->
+            LegalScreen(
+                document = LegalDocument.fromRouteValue(entry.arguments?.getString(WaterMeRoute.Legal.DOCUMENT_ARG)),
+                onBack = navigationActions::back,
+            )
+        }
+
         waterMeComposable(WaterMeRoute.Today.route) {
             HomeRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
                 onOpenCalendar = navigationActions::navigateToCalendar,
                 onOpenFeedback = navigationActions::navigateToFeedback,
-                onOpenPlant = { plantId -> navigationActions.navigateToPlantDetails(plantId) },
                 onOpenPlants = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
         }
@@ -66,6 +77,7 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.Plants.route) {
             PlantsRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
+                onOpenPlant = navigationActions::navigateToPlantDetails,
                 onEditPlant = navigationActions::navigateToEditPlant,
             )
         }
@@ -163,6 +175,7 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.Settings.route) {
             SettingsRoute(
                 onOpenFeedback = navigationActions::navigateToFeedback,
+                onOpenLegal = { document -> navigationActions.navigateToLegal(document.routeValue) },
                 onRequestNotificationPermission = {},
                 onOpenCharacters = navigationActions::navigateToCharacters,
             )

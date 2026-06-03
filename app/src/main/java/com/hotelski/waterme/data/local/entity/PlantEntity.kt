@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.hotelski.waterme.model.PlantEnvironment
 
 @Entity(
     tableName = "plants",
@@ -33,6 +34,8 @@ data class PlantEntity(
     val plantType: String,
     @ColumnInfo(name = "location")
     val location: String,
+    @ColumnInfo(name = "environment")
+    val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     @ColumnInfo(name = "notes")
     val notes: String,
     @ColumnInfo(name = "is_favorite")

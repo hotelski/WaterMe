@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareHistoryUiModel
 import com.hotelski.waterme.feature.common.CareTaskUiModel
 import com.hotelski.waterme.feature.common.CareTypeBadge
+import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeIconBadge
@@ -66,15 +67,13 @@ import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.accentColor
+import com.hotelski.waterme.feature.common.icon
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.feature.common.shortLabel
 import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
 import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 import kotlinx.coroutines.delay
 
@@ -143,7 +142,7 @@ fun CalendarScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = { WaterMeTopBar(title = "Calendar") },
     ) { innerPadding ->
         when {
@@ -190,7 +189,7 @@ private fun CalendarContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -290,12 +289,12 @@ private fun CalendarDayStrip(
                         text = uiState.selectedMonthLabel,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = uiState.selectedDateLabel,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 TextButton(onClick = onTodayClick) {
@@ -478,12 +477,12 @@ private fun SectionTitle(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MutedInk,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -544,7 +543,23 @@ private fun CalendarTaskCard(
                     .clip(RoundedCornerShape(99.dp))
                     .background(task.careType.accentColor()),
             )
-            CareTypeBadge(task.careType, size = 44.dp)
+            Box {
+                PlantPhotoTile(
+                    photoUri = task.plantPhotoUri,
+                    plantName = task.plantName,
+                    size = 48.dp,
+                )
+                Icon(
+                    imageVector = task.careType.icon(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(21.dp)
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                        .padding(4.dp),
+                    tint = task.careType.accentColor(),
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -554,7 +569,7 @@ private fun CalendarTaskCard(
                         text = task.careType.label(),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -578,7 +593,7 @@ private fun CalendarTaskCard(
                     containerColor = LeafGreen,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MutedInk,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             ) {
                 Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -646,14 +661,14 @@ private fun CalendarHistoryCard(
                     text = "${entry.actionLabel} ${entry.careType.shortLabel().lowercase()}",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = entry.plantName,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -661,7 +676,7 @@ private fun CalendarHistoryCard(
                     Text(
                         text = entry.notes,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )

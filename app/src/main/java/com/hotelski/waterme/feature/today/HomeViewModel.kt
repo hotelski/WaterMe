@@ -9,6 +9,8 @@ import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.feature.common.endOfTodayMillis
 import com.hotelski.waterme.feature.common.startOfTodayMillis
 import com.hotelski.waterme.feature.common.toCareTaskUiModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,7 +26,6 @@ sealed interface HomeEffect {
     data object NavigateToCalendar : HomeEffect
     data object NavigateToFeedback : HomeEffect
     data object NavigateToPlants : HomeEffect
-    data class NavigateToPlantDetails(val plantId: String) : HomeEffect
 }
 
 private data class HomeActionState(
@@ -43,6 +44,7 @@ class HomeViewModel(
 
     private val actionState = MutableStateFlow(HomeActionState())
     private val _effects = MutableSharedFlow<HomeEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -74,7 +76,8 @@ class HomeViewModel(
         }
 
         val careHistoryCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE }
-        val healthNoteCount = careHistory.count { it.action == HistoryAction.HEALTH_NOTE }
+        val noteCount = plants.count { it.plant.notes.isNotBlank() } +
+            careHistory.count { !it.notes.isNullOrBlank() }
 
         val dueTaskCount = tasks.size
 
@@ -97,7 +100,7 @@ class HomeViewModel(
             plantCount = plants.size,
             reminderCount = activeReminderCount,
             careHistoryCount = careHistoryCount,
-            healthNoteCount = healthNoteCount,
+            noteCount = noteCount,
             appOpenDayStreak = settings.appOpenDayStreak,
             completedThisWeek = completedThisWeekCount,
             activeCharacter = activePlantCharacter(
@@ -128,14 +131,10 @@ class HomeViewModel(
         when (event) {
             TodayEvent.AddPlantClicked -> emitEffect(HomeEffect.NavigateToAddPlant)
             TodayEvent.CalendarClicked -> emitEffect(HomeEffect.NavigateToCalendar)
+            TodayEvent.DonateClicked -> showMessage(successMessage = "Support creator option coming soon.")
             TodayEvent.FeedbackClicked -> emitEffect(HomeEffect.NavigateToFeedback)
             TodayEvent.MyPlantsClicked -> emitEffect(HomeEffect.NavigateToPlants)
             TodayEvent.RetryClicked -> seedDatabase()
-
-            is TodayEvent.PlantClicked -> emitEffect(
-                HomeEffect.NavigateToPlantDetails(event.plantId),
-            )
-
             is TodayEvent.CompleteTask -> completeTask(event.taskId)
             is TodayEvent.SkipTask -> skipTask(event.taskId)
             is TodayEvent.SnoozeTask -> snoozeTask(event.taskId)
@@ -148,13 +147,13 @@ class HomeViewModel(
                 careRepository.markTaskCompleted(taskId)
             }
                 .onSuccess {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         successMessage = "Care task completed.",
                         heartBurstKey = System.nanoTime(),
                     )
                 }
                 .onFailure {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         errorMessage = it.toUserMessage(),
                     )
                 }
@@ -167,12 +166,12 @@ class HomeViewModel(
                 careRepository.skipTask(taskId)
             }
                 .onSuccess {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         successMessage = "Care task skipped.",
                     )
                 }
                 .onFailure {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         errorMessage = it.toUserMessage(),
                     )
                 }
@@ -187,12 +186,12 @@ class HomeViewModel(
                 careRepository.snoozeTask(taskId, snoozedUntil)
             }
                 .onSuccess {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         successMessage = "Reminder snoozed for 3 hours.",
                     )
                 }
                 .onFailure {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         errorMessage = it.toUserMessage(),
                     )
                 }
@@ -207,10 +206,34 @@ class HomeViewModel(
                 WaterMeAppContainer.seedIfEmpty(appContext)
             }
                 .onFailure {
-                    actionState.value = HomeActionState(
+                    showMessage(
                         errorMessage = it.toUserMessage(),
                     )
                 }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+        heartBurstKey: Long = 0L,
+    ) {
+        actionState.value = HomeActionState(
+            successMessage = successMessage,
+            errorMessage = errorMessage,
+            heartBurstKey = heartBurstKey,
+        )
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            val current = actionState.value
+            if (
+                current.successMessage == successMessage &&
+                current.errorMessage == errorMessage &&
+                current.heartBurstKey == heartBurstKey
+            ) {
+                actionState.value = current.copy(successMessage = null, errorMessage = null, heartBurstKey = 0L)
+            }
         }
     }
 
@@ -238,5 +261,6 @@ class HomeViewModel(
 
     private companion object {
         const val SNOOZE_THREE_HOURS_MILLIS = 10_800_000L
+        const val MESSAGE_VISIBLE_MILLIS = 2_400L
     }
 }

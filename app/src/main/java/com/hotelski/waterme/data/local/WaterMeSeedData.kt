@@ -14,6 +14,7 @@ import com.hotelski.waterme.data.local.entity.UserEntity
 import com.hotelski.waterme.data.local.entity.UserSettingsEntity
 import com.hotelski.waterme.data.local.entity.CareHistoryEntity
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.PlantEnvironment
 import java.util.UUID
 
 object WaterMeSeedData {
@@ -103,6 +104,7 @@ object WaterMeSeedData {
             name = name,
             plantType = plantType,
             location = location,
+            environment = PlantEnvironment.INDOOR,
             notes = "Seed plant for first-run previews and development builds.",
             createdAt = nowMillis,
             updatedAt = nowMillis,

@@ -2,12 +2,14 @@ package com.hotelski.waterme.feature.common
 
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.HealthMood
+import com.hotelski.waterme.model.PlantEnvironment
 
 data class PlantCardUiModel(
     val id: String,
     val name: String,
     val plantType: String,
     val location: String,
+    val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     val photoUri: String? = null,
     val isFavorite: Boolean = false,
     val dueTaskCount: Int = 0,
@@ -29,6 +31,7 @@ data class PlantDetailsUiModel(
     val name: String,
     val plantType: String,
     val location: String,
+    val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     val notes: String,
     val primaryPhotoUri: String? = null,
     val photoCount: Int = 0,
@@ -41,6 +44,7 @@ data class CareTaskUiModel(
     val plantId: String,
     val plantName: String,
     val plantLocation: String,
+    val plantPhotoUri: String? = null,
     val careType: CareType,
     val dueLabel: String,
     val isOverdue: Boolean = false,

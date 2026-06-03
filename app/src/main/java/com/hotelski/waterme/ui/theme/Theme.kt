@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.hotelski.waterme.data.preferences.TextColorPreference
 
 val LeafGreen = Color(0xFF2F7D4B)
 val DeepLeaf = Color(0xFF163D2A)
@@ -199,9 +200,11 @@ object WaterMeSpacing {
 @Composable
 fun WaterMeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    textColorPreference: TextColorPreference = TextColorPreference.FOREST,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkWaterMeColorScheme else WaterMeColorScheme
+    val colorScheme = (if (darkTheme) DarkWaterMeColorScheme else WaterMeColorScheme)
+        .withTextColor(textColorPreference, darkTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -222,3 +225,32 @@ fun WaterMeTheme(
         content = content,
     )
 }
+
+private fun androidx.compose.material3.ColorScheme.withTextColor(
+    preference: TextColorPreference,
+    darkTheme: Boolean,
+): androidx.compose.material3.ColorScheme {
+    val textColor = preference.textColor(darkTheme)
+    val mutedTextColor = textColor.copy(alpha = if (darkTheme) 0.76f else 0.70f)
+    return copy(
+        onBackground = textColor,
+        onSurface = textColor,
+        onSurfaceVariant = mutedTextColor,
+        onPrimaryContainer = textColor,
+        onSecondaryContainer = textColor,
+    )
+}
+
+private fun TextColorPreference.textColor(darkTheme: Boolean): Color =
+    when (this) {
+        TextColorPreference.FOREST -> if (darkTheme) Color(0xFFE9F1EB) else Ink
+        TextColorPreference.MINT -> if (darkTheme) Color(0xFFD2F5DC) else Color(0xFF1F6A43)
+        TextColorPreference.BLUE -> if (darkTheme) Color(0xFFD7F0FF) else Color(0xFF1F5E78)
+        TextColorPreference.SKY -> if (darkTheme) Color(0xFFCBEAFF) else Color(0xFF2A6F95)
+        TextColorPreference.CLAY -> if (darkTheme) Color(0xFFFFE2AC) else Color(0xFF6B4A16)
+        TextColorPreference.AMBER -> if (darkTheme) Color(0xFFFFD978) else Color(0xFF7A5300)
+        TextColorPreference.ROSE -> if (darkTheme) Color(0xFFFFD7DF) else Color(0xFF8A2F45)
+        TextColorPreference.LAVENDER -> if (darkTheme) Color(0xFFE8DCFF) else Color(0xFF5A438A)
+        TextColorPreference.SLATE -> if (darkTheme) Color(0xFFE5EAF0) else Color(0xFF26343D)
+        TextColorPreference.HIGH_CONTRAST -> if (darkTheme) Color.White else Color.Black
+    }

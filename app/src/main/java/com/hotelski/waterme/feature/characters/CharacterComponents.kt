@@ -43,8 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
-import com.hotelski.waterme.ui.theme.Ink
-import com.hotelski.waterme.ui.theme.MutedInk
 
 @Composable
 fun PlantCharacterAvatar(
@@ -158,14 +156,14 @@ fun PlantCharacterCelebrationCard(
                     text = character.celebrationTitle,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = message.ifBlank { character.celebrationMessage },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

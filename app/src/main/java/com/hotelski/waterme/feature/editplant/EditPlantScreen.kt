@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Park
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -56,6 +58,7 @@ import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.model.CareType
+import com.hotelski.waterme.model.PlantEnvironment
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
@@ -87,6 +90,7 @@ data class EditPlantUiState(
     val name: String = "",
     val plantType: String = "",
     val location: String = "",
+    val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     val notes: String = "",
     val primaryPhotoUri: String? = null,
     val reminders: List<EditReminderDraftUiModel> = emptyList(),
@@ -109,6 +113,7 @@ sealed interface EditPlantEvent {
     data class NameChanged(val value: String) : EditPlantEvent
     data class PlantTypeChanged(val value: String) : EditPlantEvent
     data class LocationChanged(val value: String) : EditPlantEvent
+    data class EnvironmentSelected(val environment: PlantEnvironment) : EditPlantEvent
     data class NotesChanged(val value: String) : EditPlantEvent
     data class ReminderEnabledChanged(val careType: CareType, val enabled: Boolean) : EditPlantEvent
     data class ReminderEveryDaysChanged(val careType: CareType, val value: String) : EditPlantEvent
@@ -263,6 +268,26 @@ private fun PlantProfileCard(
                     .height(118.dp),
                 shape = RoundedCornerShape(18.dp),
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PlantEnvironment.entries.forEach { environment ->
+                    FilterChip(
+                        selected = uiState.environment == environment,
+                        onClick = { onEvent(EditPlantEvent.EnvironmentSelected(environment)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (environment == PlantEnvironment.INDOOR) {
+                                    Icons.Rounded.Home
+                                } else {
+                                    Icons.Rounded.Park
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        label = { Text(environment.label) },
+                    )
+                }
+            }
         }
     }
 }

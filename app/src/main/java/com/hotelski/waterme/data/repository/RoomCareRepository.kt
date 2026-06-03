@@ -156,6 +156,18 @@ class RoomCareRepository(
         careHistoryDao.deleteHistoryEntry(historyId)
     }
 
+    suspend fun updateHealthNote(
+        historyId: String,
+        mood: HealthMood,
+        notes: String,
+    ) {
+        careHistoryDao.updateHealthNote(
+            historyId = historyId,
+            mood = mood,
+            notes = notes.trim(),
+        )
+    }
+
     suspend fun logHealthNote(
         plantId: String,
         mood: HealthMood,

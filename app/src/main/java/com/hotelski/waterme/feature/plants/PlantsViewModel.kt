@@ -7,6 +7,9 @@ import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.feature.common.PlantCardUiModel
 import com.hotelski.waterme.feature.common.endOfTodayMillis
 import com.hotelski.waterme.feature.common.toPlantCardUiModel
+import com.hotelski.waterme.model.PlantEnvironment
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,6 +21,7 @@ import kotlinx.coroutines.launch
 
 sealed interface PlantsEffect {
     data object NavigateToAddPlant : PlantsEffect
+    data class NavigateToPlantDetails(val plantId: String) : PlantsEffect
     data class NavigateToEditPlant(val plantId: String) : PlantsEffect
 }
 
@@ -29,6 +33,7 @@ private data class PlantsActionState(
 private data class PlantsFilterState(
     val searchQuery: String = "",
     val showFavoritesOnly: Boolean = false,
+    val selectedEnvironment: PlantEnvironment? = null,
 )
 
 class PlantsViewModel(
@@ -40,14 +45,16 @@ class PlantsViewModel(
 
     private val searchQuery = MutableStateFlow("")
     private val showFavoritesOnly = MutableStateFlow(false)
+    private val selectedEnvironment = MutableStateFlow<PlantEnvironment?>(null)
     private val selectedPlantPanels = MutableStateFlow<Map<String, PlantCardPanel>>(emptyMap())
     private val actionState = MutableStateFlow(PlantsActionState())
     private val _effects = MutableSharedFlow<PlantsEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
-    private val filters = combine(searchQuery, showFavoritesOnly) { query, favoritesOnly ->
-        PlantsFilterState(searchQuery = query, showFavoritesOnly = favoritesOnly)
+    private val filters = combine(searchQuery, showFavoritesOnly, selectedEnvironment) { query, favoritesOnly, environment ->
+        PlantsFilterState(searchQuery = query, showFavoritesOnly = favoritesOnly, selectedEnvironment = environment)
     }
 
     val uiState = combine(
@@ -59,6 +66,7 @@ class PlantsViewModel(
     ) { plants, tasksDueToday, filters, selectedPanels, action ->
         val query = filters.searchQuery
         val favoritesOnly = filters.showFavoritesOnly
+        val environment = filters.selectedEnvironment
         val normalizedQuery = query.trim()
         val dueCountsByPlantId = tasksDueToday.groupingBy { it.plantId }.eachCount()
         val plantCards = plants
@@ -69,6 +77,7 @@ class PlantsViewModel(
                     plant.name.contains(normalizedQuery, ignoreCase = true)
             }
             .filter { plant -> !favoritesOnly || plant.isFavorite }
+            .filter { plant -> environment == null || plant.environment == environment }
         val favoriteCount = plants.count { it.plant.isFavorite }
 
         PlantsUiState(
@@ -76,6 +85,7 @@ class PlantsViewModel(
             plants = plantCards,
             searchQuery = query,
             showFavoritesOnly = favoritesOnly,
+            selectedEnvironment = environment,
             favoriteCount = favoriteCount,
             selectedPlantPanels = selectedPanels,
             errorMessage = action.errorMessage,
@@ -96,9 +106,14 @@ class PlantsViewModel(
     fun onEvent(event: PlantsEvent) {
         when (event) {
             PlantsEvent.AddPlantClicked -> emitEffect(PlantsEffect.NavigateToAddPlant)
+            is PlantsEvent.PlantClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
             is PlantsEvent.EditPlantClicked -> emitEffect(PlantsEffect.NavigateToEditPlant(event.plantId))
             is PlantsEvent.FavoriteToggled -> toggleFavorite(event.plantId, event.isFavorite)
             PlantsEvent.FavoriteFilterToggled -> toggleFavoriteFilter()
+            is PlantsEvent.EnvironmentFilterSelected -> {
+                selectedEnvironment.value = event.environment
+                actionState.value = PlantsActionState()
+            }
             is PlantsEvent.PlantPanelClicked -> togglePlantPanel(event.plantId, event.panel)
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
@@ -117,7 +132,7 @@ class PlantsViewModel(
         viewModelScope.launch {
             actionState.value = PlantsActionState()
             runCatching { plantRepository.setPlantFavorite(plantId, !isFavorite) }
-                .onFailure { actionState.value = PlantsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -128,10 +143,10 @@ class PlantsViewModel(
 
     private fun updateSearchQuery(value: String) {
         searchQuery.value = value.take(MAX_SEARCH_LENGTH)
-        actionState.value = if (value.length > MAX_SEARCH_LENGTH) {
-            PlantsActionState(errorMessage = "Search is limited to $MAX_SEARCH_LENGTH characters.")
+        if (value.length > MAX_SEARCH_LENGTH) {
+            showMessage(errorMessage = "Search is limited to $MAX_SEARCH_LENGTH characters.")
         } else {
-            PlantsActionState()
+            actionState.value = PlantsActionState()
         }
     }
 
@@ -139,7 +154,21 @@ class PlantsViewModel(
         viewModelScope.launch {
             actionState.value = PlantsActionState()
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
-                .onFailure { actionState.value = PlantsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+    ) {
+        actionState.value = PlantsActionState(successMessage = successMessage, errorMessage = errorMessage)
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            if (actionState.value.successMessage == successMessage && actionState.value.errorMessage == errorMessage) {
+                actionState.value = actionState.value.copy(successMessage = null, errorMessage = null)
+            }
         }
     }
 
@@ -152,5 +181,6 @@ class PlantsViewModel(
 
     private companion object {
         const val MAX_SEARCH_LENGTH = 80
+        const val MESSAGE_VISIBLE_MILLIS = 2_400L
     }
 }

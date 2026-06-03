@@ -51,11 +51,7 @@ import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 @Composable
@@ -66,7 +62,7 @@ fun CharactersScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = "Characters",
@@ -106,7 +102,7 @@ private fun CharactersContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -187,7 +183,7 @@ private fun CharacterSpeechBubble(
                 .offset(x = 22.dp, y = 5.dp)
                 .size(16.dp)
                 .rotate(45f)
-                .background(Color.White, RoundedCornerShape(4.dp)),
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp)),
         )
         Surface(
             shape = RoundedCornerShape(
@@ -196,14 +192,14 @@ private fun CharacterSpeechBubble(
                 bottomEnd = 22.dp,
                 bottomStart = 10.dp,
             ),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 2.dp,
         ) {
             Text(
                 text = "Hii!",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
                 style = MaterialTheme.typography.titleMedium,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
@@ -218,14 +214,14 @@ private fun AchievementSummaryCard(
     totalCount: Int,
     modifier: Modifier = Modifier,
 ) {
-    WaterMeCard(modifier = modifier, containerColor = SoftCream) {
+    WaterMeCard(modifier = modifier, containerColor = MaterialTheme.colorScheme.surface) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Stars, contentDescription = null, tint = LeafGreen)
                 Text(
                     text = "Achievement progress",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -251,7 +247,7 @@ private fun SummaryMetric(
     ) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
             Text(value, style = MaterialTheme.typography.titleMedium, color = LeafGreen, fontWeight = FontWeight.Bold)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MutedInk, maxLines = 1)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }
@@ -290,7 +286,7 @@ private fun CharacterUnlockCard(
                             text = character.name,
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.titleMedium,
-                            color = Ink,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -307,7 +303,7 @@ private fun CharacterUnlockCard(
                     Text(
                         text = character.description,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -323,7 +319,7 @@ private fun CharacterUnlockCard(
                     Text(
                         text = character.unlockLabel,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -414,10 +410,12 @@ private fun CharacterStatePill(character: PlantCharacterUiModel) {
 }
 
 private fun readableAccentTextColor(accent: Color): Color =
-    if (accent.luminance() > 0.42f) Ink else accent
+    if (accent.luminance() > 0.42f) StaticInk else accent
 
 private fun readableButtonContentColor(accent: Color): Color =
-    if (accent.luminance() > 0.55f) Ink else Color.White
+    if (accent.luminance() > 0.55f) StaticInk else Color.White
+
+private val StaticInk = Color(0xFF173326)
 
 @Composable
 private fun CharacterMessageCard(
@@ -434,7 +432,7 @@ private fun CharacterMessageCard(
                 contentDescription = null,
                 tint = color,
             )
-            Text(message, color = Ink, style = MaterialTheme.typography.bodyMedium)
+            Text(message, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

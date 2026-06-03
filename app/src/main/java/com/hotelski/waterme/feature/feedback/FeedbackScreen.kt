@@ -4,11 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +33,7 @@ import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -47,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +59,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,18 +67,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.decode.GifDecoder
-import coil.decode.ImageDecoderDecoder
-import coil.request.ImageRequest
 import com.hotelski.waterme.R
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
+import kotlinx.coroutines.delay
 
 data class FeedbackUiState(
     val isLoading: Boolean = false,
@@ -101,7 +94,7 @@ fun FeedbackScreen(
         uiState.errorMessage != null -> Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(GardenBackground)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(20.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -128,6 +121,14 @@ private fun FeedbackContent(
     var sentMessage by remember { mutableStateOf<String?>(null) }
     var sendError by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(sentMessage, sendError) {
+        if (sentMessage != null || sendError != null) {
+            delay(MessageVisibleMillis)
+            sentMessage = null
+            sendError = null
+        }
+    }
+
     fun send() {
         val result = sendFeedback(
             context = context,
@@ -149,29 +150,31 @@ private fun FeedbackContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF07140C)),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.background,
+                    ),
+                ),
+            ),
     ) {
-        FeedbackHeroBackground()
-
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = 20.dp,
-                top = 20.dp,
+                top = 16.dp,
                 end = 20.dp,
                 bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 FeedbackHeader(
                     onBack = onBack,
                     modifier = Modifier.statusBarsPadding(),
                 )
-            }
-
-            item {
-                FeedbackIntroCard()
             }
 
             item {
@@ -199,57 +202,6 @@ private fun FeedbackContent(
 }
 
 @Composable
-private fun FeedbackHeroBackground() {
-    AsyncImage(
-        model = ImageRequest.Builder(LocalContext.current)
-            .data(R.drawable.onboarding_plant_hero)
-            .decoderFactory(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    ImageDecoderDecoder.Factory()
-                } else {
-                    GifDecoder.Factory()
-                },
-            )
-            .build(),
-        contentDescription = null,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(390.dp),
-        contentScale = ContentScale.Crop,
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(430.dp)
-            .background(
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.00f to Color(0xFF07140C).copy(alpha = 0.18f),
-                        0.42f to Color(0xFF07140C).copy(alpha = 0.28f),
-                        0.78f to Color(0xFF07140C).copy(alpha = 0.86f),
-                        1.00f to Color(0xFF07140C),
-                    ),
-                ),
-            ),
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFFA6E7B8).copy(alpha = 0.16f),
-                        Color.Transparent,
-                    ),
-                    radius = 820f,
-                ),
-            ),
-    )
-}
-
-@Composable
 private fun FeedbackHeader(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -262,99 +214,32 @@ private fun FeedbackHeader(
         IconButton(
             onClick = onBack,
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color.White.copy(alpha = 0.16f))
-                .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.28f),
-                    shape = RoundedCornerShape(18.dp),
-                ),
+                .size(46.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = "Back",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
 
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color.White.copy(alpha = 0.92f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.58f)),
-            shadowElevation = 10.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_waterme_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
-                Text(
-                    text = "WaterMe",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFF123C27),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FeedbackIntroCard() {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 72.dp)
-            .shadow(
-                elevation = 18.dp,
-                shape = RoundedCornerShape(30.dp),
-                ambientColor = Color.Black.copy(alpha = 0.18f),
-                spotColor = Color.Black.copy(alpha = 0.26f),
-            ),
-        shape = RoundedCornerShape(30.dp),
-        color = Color.White.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.72f)),
-    ) {
         Row(
-            modifier = Modifier.padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(LeafGreen.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Favorite,
-                    contentDescription = null,
-                    tint = LeafGreen,
-                    modifier = Modifier.size(25.dp),
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Share feedback",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Ink,
-                )
-                Text(
-                    text = "Small notes, rough edges, and ideas for a calmer plant care flow.",
-                    modifier = Modifier.padding(top = 5.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.ic_waterme_logo),
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+            )
+            Text(
+                text = "Feedback",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
         }
     }
 }
@@ -384,19 +269,42 @@ private fun FeedbackFormCard(
                 spotColor = LeafGreen.copy(alpha = 0.16f),
             ),
         shape = RoundedCornerShape(30.dp),
-        color = Color(0xFFFBFDF9),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.88f)),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)),
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(15.dp),
         ) {
-            Text(
-                text = "What should we look at?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Ink,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(LeafGreen.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.RateReview,
+                        contentDescription = null,
+                        tint = LeafGreen,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Send feedback",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Tell us what to improve, fix, or keep.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -410,6 +318,12 @@ private fun FeedbackFormCard(
                     )
                 }
             }
+
+            Text(
+                text = "Contact details are optional.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             FeedbackTextField(
                 value = name,
@@ -442,7 +356,7 @@ private fun FeedbackFormCard(
                 text = "${message.length}/$MaxFeedbackLength",
                 modifier = Modifier.align(Alignment.End),
                 style = MaterialTheme.typography.labelSmall,
-                color = MutedInk,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (sentMessage != null) {
@@ -498,8 +412,8 @@ private fun FeedbackTopicChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val background = if (selected) LeafGreen else Color(0xFFEAF5EE)
-    val contentColor = if (selected) Color.White else Ink
+    val background = if (selected) LeafGreen else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f)
+    val contentColor = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
 
     Surface(
         modifier = Modifier.clickable(onClick = onClick),
@@ -508,7 +422,7 @@ private fun FeedbackTopicChip(
         contentColor = contentColor,
         border = BorderStroke(
             width = 1.dp,
-            color = if (selected) Color.White.copy(alpha = 0.42f) else Color(0xFFD9E8DE),
+            color = if (selected) Color.White.copy(alpha = 0.42f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.34f),
         ),
     ) {
         Row(
@@ -569,7 +483,7 @@ private fun FeedbackTextField(
             focusedBorderColor = LeafGreen,
             focusedLabelColor = LeafGreen,
             cursorColor = LeafGreen,
-            unfocusedBorderColor = Color(0xFFDCE7DE),
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.56f),
         ),
     )
 }
@@ -600,7 +514,7 @@ private fun FeedbackMessage(
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
-            color = Ink,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -660,6 +574,7 @@ private enum class FeedbackTopic(
 
 private const val FeedbackRecipient = "feedback@waterme.app"
 private const val MaxFeedbackLength = 900
+private const val MessageVisibleMillis = 2_400L
 
 @Preview(showBackground = true)
 @Composable

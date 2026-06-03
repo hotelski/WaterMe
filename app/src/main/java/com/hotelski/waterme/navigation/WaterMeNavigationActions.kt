@@ -23,6 +23,12 @@ class WaterMeNavigationActions(
         }
     }
 
+    fun navigateToLegal(document: String) {
+        navController.navigate(WaterMeRoute.Legal.createRoute(document)) {
+            launchSingleTop = true
+        }
+    }
+
     fun navigateToAddPlant() {
         navController.navigate(WaterMeRoute.AddPlant.route)
     }

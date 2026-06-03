@@ -2,7 +2,6 @@ package com.hotelski.waterme.feature.today
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,6 +24,8 @@ import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Snooze
+import androidx.compose.material.icons.rounded.VolunteerActivism
+import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,7 @@ import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.feature.common.CareTaskUiModel
 import com.hotelski.waterme.feature.common.HealthNoteUiModel
 import com.hotelski.waterme.feature.common.PlantCardUiModel
+import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.ReminderUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
@@ -67,11 +69,8 @@ import com.hotelski.waterme.feature.common.icon
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
-import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 data class DashboardProgressUiModel(
@@ -102,7 +101,7 @@ data class TodayUiState(
     val plantCount: Int = 0,
     val reminderCount: Int = 0,
     val careHistoryCount: Int = 0,
-    val healthNoteCount: Int = 0,
+    val noteCount: Int = 0,
     val appOpenDayStreak: Int = 0,
     val completedThisWeek: Int = 0,
     val activeCharacter: PlantCharacterUiModel? = null,
@@ -117,16 +116,16 @@ data class TodayUiState(
         get() = tasks.size + overdueTasks.size
 
     val shouldShowCharacterCelebration: Boolean
-        get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
+        get() = activeCharacter != null && successMessage != null
 }
 
 sealed interface TodayEvent {
     data object AddPlantClicked : TodayEvent
     data object CalendarClicked : TodayEvent
+    data object DonateClicked : TodayEvent
     data object FeedbackClicked : TodayEvent
     data object MyPlantsClicked : TodayEvent
     data object RetryClicked : TodayEvent
-    data class PlantClicked(val plantId: String) : TodayEvent
     data class CompleteTask(val taskId: String) : TodayEvent
     data class SkipTask(val taskId: String) : TodayEvent
     data class SnoozeTask(val taskId: String) : TodayEvent
@@ -138,13 +137,17 @@ fun TodayScreen(
     onEvent: (TodayEvent) -> Unit,
     modifier: Modifier = Modifier,
     onFeedbackClick: () -> Unit = {},
+    onDonateClick: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = GardenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             WaterMeTopBar(
                 title = "Home",
+                secondaryActionIcon = Icons.Rounded.VolunteerActivism,
+                secondaryActionContentDescription = "Support creator",
+                onSecondaryActionClick = onDonateClick,
                 actionIcon = Icons.Rounded.RateReview,
                 actionContentDescription = "Share feedback",
                 onActionClick = onFeedbackClick,
@@ -186,7 +189,7 @@ private fun HomeDashboard(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(GardenBackground),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         if (maxWidth >= 840.dp) {
             TabletDashboard(
@@ -212,8 +215,6 @@ private fun PhoneDashboard(
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { DashboardHeroCard(uiState) }
-
         item { CharacterGreetingCard(uiState) }
 
         item { GardenStatsCard(uiState) }
@@ -267,7 +268,6 @@ private fun TabletDashboard(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { DashboardHeroCard(uiState) }
             item { CharacterGreetingCard(uiState) }
             item { GardenStatsCard(uiState) }
 
@@ -465,8 +465,8 @@ private fun CharacterGreetingCard(uiState: TodayUiState) {
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White,
-                        Color(0xFFEAF6EE),
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
                     ),
                 ),
                 shape = shape,
@@ -499,25 +499,11 @@ private fun CharacterGreetingCard(uiState: TodayUiState) {
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .background(accent.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
-                            .padding(horizontal = 9.dp, vertical = 5.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "Active",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink,
-                            maxLines = 1,
-                        )
-                    }
                 }
 
                 CharacterSpeechBubble(
@@ -540,21 +526,25 @@ private fun CharacterSpeechBubble(
                 .align(Alignment.CenterStart)
                 .padding(start = 2.dp)
                 .size(12.dp)
-                .background(Color.White, RoundedCornerShape(3.dp)),
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(3.dp)),
         )
 
-        Text(
-            text = message,
+        Column(
             modifier = Modifier
                 .padding(start = 6.dp)
                 .fillMaxWidth()
-                .background(Color.White, RoundedCornerShape(18.dp))
-                .padding(horizontal = 13.dp, vertical = 10.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MutedInk,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-        )
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -583,13 +573,13 @@ private fun GardenStatsCard(uiState: TodayUiState) {
                     text = "Garden stats",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
 
                 Text(
                     text = "Care rhythm and local garden data in one place.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -599,7 +589,7 @@ private fun GardenStatsCard(uiState: TodayUiState) {
                     value = uiState.appOpenDayStreak.toString(),
                     helper = "active days",
                     color = LeafGreen,
-                    icon = Icons.Rounded.LocalFlorist,
+                    icon = Icons.Rounded.Whatshot,
                     modifier = Modifier.weight(1f),
                 )
 
@@ -644,11 +634,11 @@ private fun GardenStatsCard(uiState: TodayUiState) {
                 )
 
                 MiniStatCard(
-                    label = "Health notes",
-                    value = uiState.healthNoteCount.toString(),
-                    helper = "observations",
+                    label = "Notes",
+                    value = uiState.noteCount.toString(),
+                    helper = "care notes",
                     color = Color(0xFF6AA9A5),
-                    icon = Icons.Rounded.Eco,
+                    icon = Icons.Rounded.RateReview,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -710,7 +700,7 @@ private fun MiniStatCard(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = Ink,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -718,7 +708,7 @@ private fun MiniStatCard(
         Text(
             text = helper,
             style = MaterialTheme.typography.labelSmall,
-            color = MutedInk,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -788,7 +778,7 @@ private fun CareTaskOverviewMetric(
                 text = title,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -816,10 +806,7 @@ private fun CareTasksSection(
     val todayCount = todayTasks.size
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CareTasksHeader(
-            overdueCount = overdueCount,
-            todayCount = todayCount,
-        )
+        CareTasksHeader()
 
         CareTaskOverviewBar(
             overdueCount = overdueCount,
@@ -865,7 +852,7 @@ private fun CareTasksSection(
 @Composable
 private fun NoCareTasksCard() {
     WaterMeCard(
-        containerColor = Color(0xFFEAF6EE),
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.46f),
     ) {
         Column(
             modifier = Modifier
@@ -893,7 +880,7 @@ private fun NoCareTasksCard() {
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = Ink,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
 
@@ -901,7 +888,7 @@ private fun NoCareTasksCard() {
                 text = "Your plants are calm and on schedule.",
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodySmall,
-                color = MutedInk,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         }
@@ -909,52 +896,24 @@ private fun NoCareTasksCard() {
 }
 
 @Composable
-private fun CareTasksHeader(
-    overdueCount: Int,
-    todayCount: Int,
-) {
-    val accentColor = if (overdueCount > 0) Clay else LeafGreen
-    val statusLabel = when {
-        overdueCount > 0 -> "$overdueCount overdue"
-        todayCount > 0 -> "$todayCount today"
-        else -> "All clear"
-    }
-
-    Row(
+private fun CareTasksHeader() {
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Care tasks",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Ink,
-            )
-            Text(
-                text = "Due and overdue plant care.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedInk,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
-                .padding(horizontal = 11.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = accentColor,
-                maxLines = 1,
-            )
-        }
+        Text(
+            text = "Care tasks",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            text = "Due and overdue plant care.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -980,7 +939,7 @@ private fun TaskGroupHeader(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = Ink,
+            color = MaterialTheme.colorScheme.onBackground,
         )
     }
 }
@@ -988,33 +947,34 @@ private fun TaskGroupHeader(
 @Composable
 private fun HomeCareTaskCard(
     task: CareTaskUiModel,
-    onOpenPlant: () -> Unit,
     onComplete: () -> Unit,
     onSkip: () -> Unit,
     onSnooze: () -> Unit,
 ) {
     val accentColor = task.careType.accentColor()
 
-    WaterMeCard(
-        modifier = Modifier.clickable(onClick = onOpenPlant),
-    ) {
+    WaterMeCard {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .background(accentColor.copy(alpha = 0.14f), RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
+                Box {
+                    PlantPhotoTile(
+                        photoUri = task.plantPhotoUri,
+                        plantName = task.plantName,
+                        size = 54.dp,
+                    )
                     Icon(
                         imageVector = task.careType.icon(),
                         contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(22.dp)
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(9.dp))
+                            .padding(4.dp),
                         tint = accentColor,
-                        modifier = Modifier.size(23.dp),
                     )
                 }
 
@@ -1023,7 +983,7 @@ private fun HomeCareTaskCard(
                         text = task.careType.label(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Ink,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1031,15 +991,7 @@ private fun HomeCareTaskCard(
                     Text(
                         text = task.plantName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Ink.copy(alpha = 0.78f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-
-                    Text(
-                        text = task.plantLocation,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MutedInk,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1078,7 +1030,7 @@ private fun HomeCareTaskCard(
                         .height(42.dp),
                     shape = RoundedCornerShape(15.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
                 ) {
                     Icon(Icons.Rounded.Snooze, contentDescription = null, modifier = Modifier.size(16.dp))
                     Text(
@@ -1173,7 +1125,7 @@ private fun SwipeCareTaskCard(
                 targetValue = when (targetValue) {
                     SwipeToDismissBoxValue.StartToEnd -> FreshGreen
                     SwipeToDismissBoxValue.EndToStart -> Clay
-                    SwipeToDismissBoxValue.Settled -> GardenBackground
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.background
                 },
                 label = "SwipeTaskBackground",
             )
@@ -1207,7 +1159,6 @@ private fun SwipeCareTaskCard(
     ) {
         HomeCareTaskCard(
             task = task,
-            onOpenPlant = { onEvent(TodayEvent.PlantClicked(task.plantId)) },
             onComplete = { onEvent(TodayEvent.CompleteTask(task.id)) },
             onSkip = { onEvent(TodayEvent.SkipTask(task.id)) },
             onSnooze = { onEvent(TodayEvent.SnoozeTask(task.id)) },
@@ -1268,7 +1219,7 @@ private fun dashboardPreviewState(): TodayUiState =
         plantCount = WaterMePreviewData.plants.size,
         reminderCount = WaterMePreviewData.reminders.size,
         careHistoryCount = 8,
-        healthNoteCount = WaterMePreviewData.healthNotes.size,
+        noteCount = WaterMePreviewData.healthNotes.size + WaterMePreviewData.plants.count { it.notes.isNotBlank() },
         appOpenDayStreak = 5,
         completedThisWeek = 12,
     )

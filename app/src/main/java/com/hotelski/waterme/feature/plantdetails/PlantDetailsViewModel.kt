@@ -19,6 +19,8 @@ import com.hotelski.waterme.feature.common.toReminderUiModel
 import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.model.HealthMood
 import com.hotelski.waterme.navigation.WaterMeRoute
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +41,7 @@ sealed interface PlantDetailsEffect {
 private data class HealthNoteDraftState(
     val note: String = "",
     val mood: HealthMood = HealthMood.ATTENTION,
+    val editingNoteId: String? = null,
 )
 
 private data class PlantDetailsActionState(
@@ -70,6 +73,7 @@ class PlantDetailsViewModel(
     private val healthDraft = MutableStateFlow(HealthNoteDraftState())
     private val actionState = MutableStateFlow(PlantDetailsActionState())
     private val _effects = MutableSharedFlow<PlantDetailsEffect>()
+    private var messageDismissJob: Job? = null
 
     val effects = _effects.asSharedFlow()
 
@@ -130,6 +134,7 @@ class PlantDetailsViewModel(
                 .map { it.toHealthNoteUiModel(plantUi?.name.orEmpty()) },
             healthNoteDraft = draft.note,
             selectedHealthMood = draft.mood,
+            editingHealthNoteId = draft.editingNoteId,
             activeCharacter = character,
             isDeleting = action.isDeleting,
             showDeleteConfirmation = action.showDeleteConfirmation,
@@ -154,9 +159,22 @@ class PlantDetailsViewModel(
             PlantDetailsEvent.DismissDeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = false) }
             PlantDetailsEvent.ConfirmDeleteClicked -> deletePlant()
             PlantDetailsEvent.AddHealthNoteClicked -> addHealthNote()
+            PlantDetailsEvent.CancelHealthNoteEditClicked -> {
+                healthDraft.value = HealthNoteDraftState(mood = healthDraft.value.mood)
+                actionState.value = PlantDetailsActionState()
+            }
             is PlantDetailsEvent.CompleteTask -> completeTask(event.taskId)
             is PlantDetailsEvent.SkipTask -> skipTask(event.taskId)
             is PlantDetailsEvent.SnoozeTask -> snoozeTask(event.taskId)
+            is PlantDetailsEvent.EditHealthNoteClicked -> {
+                healthDraft.value = HealthNoteDraftState(
+                    note = event.note,
+                    mood = event.mood,
+                    editingNoteId = event.noteId,
+                )
+                actionState.value = PlantDetailsActionState()
+            }
+            is PlantDetailsEvent.DeleteHealthNoteClicked -> deleteHealthNote(event.noteId)
             is PlantDetailsEvent.HealthNoteChanged -> updateHealthNote(event.value)
             is PlantDetailsEvent.HealthMoodSelected -> healthDraft.update { it.copy(mood = event.mood) }
             PlantDetailsEvent.RetryClicked -> actionState.value = PlantDetailsActionState()
@@ -168,10 +186,10 @@ class PlantDetailsViewModel(
             actionState.value = PlantDetailsActionState(isDeleting = true, showDeleteConfirmation = false)
             runCatching { plantRepository.deletePlant(plantId) }
                 .onSuccess {
-                    actionState.value = PlantDetailsActionState(successMessage = "Plant deleted.")
+                    showMessage(successMessage = "Plant deleted.")
                     _effects.emit(PlantDetailsEffect.NavigateToPlantsAfterDelete)
                 }
-                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -179,20 +197,20 @@ class PlantDetailsViewModel(
         viewModelScope.launch {
             runCatching { careRepository.markTaskCompleted(taskId) }
                 .onSuccess {
-                    actionState.value = PlantDetailsActionState(
+                    showMessage(
                         successMessage = "Care task completed.",
                         heartBurstKey = System.nanoTime(),
                     )
                 }
-                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
     private fun skipTask(taskId: String) {
         viewModelScope.launch {
             runCatching { careRepository.skipTask(taskId) }
-                .onSuccess { actionState.value = PlantDetailsActionState(successMessage = "Care task skipped.") }
-                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
+                .onSuccess { showMessage(successMessage = "Care task skipped.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -200,40 +218,88 @@ class PlantDetailsViewModel(
         viewModelScope.launch {
             val snoozedUntil = System.currentTimeMillis() + SNOOZE_THREE_HOURS_MILLIS
             runCatching { careRepository.snoozeTask(taskId, snoozedUntil) }
-                .onSuccess { actionState.value = PlantDetailsActionState(successMessage = "Reminder snoozed for 3 hours.") }
-                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
+                .onSuccess { showMessage(successMessage = "Reminder snoozed for 3 hours.") }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
     private fun updateHealthNote(value: String) {
         healthDraft.update { it.copy(note = value.take(MAX_HEALTH_NOTE_LENGTH)) }
-        actionState.value = if (value.length > MAX_HEALTH_NOTE_LENGTH) {
-            PlantDetailsActionState(errorMessage = "Health notes are limited to $MAX_HEALTH_NOTE_LENGTH characters.")
+        if (value.length > MAX_HEALTH_NOTE_LENGTH) {
+            showMessage(errorMessage = "Health notes are limited to $MAX_HEALTH_NOTE_LENGTH characters.")
         } else {
-            PlantDetailsActionState()
+            actionState.value = PlantDetailsActionState()
         }
     }
 
     private fun addHealthNote() {
         val draft = healthDraft.value
         if (draft.note.isBlank()) {
-            actionState.value = PlantDetailsActionState(errorMessage = "Add a note before saving.")
+            showMessage(errorMessage = "Add a note before saving.")
             return
         }
 
         viewModelScope.launch {
             runCatching {
-                careRepository.logHealthNote(
-                    plantId = plantId,
-                    mood = draft.mood,
-                    notes = draft.note,
-                )
+                val editingNoteId = draft.editingNoteId
+                if (editingNoteId == null) {
+                    careRepository.logHealthNote(
+                        plantId = plantId,
+                        mood = draft.mood,
+                        notes = draft.note,
+                    )
+                } else {
+                    careRepository.updateHealthNote(
+                        historyId = editingNoteId,
+                        mood = draft.mood,
+                        notes = draft.note,
+                    )
+                }
             }
                 .onSuccess {
                     healthDraft.value = HealthNoteDraftState(mood = draft.mood)
-                    actionState.value = PlantDetailsActionState(successMessage = "Health note added.")
+                    showMessage(
+                        successMessage = if (draft.editingNoteId == null) "Health note added." else "Health note updated.",
+                    )
                 }
-                .onFailure { actionState.value = PlantDetailsActionState(errorMessage = it.toUserMessage()) }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun deleteHealthNote(noteId: String) {
+        viewModelScope.launch {
+            runCatching { careRepository.deleteCareHistoryEntry(noteId) }
+                .onSuccess {
+                    if (healthDraft.value.editingNoteId == noteId) {
+                        healthDraft.value = HealthNoteDraftState(mood = healthDraft.value.mood)
+                    }
+                    showMessage(successMessage = "Health note deleted.")
+                }
+                .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun showMessage(
+        successMessage: String? = null,
+        errorMessage: String? = null,
+        heartBurstKey: Long = 0L,
+    ) {
+        actionState.value = PlantDetailsActionState(
+            successMessage = successMessage,
+            errorMessage = errorMessage,
+            heartBurstKey = heartBurstKey,
+        )
+        messageDismissJob?.cancel()
+        messageDismissJob = viewModelScope.launch {
+            delay(MESSAGE_VISIBLE_MILLIS)
+            val current = actionState.value
+            if (
+                current.successMessage == successMessage &&
+                current.errorMessage == errorMessage &&
+                current.heartBurstKey == heartBurstKey
+            ) {
+                actionState.value = current.copy(successMessage = null, errorMessage = null, heartBurstKey = 0L)
+            }
         }
     }
 
@@ -247,5 +313,6 @@ class PlantDetailsViewModel(
     private companion object {
         const val SNOOZE_THREE_HOURS_MILLIS = 10_800_000L
         const val MAX_HEALTH_NOTE_LENGTH = 280
+        const val MESSAGE_VISIBLE_MILLIS = 2_400L
     }
 }

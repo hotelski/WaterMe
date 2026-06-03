@@ -31,6 +31,7 @@ data class SettingsPreferences(
     val defaultReminderHour: Int = 9,
     val defaultReminderMinute: Int = 0,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val textColorPreference: TextColorPreference = TextColorPreference.FOREST,
     val measurementUnits: MeasurementUnits = MeasurementUnits.METRIC,
     val backupSyncEnabled: Boolean = false,
     val backupSyncProvider: BackupSyncProvider = BackupSyncProvider.NONE,
@@ -43,6 +44,19 @@ data class SettingsPreferences(
     val lastAppOpenDayEpoch: Long? = null,
 )
 
+enum class TextColorPreference {
+    FOREST,
+    MINT,
+    BLUE,
+    SKY,
+    CLAY,
+    AMBER,
+    ROSE,
+    LAVENDER,
+    SLATE,
+    HIGH_CONTRAST,
+}
+
 object WaterMePreferenceKeys {
     val PROFILE_NAME = stringPreferencesKey("profile_name")
     val SELECTED_CHARACTER_ID = stringPreferencesKey("selected_character_id")
@@ -51,6 +65,7 @@ object WaterMePreferenceKeys {
     val DEFAULT_REMINDER_HOUR = intPreferencesKey("default_reminder_hour")
     val DEFAULT_REMINDER_MINUTE = intPreferencesKey("default_reminder_minute")
     val THEME_PREFERENCE = stringPreferencesKey("theme_preference")
+    val TEXT_COLOR_PREFERENCE = stringPreferencesKey("text_color_preference")
     val MEASUREMENT_UNITS = stringPreferencesKey("measurement_units")
     val BACKUP_SYNC_ENABLED = booleanPreferencesKey("backup_sync_enabled")
     val BACKUP_SYNC_PROVIDER = stringPreferencesKey("backup_sync_provider")
@@ -111,6 +126,19 @@ class SettingsDataStoreManager(
     suspend fun updateThemePreference(themePreference: ThemePreference) {
         dataStore.edit { preferences ->
             preferences[WaterMePreferenceKeys.THEME_PREFERENCE] = themePreference.name
+        }
+    }
+
+    suspend fun updateTextColorPreference(textColorPreference: TextColorPreference) {
+        dataStore.edit { preferences ->
+            preferences[WaterMePreferenceKeys.TEXT_COLOR_PREFERENCE] = textColorPreference.name
+        }
+    }
+
+    suspend fun resetColorScheme() {
+        dataStore.edit { preferences ->
+            preferences[WaterMePreferenceKeys.THEME_PREFERENCE] = ThemePreference.SYSTEM.name
+            preferences[WaterMePreferenceKeys.TEXT_COLOR_PREFERENCE] = TextColorPreference.FOREST.name
         }
     }
 
@@ -207,6 +235,10 @@ private fun Preferences.toSettingsPreferences(): SettingsPreferences =
         defaultReminderHour = this[WaterMePreferenceKeys.DEFAULT_REMINDER_HOUR] ?: 9,
         defaultReminderMinute = this[WaterMePreferenceKeys.DEFAULT_REMINDER_MINUTE] ?: 0,
         themePreference = enumPreference(this[WaterMePreferenceKeys.THEME_PREFERENCE], ThemePreference.SYSTEM),
+        textColorPreference = enumPreference(
+            this[WaterMePreferenceKeys.TEXT_COLOR_PREFERENCE],
+            TextColorPreference.FOREST,
+        ),
         measurementUnits = enumPreference(this[WaterMePreferenceKeys.MEASUREMENT_UNITS], MeasurementUnits.METRIC),
         backupSyncEnabled = this[WaterMePreferenceKeys.BACKUP_SYNC_ENABLED] ?: false,
         backupSyncProvider = enumPreference(this[WaterMePreferenceKeys.BACKUP_SYNC_PROVIDER], BackupSyncProvider.NONE),

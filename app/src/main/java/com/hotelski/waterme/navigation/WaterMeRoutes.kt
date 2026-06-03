@@ -15,6 +15,14 @@ sealed interface WaterMeRoute {
         override val route = "feedback"
     }
 
+    data object Legal : WaterMeRoute {
+        const val DOCUMENT_ARG = "document"
+        override val route = "legal/{$DOCUMENT_ARG}"
+
+        fun createRoute(document: String): String =
+            "legal/${Uri.encode(document)}"
+    }
+
     data object Today : WaterMeRoute {
         override val route = "today"
     }
@@ -85,7 +93,7 @@ enum class TopLevelDestination(
     val label: String,
     val icon: ImageVector,
 ) {
-    Today(WaterMeRoute.Today, "Today", Icons.Rounded.Home),
+    Today(WaterMeRoute.Today, "Home", Icons.Rounded.Home),
     Plants(WaterMeRoute.Plants, "Plants", Icons.Rounded.LocalFlorist),
     Calendar(WaterMeRoute.Calendar, "Calendar", Icons.Rounded.Event),
     Settings(WaterMeRoute.Settings, "Settings", Icons.Rounded.Settings),

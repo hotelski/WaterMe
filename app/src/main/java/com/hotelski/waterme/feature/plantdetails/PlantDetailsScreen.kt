@@ -33,8 +33,9 @@ import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalFlorist
-import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Park
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -63,14 +65,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareHistoryUiModel
-import com.hotelski.waterme.feature.common.CareTaskCard
 import com.hotelski.waterme.feature.common.CareTaskUiModel
 import com.hotelski.waterme.feature.common.CareTypeBadge
-import com.hotelski.waterme.feature.common.HealthNoteRow
 import com.hotelski.waterme.feature.common.HealthNoteUiModel
 import com.hotelski.waterme.feature.common.PlantDetailsUiModel
 import com.hotelski.waterme.feature.common.PlantPhotoTile
-import com.hotelski.waterme.feature.common.ReminderRow
 import com.hotelski.waterme.feature.common.ReminderUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
@@ -88,13 +87,9 @@ import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
 import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.HealthMood
-import com.hotelski.waterme.ui.theme.CardWhite
+import com.hotelski.waterme.model.PlantEnvironment
 import com.hotelski.waterme.ui.theme.Clay
-import com.hotelski.waterme.ui.theme.GardenBackground
-import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
-import com.hotelski.waterme.ui.theme.MutedInk
-import com.hotelski.waterme.ui.theme.SoftCream
 import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 data class PlantDetailsUiState(
@@ -106,6 +101,7 @@ data class PlantDetailsUiState(
     val healthNotes: List<HealthNoteUiModel> = emptyList(),
     val healthNoteDraft: String = "",
     val selectedHealthMood: HealthMood = HealthMood.ATTENTION,
+    val editingHealthNoteId: String? = null,
     val activeCharacter: PlantCharacterUiModel? = null,
     val isDeleting: Boolean = false,
     val showDeleteConfirmation: Boolean = false,
@@ -114,7 +110,14 @@ data class PlantDetailsUiState(
     val heartBurstKey: Long = 0L,
 ) {
     val shouldShowCharacterCelebration: Boolean
-        get() = activeCharacter != null && successMessage?.contains("completed", ignoreCase = true) == true
+        get() = activeCharacter != null &&
+            successMessage?.contains("Care task completed", ignoreCase = true) == true
+
+    val shouldShowNotesCharacterCelebration: Boolean
+        get() = activeCharacter != null && isHealthNoteSuccess
+
+    private val isHealthNoteSuccess: Boolean
+        get() = successMessage?.contains("Health note", ignoreCase = true) == true
 }
 
 sealed interface PlantDetailsEvent {
@@ -125,10 +128,13 @@ sealed interface PlantDetailsEvent {
     data object DismissDeleteClicked : PlantDetailsEvent
     data object ViewAllHistoryClicked : PlantDetailsEvent
     data object AddHealthNoteClicked : PlantDetailsEvent
+    data object CancelHealthNoteEditClicked : PlantDetailsEvent
     data object RetryClicked : PlantDetailsEvent
     data class CompleteTask(val taskId: String) : PlantDetailsEvent
     data class SkipTask(val taskId: String) : PlantDetailsEvent
     data class SnoozeTask(val taskId: String) : PlantDetailsEvent
+    data class EditHealthNoteClicked(val noteId: String, val note: String, val mood: HealthMood) : PlantDetailsEvent
+    data class DeleteHealthNoteClicked(val noteId: String) : PlantDetailsEvent
     data class HealthNoteChanged(val value: String) : PlantDetailsEvent
     data class HealthMoodSelected(val mood: HealthMood) : PlantDetailsEvent
 }
@@ -221,16 +227,6 @@ private fun PlantDetailsContent(
                 )
             }
         }
-        if (uiState.successMessage != null) {
-            item {
-                DetailsMessageCard(
-                    title = "Saved",
-                    message = uiState.successMessage,
-                    color = LeafGreen,
-                    icon = Icons.Rounded.Check,
-                )
-            }
-        }
         if (uiState.shouldShowCharacterCelebration) {
             item {
                 PlantCharacterCelebrationCard(
@@ -245,13 +241,6 @@ private fun PlantDetailsContent(
             PlantHeroCard(
                 plant = plant,
                 healthMood = currentHealthMood(uiState),
-                openTaskCount = uiState.pendingTasks.size,
-            )
-        }
-
-        item {
-            PlantHealthStatusCard(
-                uiState = uiState,
             )
         }
 
@@ -267,28 +256,6 @@ private fun PlantDetailsContent(
 
         item {
             ExpandableDetailsSection(
-                title = "Upcoming reminders",
-                subtitle = "${uiState.reminders.count { it.enabled }} active reminders",
-                icon = Icons.Rounded.Notifications,
-                initiallyExpanded = uiState.reminders.isNotEmpty(),
-            ) {
-                UpcomingRemindersSection(reminders = uiState.reminders)
-            }
-        }
-
-        item {
-            ExpandableDetailsSection(
-                title = "Pending care",
-                subtitle = "${uiState.pendingTasks.size} open tasks",
-                icon = Icons.Rounded.LocalFlorist,
-                initiallyExpanded = uiState.pendingTasks.isNotEmpty(),
-            ) {
-                PendingCareSection(uiState.pendingTasks, onEvent)
-            }
-        }
-
-        item {
-            ExpandableDetailsSection(
                 title = "Notes",
                 subtitle = "Plant notes and quick health observations",
                 icon = Icons.Rounded.Eco,
@@ -298,6 +265,11 @@ private fun PlantDetailsContent(
                     healthNotes = uiState.healthNotes,
                     draft = uiState.healthNoteDraft,
                     selectedMood = uiState.selectedHealthMood,
+                    editingNoteId = uiState.editingHealthNoteId,
+                    character = uiState.activeCharacter,
+                    successMessage = uiState.successMessage,
+                    heartBurstKey = uiState.heartBurstKey,
+                    showCharacterMessage = uiState.shouldShowNotesCharacterCelebration,
                     onEvent = onEvent,
                 )
             }
@@ -328,102 +300,223 @@ private fun PlantDetailsContent(
 private fun PlantHeroCard(
     plant: PlantDetailsUiModel,
     healthMood: HealthMood,
-    openTaskCount: Int,
 ) {
-    WaterMeCard(modifier = Modifier.animateContentSize()) {
+    val healthColor = healthMood.accentColor()
+    var showPhotoPreview by rememberSaveable(plant.id) { mutableStateOf(false) }
+
+    if (showPhotoPreview) {
+        PlantPhotoPreviewDialog(
+            plant = plant,
+            onDismiss = { showPhotoPreview = false },
+        )
+    }
+
+    WaterMePremiumCard(
+        modifier = Modifier.animateContentSize(),
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f),
+        accentColor = healthColor,
+        shape = RoundedCornerShape(34.dp),
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(LeafGreen.copy(alpha = 0.12f)),
+                    .height(210.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                LeafGreen.copy(alpha = 0.18f),
+                                healthColor.copy(alpha = 0.12f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                            ),
+                        ),
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 PlantPhotoTile(
                     photoUri = plant.primaryPhotoUri,
                     plantName = plant.name,
-                    size = 132.dp,
+                    modifier = Modifier.clickable { showPhotoPreview = true },
+                    size = 210.dp,
+                    fillContainer = true,
                 )
-                StatusPill(
-                    label = healthMood.label(),
-                    color = healthMood.accentColor(),
+                DetailsMetaPill(
+                    label = plant.environment.detailsLabel(),
+                    icon = plant.environment.detailsIcon(),
+                    color = LeafGreen,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.TopStart)
                         .padding(14.dp),
                 )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = plant.name,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryPill("${plant.reminderCount} reminders", Modifier.weight(1f))
-                SummaryPill("${plant.careHistoryCount} logs", Modifier.weight(1f))
-                SummaryPill("$openTaskCount open", Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailsMetricTile("${plant.reminderCount}", "reminders", Icons.Rounded.Event, LeafGreen, Modifier.weight(1f))
+                DetailsMetricTile("${plant.careHistoryCount}", "logs", Icons.Rounded.History, Clay, Modifier.weight(1f))
+            }
+
+            if (plant.notes.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+                        .padding(14.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Care notes",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = LeafGreen,
+                        )
+                        Text(
+                            text = plant.notes,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PlantHealthStatusCard(uiState: PlantDetailsUiState) {
-    val mood = currentHealthMood(uiState)
-    val latestNote = uiState.healthNotes.firstOrNull()
-    val message = when {
-        uiState.pendingTasks.any { it.isOverdue } -> "This plant has overdue care. Handle the open tasks first."
-        latestNote != null -> latestNote.note
-        else -> "No recent health concerns logged. Add a note when leaves, soil, or growth changes."
-    }
-
-    WaterMeCard(
-        modifier = Modifier.animateContentSize(),
-        containerColor = SoftCream,
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+private fun PlantPhotoPreviewDialog(
+    plant: PlantDetailsUiModel,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        title = {
+            Text(
+                text = plant.name,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        text = {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(mood.accentColor().copy(alpha = 0.16f)),
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.Spa, contentDescription = null, tint = mood.accentColor())
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "Plant health status",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MutedInk,
-                )
-                Text(
-                    text = mood.label(),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Ink,
-                )
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                PlantPhotoTile(
+                    photoUri = plant.primaryPhotoUri,
+                    plantName = plant.name,
+                    size = 280.dp,
                 )
             }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(30.dp),
+    )
+}
+
+@Composable
+private fun DetailsMetaPill(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(15.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun DetailsMetricTile(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(color.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        }
+        Column {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = color,
+                maxLines = 1,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
+
+private fun PlantEnvironment.detailsLabel(): String =
+    when (this) {
+        PlantEnvironment.INDOOR -> "Indoor"
+        PlantEnvironment.OUTDOOR -> "Outdoor"
+    }
+
+private fun PlantEnvironment.detailsIcon(): ImageVector =
+    when (this) {
+        PlantEnvironment.INDOOR -> Icons.Rounded.Home
+        PlantEnvironment.OUTDOOR -> Icons.Rounded.Park
+    }
 
 @Composable
 private fun ExpandableDetailsSection(
@@ -474,7 +567,7 @@ private fun ExpandableDetailsSection(
                 Icon(
                     imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                     contentDescription = if (expanded) "Collapse $title" else "Expand $title",
-                    tint = Ink,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -513,64 +606,22 @@ private fun CareScheduleCard(
         ) {
             CareTypeBadge(careType)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(careType.label(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+                Text(careType.label(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Text(
                     text = reminder?.frequencyLabel ?: "No schedule set",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = reminder?.nextDueLabel ?: "Edit plant to add ${careType.shortLabel().lowercase()} reminders",
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (reminder == null) MutedInk else LeafGreen,
+                    color = if (reminder == null) MaterialTheme.colorScheme.onSurfaceVariant else LeafGreen,
                 )
             }
             StatusPill(
                 label = if (reminder?.enabled == true) "On" else "Off",
-                color = if (reminder?.enabled == true) LeafGreen else MutedInk,
+                color = if (reminder?.enabled == true) LeafGreen else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-    }
-}
-
-@Composable
-private fun UpcomingRemindersSection(reminders: List<ReminderUiModel>) {
-    val activeReminders = reminders.filter { it.enabled }
-    if (activeReminders.isEmpty()) {
-        WaterMeEmptyState(
-            title = "No upcoming reminders",
-            message = "Edit this plant to add care reminders.",
-            icon = Icons.Rounded.Notifications,
-        )
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            activeReminders.forEach { reminder -> ReminderRow(reminder = reminder) }
-        }
-    }
-}
-
-@Composable
-private fun PendingCareSection(
-    pendingTasks: List<CareTaskUiModel>,
-    onEvent: (PlantDetailsEvent) -> Unit,
-) {
-    if (pendingTasks.isEmpty()) {
-        WaterMeEmptyState(
-            title = "No pending care",
-            message = "This plant is on track. Upcoming reminders will appear here.",
-            icon = Icons.Rounded.Check,
-        )
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            pendingTasks.forEach { task ->
-                CareTaskCard(
-                    task = task,
-                    onOpenPlant = {},
-                    onComplete = { onEvent(PlantDetailsEvent.CompleteTask(task.id)) },
-                    onSkip = { onEvent(PlantDetailsEvent.SkipTask(task.id)) },
-                    onSnooze = { onEvent(PlantDetailsEvent.SnoozeTask(task.id)) },
-                )
-            }
         }
     }
 }
@@ -581,6 +632,11 @@ private fun NotesSection(
     healthNotes: List<HealthNoteUiModel>,
     draft: String,
     selectedMood: HealthMood,
+    editingNoteId: String?,
+    character: PlantCharacterUiModel?,
+    successMessage: String?,
+    heartBurstKey: Long,
+    showCharacterMessage: Boolean,
     onEvent: (PlantDetailsEvent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -603,8 +659,17 @@ private fun NotesSection(
         HealthNoteComposer(
             draft = draft,
             selectedMood = selectedMood,
+            isEditing = editingNoteId != null,
             onEvent = onEvent,
         )
+
+        if (showCharacterMessage && character != null && successMessage != null) {
+            PlantCharacterCelebrationCard(
+                character = character,
+                message = successMessage,
+                heartBurstKey = heartBurstKey.takeIf { it != 0L },
+            )
+        }
 
         if (healthNotes.isEmpty()) {
             NotesEmptyState()
@@ -615,7 +680,21 @@ private fun NotesSection(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            healthNotes.take(3).forEach { note -> HealthNoteRow(note = note) }
+            healthNotes.take(3).forEach { note ->
+                EditableHealthNoteRow(
+                    note = note,
+                    onEdit = {
+                        onEvent(
+                            PlantDetailsEvent.EditHealthNoteClicked(
+                                noteId = note.id,
+                                note = note.note,
+                                mood = note.mood,
+                            ),
+                        )
+                    },
+                    onDelete = { onEvent(PlantDetailsEvent.DeleteHealthNoteClicked(note.id)) },
+                )
+            }
         }
     }
 }
@@ -624,6 +703,7 @@ private fun NotesSection(
 private fun HealthNoteComposer(
     draft: String,
     selectedMood: HealthMood,
+    isEditing: Boolean,
     onEvent: (PlantDetailsEvent) -> Unit,
 ) {
     WaterMePremiumCard(
@@ -633,7 +713,7 @@ private fun HealthNoteComposer(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(
-                "Log a quick observation",
+                if (isEditing) "Edit observation" else "Log a quick observation",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -646,6 +726,14 @@ private fun HealthNoteComposer(
                     FilterChip(
                         selected = mood == selectedMood,
                         onClick = { onEvent(PlantDetailsEvent.HealthMoodSelected(mood)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = mood.icon(),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = mood.accentColor(),
+                            )
+                        },
                         label = { Text(mood.label()) },
                     )
                 }
@@ -659,10 +747,68 @@ private fun HealthNoteComposer(
                 shape = RoundedCornerShape(20.dp),
             )
             WaterMePrimaryButton(
-                label = "Add note",
+                label = if (isEditing) "Save note" else "Add note",
                 onClick = { onEvent(PlantDetailsEvent.AddHealthNoteClicked) },
                 enabled = draft.isNotBlank(),
             )
+            if (isEditing) {
+                TextButton(onClick = { onEvent(PlantDetailsEvent.CancelHealthNoteEditClicked) }) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditableHealthNoteRow(
+    note: HealthNoteUiModel,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    WaterMeCard {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(note.mood.accentColor().copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = note.mood.icon(),
+                    contentDescription = null,
+                    tint = note.mood.accentColor(),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = note.note,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${note.mood.label()} - ${note.dateLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            IconButton(onClick = onEdit, modifier = Modifier.size(38.dp)) {
+                Icon(Icons.Rounded.Edit, contentDescription = "Edit note", tint = LeafGreen)
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(38.dp)) {
+                Icon(Icons.Rounded.Delete, contentDescription = "Delete note", tint = Clay)
+            }
         }
     }
 }
@@ -782,7 +928,7 @@ private fun CareTimelineItem(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Ink,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -792,7 +938,7 @@ private fun CareTimelineItem(
                 Text(
                     text = entry.notes,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MutedInk,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -809,7 +955,7 @@ private fun ManagePlantCard(
 ) {
     WaterMeCard(modifier = Modifier.animateContentSize()) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Manage plant", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Ink)
+            Text("Manage plant", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             OutlinedButton(
                 onClick = onEditClick,
                 modifier = Modifier.fillMaxWidth(),
@@ -848,8 +994,8 @@ private fun DetailsMessageCard(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = color)
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Ink)
-                Text(message, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -935,14 +1081,19 @@ private fun currentHealthMood(uiState: PlantDetailsUiState): HealthMood =
         else -> HealthMood.HEALTHY
     }
 
+private fun HealthMood.icon(): ImageVector =
+    when (this) {
+        HealthMood.ATTENTION -> Icons.Rounded.Spa
+        HealthMood.HEALTHY -> Icons.Rounded.Check
+        HealthMood.GROWTH -> Icons.Rounded.Eco
+    }
+
 private fun scheduleTypes(reminders: List<ReminderUiModel>): List<CareType> =
-    (primaryScheduleTypes + reminders.map { it.careType }).distinct()
+    (primaryScheduleTypes + reminders.map { it.careType }.filter { it in primaryScheduleTypes }).distinct()
 
 private val primaryScheduleTypes = listOf(
     CareType.WATERING,
     CareType.FERTILIZING,
-    CareType.REPOTTING,
-    CareType.PRUNING,
 )
 
 @Preview(showBackground = true)
