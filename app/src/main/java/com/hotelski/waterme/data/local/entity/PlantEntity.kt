@@ -35,6 +35,8 @@ data class PlantEntity(
     val location: String,
     @ColumnInfo(name = "notes")
     val notes: String,
+    @ColumnInfo(name = "is_favorite")
+    val isFavorite: Boolean = false,
     @ColumnInfo(name = "created_at")
     val createdAt: Long,
     @ColumnInfo(name = "updated_at")

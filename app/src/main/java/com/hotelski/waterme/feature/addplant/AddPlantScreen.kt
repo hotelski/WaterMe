@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -92,21 +93,26 @@ enum class AddPlantReminderTimeOption(
     CUSTOM("Custom", -1, -1),
 }
 
+data class AddPlantReminderDraftUiModel(
+    val careType: CareType,
+    val enabled: Boolean,
+    val frequency: AddPlantFrequencyOption,
+    val customFrequencyDays: String = "",
+    val reminderTime: AddPlantReminderTimeOption = AddPlantReminderTimeOption.LATE_MORNING,
+    val customReminderHour: String = "",
+    val customReminderMinute: String = "",
+    val startDateMillis: Long,
+    val startDateLabel: String,
+)
+
 data class AddPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val name: String = "",
     val notes: String = "",
     val selectedPhotoUri: String? = null,
-    val reminderCareType: CareType = CareType.WATERING,
-    val frequency: AddPlantFrequencyOption = AddPlantFrequencyOption.EVERY_3_DAYS,
-    val customFrequencyDays: String = "",
-    val reminderTime: AddPlantReminderTimeOption = AddPlantReminderTimeOption.LATE_MORNING,
-    val customReminderHour: String = "",
-    val customReminderMinute: String = "",
-    val startDateMillis: Long = 0L,
-    val startDateLabel: String = "Today",
-    val showStartDatePicker: Boolean = false,
+    val reminders: List<AddPlantReminderDraftUiModel> = emptyList(),
+    val startDatePickerCareType: CareType? = null,
     val fieldErrors: AddPlantFieldErrors = AddPlantFieldErrors(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
@@ -121,16 +127,16 @@ sealed interface AddPlantEvent {
     data object ChoosePhotoClicked : AddPlantEvent
     data object SaveClicked : AddPlantEvent
     data object RetryClicked : AddPlantEvent
-    data object StartDateClicked : AddPlantEvent
     data object DismissStartDatePicker : AddPlantEvent
     data class NameChanged(val value: String) : AddPlantEvent
     data class NotesChanged(val value: String) : AddPlantEvent
-    data class ReminderCareTypeSelected(val careType: CareType) : AddPlantEvent
-    data class FrequencySelected(val frequency: AddPlantFrequencyOption) : AddPlantEvent
-    data class CustomFrequencyDaysChanged(val value: String) : AddPlantEvent
-    data class ReminderTimeSelected(val time: AddPlantReminderTimeOption) : AddPlantEvent
-    data class CustomReminderHourChanged(val value: String) : AddPlantEvent
-    data class CustomReminderMinuteChanged(val value: String) : AddPlantEvent
+    data class ReminderEnabledChanged(val careType: CareType, val enabled: Boolean) : AddPlantEvent
+    data class FrequencySelected(val careType: CareType, val frequency: AddPlantFrequencyOption) : AddPlantEvent
+    data class CustomFrequencyDaysChanged(val careType: CareType, val value: String) : AddPlantEvent
+    data class ReminderTimeSelected(val careType: CareType, val time: AddPlantReminderTimeOption) : AddPlantEvent
+    data class CustomReminderHourChanged(val careType: CareType, val value: String) : AddPlantEvent
+    data class CustomReminderMinuteChanged(val careType: CareType, val value: String) : AddPlantEvent
+    data class StartDateClicked(val careType: CareType) : AddPlantEvent
     data class StartDateSelected(val millis: Long?) : AddPlantEvent
 }
 
@@ -166,9 +172,11 @@ fun AddPlantScreen(
         }
     }
 
-    if (uiState.showStartDatePicker) {
+    if (uiState.startDatePickerCareType != null) {
         StartDatePickerDialog(
-            initialSelectedDateMillis = uiState.startDateMillis,
+            initialSelectedDateMillis = uiState.reminders
+                .firstOrNull { it.careType == uiState.startDatePickerCareType }
+                ?.startDateMillis ?: 0L,
             onDismiss = { onEvent(AddPlantEvent.DismissStartDatePicker) },
             onConfirm = { selectedMillis -> onEvent(AddPlantEvent.StartDateSelected(selectedMillis)) },
         )
@@ -247,7 +255,7 @@ private fun AddPlantHero(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Create a calm care profile with its first reminder and notes.",
+                    text = "Create a calm care profile with reminders and notes.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -361,82 +369,15 @@ private fun ReminderCard(
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionTitle(
                 icon = Icons.Rounded.Notifications,
-                title = "First reminder",
-                subtitle = "Watering or fertilizing to start.",
+                title = "Care reminders",
+                subtitle = "Set watering, fertilizing, or both.",
             )
-            ChipRow(title = "Care") {
-                ReminderCareTypes.forEach { careType ->
-                    FilterChip(
-                        selected = uiState.reminderCareType == careType,
-                        onClick = { onEvent(AddPlantEvent.ReminderCareTypeSelected(careType)) },
-                        label = { Text(careType.label()) },
-                        leadingIcon = if (uiState.reminderCareType == careType) {
-                            { CareTypeBadge(careType, size = 28.dp) }
-                        } else {
-                            null
-                        },
-                    )
-                }
-            }
-            ChipRow(title = "Frequency") {
-                AddPlantFrequencyOption.entries.forEach { frequency ->
-                    FilterChip(
-                        selected = uiState.frequency == frequency,
-                        onClick = { onEvent(AddPlantEvent.FrequencySelected(frequency)) },
-                        label = { Text(frequency.label) },
-                    )
-                }
-            }
-            if (uiState.frequency == AddPlantFrequencyOption.CUSTOM) {
-                OutlinedTextField(
-                    value = uiState.customFrequencyDays,
-                    onValueChange = { onEvent(AddPlantEvent.CustomFrequencyDaysChanged(it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Every X days") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(18.dp),
-                    suffix = { Text("days") },
+            uiState.reminders.forEach { reminder ->
+                AddPlantReminderScheduleCard(
+                    reminder = reminder,
+                    onEvent = onEvent,
                 )
             }
-            ChipRow(title = "Notification time") {
-                AddPlantReminderTimeOption.entries.forEach { time ->
-                    FilterChip(
-                        selected = uiState.reminderTime == time,
-                        onClick = { onEvent(AddPlantEvent.ReminderTimeSelected(time)) },
-                        label = { Text(time.label) },
-                    )
-                }
-            }
-            if (uiState.reminderTime == AddPlantReminderTimeOption.CUSTOM) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    OutlinedTextField(
-                        value = uiState.customReminderHour,
-                        onValueChange = { onEvent(AddPlantEvent.CustomReminderHourChanged(it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text("Hour") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(18.dp),
-                    )
-                    OutlinedTextField(
-                        value = uiState.customReminderMinute,
-                        onValueChange = { onEvent(AddPlantEvent.CustomReminderMinuteChanged(it)) },
-                        modifier = Modifier.weight(1f),
-                        label = { Text("Minute") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(18.dp),
-                    )
-                }
-            }
-            StartDateButton(
-                label = uiState.startDateLabel,
-                onClick = { onEvent(AddPlantEvent.StartDateClicked) },
-            )
             if (uiState.fieldErrors.reminder != null) {
                 Text(
                     text = uiState.fieldErrors.reminder,
@@ -447,6 +388,130 @@ private fun ReminderCard(
         }
     }
 }
+
+@Composable
+private fun AddPlantReminderScheduleCard(
+    reminder: AddPlantReminderDraftUiModel,
+    onEvent: (AddPlantEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (reminder.enabled) 0.34f else 0.16f),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CareTypeBadge(reminder.careType, size = 42.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = reminder.careType.label(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = if (reminder.enabled) {
+                            "Every ${reminder.frequency.displayDays(reminder.customFrequencyDays)} days"
+                        } else {
+                            "Off"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = reminder.enabled,
+                    onCheckedChange = {
+                        onEvent(AddPlantEvent.ReminderEnabledChanged(reminder.careType, it))
+                    },
+                )
+            }
+
+            if (reminder.enabled) {
+                ChipRow(title = "Frequency") {
+                    AddPlantFrequencyOption.entries.forEach { frequency ->
+                        FilterChip(
+                            selected = reminder.frequency == frequency,
+                            onClick = { onEvent(AddPlantEvent.FrequencySelected(reminder.careType, frequency)) },
+                            label = { Text(frequency.label) },
+                        )
+                    }
+                }
+                if (reminder.frequency == AddPlantFrequencyOption.CUSTOM) {
+                    OutlinedTextField(
+                        value = reminder.customFrequencyDays,
+                        onValueChange = {
+                            onEvent(AddPlantEvent.CustomFrequencyDaysChanged(reminder.careType, it))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Every X days") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(18.dp),
+                        suffix = { Text("days") },
+                    )
+                }
+                ChipRow(title = "Notification time") {
+                    AddPlantReminderTimeOption.entries.forEach { time ->
+                        FilterChip(
+                            selected = reminder.reminderTime == time,
+                            onClick = { onEvent(AddPlantEvent.ReminderTimeSelected(reminder.careType, time)) },
+                            label = { Text(time.label) },
+                        )
+                    }
+                }
+                if (reminder.reminderTime == AddPlantReminderTimeOption.CUSTOM) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = reminder.customReminderHour,
+                            onValueChange = {
+                                onEvent(AddPlantEvent.CustomReminderHourChanged(reminder.careType, it))
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Hour") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(18.dp),
+                        )
+                        OutlinedTextField(
+                            value = reminder.customReminderMinute,
+                            onValueChange = {
+                                onEvent(AddPlantEvent.CustomReminderMinuteChanged(reminder.careType, it))
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = { Text("Minute") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(18.dp),
+                        )
+                    }
+                }
+                StartDateButton(
+                    label = reminder.startDateLabel,
+                    onClick = { onEvent(AddPlantEvent.StartDateClicked(reminder.careType)) },
+                )
+            }
+        }
+    }
+}
+
+private fun AddPlantFrequencyOption.displayDays(customFrequencyDays: String): String =
+    if (this == AddPlantFrequencyOption.CUSTOM) {
+        customFrequencyDays.ifBlank { "?" }
+    } else {
+        days.toString()
+    }
 
 @Composable
 private fun NotesCard(
@@ -590,8 +655,6 @@ private fun StartDatePickerDialog(
     }
 }
 
-private val ReminderCareTypes = listOf(CareType.WATERING, CareType.FERTILIZING)
-
 @Preview(showBackground = true)
 @Composable
 private fun AddPlantScreenPreview() {
@@ -600,7 +663,22 @@ private fun AddPlantScreenPreview() {
             uiState = AddPlantUiState(
                 name = "Calathea",
                 notes = "Likes filtered light and consistent moisture.",
-                startDateLabel = "Today",
+                reminders = listOf(
+                    AddPlantReminderDraftUiModel(
+                        careType = CareType.WATERING,
+                        enabled = true,
+                        frequency = AddPlantFrequencyOption.EVERY_3_DAYS,
+                        startDateMillis = 0L,
+                        startDateLabel = "Today",
+                    ),
+                    AddPlantReminderDraftUiModel(
+                        careType = CareType.FERTILIZING,
+                        enabled = true,
+                        frequency = AddPlantFrequencyOption.EVERY_30_DAYS,
+                        startDateMillis = 0L,
+                        startDateLabel = "Jun 25",
+                    ),
+                ),
             ),
             onEvent = {},
         )

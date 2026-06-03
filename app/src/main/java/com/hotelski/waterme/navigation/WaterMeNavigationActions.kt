@@ -17,11 +17,8 @@ class WaterMeNavigationActions(
         }
     }
 
-    fun navigateFromOnboardingToToday() {
-        navController.navigate(WaterMeRoute.Today.route) {
-            popUpTo(WaterMeRoute.Onboarding.route) {
-                inclusive = true
-            }
+    fun navigateToFeedback() {
+        navController.navigate(WaterMeRoute.Feedback.route) {
             launchSingleTop = true
         }
     }

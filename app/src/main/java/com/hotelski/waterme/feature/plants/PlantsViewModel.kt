@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import com.hotelski.waterme.feature.common.PlantCardUiModel
 import com.hotelski.waterme.feature.common.endOfTodayMillis
 import com.hotelski.waterme.feature.common.toPlantCardUiModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,6 +26,11 @@ private data class PlantsActionState(
     val successMessage: String? = null,
 )
 
+private data class PlantsFilterState(
+    val searchQuery: String = "",
+    val showFavoritesOnly: Boolean = false,
+)
+
 class PlantsViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -33,32 +39,44 @@ class PlantsViewModel(
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
 
     private val searchQuery = MutableStateFlow("")
+    private val showFavoritesOnly = MutableStateFlow(false)
     private val selectedPlantPanels = MutableStateFlow<Map<String, PlantCardPanel>>(emptyMap())
     private val actionState = MutableStateFlow(PlantsActionState())
     private val _effects = MutableSharedFlow<PlantsEffect>()
 
     val effects = _effects.asSharedFlow()
 
+    private val filters = combine(searchQuery, showFavoritesOnly) { query, favoritesOnly ->
+        PlantsFilterState(searchQuery = query, showFavoritesOnly = favoritesOnly)
+    }
+
     val uiState = combine(
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeTasksDueBy(endOfTodayMillis()),
-        searchQuery,
+        filters,
         selectedPlantPanels,
         actionState,
-    ) { plants, tasksDueToday, query, selectedPanels, action ->
+    ) { plants, tasksDueToday, filters, selectedPanels, action ->
+        val query = filters.searchQuery
+        val favoritesOnly = filters.showFavoritesOnly
         val normalizedQuery = query.trim()
         val dueCountsByPlantId = tasksDueToday.groupingBy { it.plantId }.eachCount()
         val plantCards = plants
             .map { plant -> plant.toPlantCardUiModel(dueTaskCount = dueCountsByPlantId[plant.plant.plantId] ?: 0) }
+            .sortedWith(compareByDescending<PlantCardUiModel> { it.isFavorite }.thenBy { it.name.lowercase() })
             .filter { plant ->
                 normalizedQuery.isBlank() ||
                     plant.name.contains(normalizedQuery, ignoreCase = true)
             }
+            .filter { plant -> !favoritesOnly || plant.isFavorite }
+        val favoriteCount = plants.count { it.plant.isFavorite }
 
         PlantsUiState(
             isLoading = false,
             plants = plantCards,
             searchQuery = query,
+            showFavoritesOnly = favoritesOnly,
+            favoriteCount = favoriteCount,
             selectedPlantPanels = selectedPanels,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
@@ -79,6 +97,8 @@ class PlantsViewModel(
         when (event) {
             PlantsEvent.AddPlantClicked -> emitEffect(PlantsEffect.NavigateToAddPlant)
             is PlantsEvent.EditPlantClicked -> emitEffect(PlantsEffect.NavigateToEditPlant(event.plantId))
+            is PlantsEvent.FavoriteToggled -> toggleFavorite(event.plantId, event.isFavorite)
+            PlantsEvent.FavoriteFilterToggled -> toggleFavoriteFilter()
             is PlantsEvent.PlantPanelClicked -> togglePlantPanel(event.plantId, event.panel)
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
@@ -91,6 +111,19 @@ class PlantsViewModel(
         } else {
             selectedPlantPanels.value + (plantId to panel)
         }
+    }
+
+    private fun toggleFavorite(plantId: String, isFavorite: Boolean) {
+        viewModelScope.launch {
+            actionState.value = PlantsActionState()
+            runCatching { plantRepository.setPlantFavorite(plantId, !isFavorite) }
+                .onFailure { actionState.value = PlantsActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun toggleFavoriteFilter() {
+        showFavoritesOnly.value = !showFavoritesOnly.value
+        actionState.value = PlantsActionState()
     }
 
     private fun updateSearchQuery(value: String) {

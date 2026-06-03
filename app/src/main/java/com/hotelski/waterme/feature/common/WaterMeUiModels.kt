@@ -9,12 +9,19 @@ data class PlantCardUiModel(
     val plantType: String,
     val location: String,
     val photoUri: String? = null,
+    val isFavorite: Boolean = false,
     val dueTaskCount: Int = 0,
     val nextCareLabel: String? = null,
+    val careRhythms: List<PlantCareRhythmUiModel> = emptyList(),
     val scheduleSummary: String = "No reminder set",
     val careLogCount: Int = 0,
     val recentCareLogs: List<CareHistoryUiModel> = emptyList(),
     val notes: String = "",
+)
+
+data class PlantCareRhythmUiModel(
+    val careType: CareType,
+    val summary: String,
 )
 
 data class PlantDetailsUiModel(

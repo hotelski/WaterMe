@@ -36,11 +36,13 @@ import com.hotelski.waterme.feature.settings.SettingsViewModel
 import com.hotelski.waterme.feature.today.HomeEffect
 import com.hotelski.waterme.feature.today.HomeViewModel
 import com.hotelski.waterme.feature.today.TodayScreen
+import com.hotelski.waterme.feature.today.TodayEvent
 
 @Composable
 fun HomeRoute(
     onAddPlant: () -> Unit,
     onOpenCalendar: () -> Unit,
+    onOpenFeedback: () -> Unit,
     onOpenPlant: (String) -> Unit,
     onOpenPlants: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
@@ -52,6 +54,7 @@ fun HomeRoute(
             when (effect) {
                 HomeEffect.NavigateToAddPlant -> onAddPlant()
                 HomeEffect.NavigateToCalendar -> onOpenCalendar()
+                HomeEffect.NavigateToFeedback -> onOpenFeedback()
                 HomeEffect.NavigateToPlants -> onOpenPlants()
                 is HomeEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
             }
@@ -61,6 +64,7 @@ fun HomeRoute(
     TodayScreen(
         uiState = uiState,
         onEvent = homeViewModel::onEvent,
+        onFeedbackClick = { homeViewModel.onEvent(TodayEvent.FeedbackClicked) },
     )
 }
 
@@ -255,7 +259,7 @@ fun CareHistoryRoute(
 
 @Composable
 fun SettingsRoute(
-    onShowOnboarding: () -> Unit,
+    onOpenFeedback: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenCharacters: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel(),
@@ -265,7 +269,7 @@ fun SettingsRoute(
     LaunchedEffect(settingsViewModel) {
         settingsViewModel.effects.collect { effect ->
             when (effect) {
-                SettingsEffect.NavigateToOnboarding -> onShowOnboarding()
+                SettingsEffect.NavigateToFeedback -> onOpenFeedback()
                 SettingsEffect.RequestNotificationPermission -> onRequestNotificationPermission()
                 SettingsEffect.NavigateToCharacters -> onOpenCharacters()
             }

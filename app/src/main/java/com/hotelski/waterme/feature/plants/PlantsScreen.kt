@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,8 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,12 +66,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.hotelski.waterme.feature.common.CareTypeBadge
 import com.hotelski.waterme.feature.common.PlantCardUiModel
 import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeFloatingActionButton
-import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
@@ -90,18 +92,22 @@ data class PlantsUiState(
     val isLoading: Boolean = false,
     val plants: List<PlantCardUiModel> = emptyList(),
     val searchQuery: String = "",
+    val showFavoritesOnly: Boolean = false,
+    val favoriteCount: Int = 0,
     val selectedPlantPanels: Map<String, PlantCardPanel> = emptyMap(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
 ) {
     val isEmpty: Boolean
-        get() = !isLoading && plants.isEmpty() && searchQuery.isBlank()
+        get() = !isLoading && plants.isEmpty() && searchQuery.isBlank() && !showFavoritesOnly
 }
 
 sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
     data class EditPlantClicked(val plantId: String) : PlantsEvent
+    data class FavoriteToggled(val plantId: String, val isFavorite: Boolean) : PlantsEvent
+    data object FavoriteFilterToggled : PlantsEvent
     data class PlantPanelClicked(val plantId: String, val panel: PlantCardPanel) : PlantsEvent
     data class SearchQueryChanged(val value: String) : PlantsEvent
 }
@@ -166,6 +172,7 @@ private fun PlantsContent(
             PlantsListHeader(
                 uiState = uiState,
                 onSearchQueryChanged = { onEvent(PlantsEvent.SearchQueryChanged(it)) },
+                onFavoriteFilterClick = { onEvent(PlantsEvent.FavoriteFilterToggled) },
             )
         }
         if (uiState.errorMessage != null) {
@@ -188,6 +195,18 @@ private fun PlantsContent(
                 )
             }
 
+            uiState.showFavoritesOnly && uiState.plants.isEmpty() -> item {
+                WaterMeEmptyState(
+                    title = if (uiState.searchQuery.isBlank()) "No favorite plants yet" else "No favorite match",
+                    message = if (uiState.searchQuery.isBlank()) {
+                        "Tap the star on any plant to keep it in your favorites view."
+                    } else {
+                        "Try another plant name or turn off the favorites filter."
+                    },
+                    icon = Icons.Rounded.Star,
+                )
+            }
+
             uiState.plants.isEmpty() -> item {
                 WaterMeEmptyState(
                     title = "No matching plants",
@@ -201,6 +220,7 @@ private fun PlantsContent(
                     plant = plant,
                     selectedPanel = uiState.selectedPlantPanels[plant.id],
                     onEdit = { onEvent(PlantsEvent.EditPlantClicked(plant.id)) },
+                    onFavoriteToggle = { onEvent(PlantsEvent.FavoriteToggled(plant.id, plant.isFavorite)) },
                     onPanelClick = { panel -> onEvent(PlantsEvent.PlantPanelClicked(plant.id, panel)) },
                 )
             }
@@ -212,6 +232,7 @@ private fun PlantsContent(
 private fun PlantsListHeader(
     uiState: PlantsUiState,
     onSearchQueryChanged: (String) -> Unit,
+    onFavoriteFilterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dueTodayCount = uiState.plants.sumOf { it.dueTaskCount }
@@ -234,10 +255,10 @@ private fun PlantsListHeader(
                     onValueChange = onSearchQueryChanged,
                     modifier = Modifier.weight(1f),
                 )
-                WaterMeIconBadge(
-                    icon = Icons.Rounded.LocalFlorist,
-                    size = 44.dp,
-                    color = MaterialTheme.colorScheme.primary,
+                FavoriteFilterChip(
+                    selected = uiState.showFavoritesOnly,
+                    favoriteCount = uiState.favoriteCount,
+                    onClick = onFavoriteFilterClick,
                 )
             }
 
@@ -259,6 +280,44 @@ private fun PlantsListHeader(
                     modifier = Modifier.weight(1f),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun FavoriteFilterChip(
+    selected: Boolean,
+    favoriteCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else LeafGreen
+    Surface(
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = color.copy(alpha = if (selected) 0.16f else 0.10f),
+        contentColor = color,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 11.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = if (selected) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                contentDescription = null,
+                modifier = Modifier.size(17.dp),
+            )
+            Text(
+                text = if (favoriteCount > 0) "Favorites $favoriteCount" else "Favorites",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -367,6 +426,7 @@ private fun SwipePlantCard(
     plant: PlantCardUiModel,
     selectedPanel: PlantCardPanel?,
     onEdit: () -> Unit,
+    onFavoriteToggle: () -> Unit,
     onPanelClick: (PlantCardPanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -397,6 +457,7 @@ private fun SwipePlantCard(
             plant = plant,
             selectedPanel = selectedPanel,
             onEdit = onEdit,
+            onFavoriteToggle = onFavoriteToggle,
             onPanelClick = onPanelClick,
             modifier = Modifier
                 .offset { IntOffset(offset.roundToInt(), 0) }
@@ -458,6 +519,7 @@ private fun PlantListCard(
     plant: PlantCardUiModel,
     selectedPanel: PlantCardPanel?,
     onEdit: () -> Unit,
+    onFavoriteToggle: () -> Unit,
     onPanelClick: (PlantCardPanel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -486,6 +548,17 @@ private fun PlantListCard(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(42.dp)) {
+                            Icon(
+                                imageVector = if (plant.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                contentDescription = if (plant.isFavorite) {
+                                    "Remove ${plant.name} from favorites"
+                                } else {
+                                    "Add ${plant.name} to favorites"
+                                },
+                                tint = if (plant.isFavorite) LeafGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         IconButton(onClick = onEdit, modifier = Modifier.size(42.dp)) {
@@ -526,14 +599,7 @@ private fun PlantListCard(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            text = plant.scheduleSummary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        PlantCareRhythmSummary(plant = plant)
                     }
                     CompactPlantChip(
                         label = "${plant.careLogCount} logs",
@@ -578,6 +644,49 @@ private fun PlantListCard(
     }
 }
 
+@Composable
+private fun PlantCareRhythmSummary(
+    plant: PlantCardUiModel,
+    modifier: Modifier = Modifier,
+) {
+    if (plant.careRhythms.isEmpty()) {
+        Text(
+            text = plant.scheduleSummary,
+            modifier = modifier,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        plant.careRhythms.forEach { rhythm ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CareTypeBadge(careType = rhythm.careType, size = 28.dp)
+                Text(
+                    text = rhythm.summary,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlantStatusChips(
@@ -590,10 +699,10 @@ private fun PlantStatusChips(
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         CompactPlantChip(
-                            label = if (plant.dueTaskCount > 0) "${plant.dueTaskCount} due" else "On track",
-                            color = if (plant.dueTaskCount > 0) Clay else LeafGreen,
-                            icon = Icons.Rounded.WaterDrop,
-                        )
+            label = if (plant.dueTaskCount > 0) "${plant.dueTaskCount} due" else "On track",
+            color = if (plant.dueTaskCount > 0) Clay else LeafGreen,
+            icon = Icons.Rounded.Schedule,
+        )
         if (plant.nextCareLabel != null) {
             CompactPlantChip(
                 label = plant.nextCareLabel,

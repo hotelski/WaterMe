@@ -12,7 +12,7 @@ import com.hotelski.waterme.ui.theme.WaterMeTheme
 
 @Composable
 fun WaterMeNavigationScaffold(
-    startDestination: String = WaterMeRoute.Onboarding.route,
+    startDestination: String = WaterMeRoute.Today.route,
 ) {
     val navController = rememberNavController()
     val navigationActions = WaterMeNavigationActions(navController)

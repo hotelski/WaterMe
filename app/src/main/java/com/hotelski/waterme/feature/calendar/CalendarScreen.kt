@@ -76,6 +76,7 @@ import com.hotelski.waterme.ui.theme.Ink
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
+import kotlinx.coroutines.delay
 
 data class CalendarDateUiModel(
     val dateMillis: Long,
@@ -123,6 +124,7 @@ sealed interface CalendarEvent {
     data class DateSelected(val dateMillis: Long) : CalendarEvent
     data class PlantFilterSelected(val plantId: String?) : CalendarEvent
     data class CompleteTask(val taskId: String) : CalendarEvent
+    data class CharacterCelebrationExpired(val heartBurstKey: Long) : CalendarEvent
     data class TaskClicked(val plantId: String, val taskId: String) : CalendarEvent
 }
 
@@ -178,6 +180,13 @@ private fun CalendarContent(
     onOpenCalendar: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    LaunchedEffect(uiState.heartBurstKey, uiState.shouldShowCharacterCelebration) {
+        if (uiState.shouldShowCharacterCelebration && uiState.heartBurstKey != 0L) {
+            delay(CHARACTER_CELEBRATION_VISIBLE_MILLIS)
+            onEvent(CalendarEvent.CharacterCelebrationExpired(uiState.heartBurstKey))
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -194,7 +203,9 @@ private fun CalendarContent(
             )
         }
 
-        if (uiState.successMessage != null || uiState.errorMessage != null) {
+        val shouldShowInlineMessage = uiState.errorMessage != null ||
+            (uiState.successMessage != null && !uiState.shouldShowCharacterCelebration)
+        if (shouldShowInlineMessage) {
             item {
                 CalendarMessage(
                     successMessage = uiState.successMessage,
@@ -518,49 +529,96 @@ private fun CalendarTaskCard(
 ) {
     WaterMePremiumCard(
         modifier = modifier.clickable(onClick = onOpenPlant),
-        containerColor = task.careType.accentColor().copy(alpha = 0.09f),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
         accentColor = task.careType.accentColor(),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(24.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CareTypeBadge(task.careType, size = 42.dp)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = task.careType.label(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Ink,
-                )
-                Text(
-                    text = task.plantName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MutedInk,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = task.dueLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = task.careType.accentColor(),
-                    maxLines = 1,
-                )
+            Box(
+                modifier = Modifier
+                    .size(width = 4.dp, height = 58.dp)
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(task.careType.accentColor()),
+            )
+            CareTypeBadge(task.careType, size = 44.dp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        text = task.careType.label(),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = task.plantName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                CalendarTaskStatusPill(task = task)
             }
             Button(
                 onClick = onComplete,
                 enabled = completeEnabled,
-                shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LeafGreen),
+                shape = RoundedCornerShape(18.dp),
+                contentPadding = PaddingValues(horizontal = 13.dp, vertical = 9.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = LeafGreen,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MutedInk,
+                ),
             ) {
                 Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.size(6.dp))
                 Text("Done", style = MaterialTheme.typography.labelLarge)
             }
         }
+    }
+}
+
+@Composable
+private fun CalendarTaskStatusPill(
+    task: CareTaskUiModel,
+    modifier: Modifier = Modifier,
+) {
+    val color = when {
+        task.isOverdue -> Clay
+        task.isSnoozed -> MaterialTheme.colorScheme.secondary
+        else -> task.careType.accentColor()
+    }
+    val label = when {
+        task.isOverdue -> "Overdue"
+        task.isSnoozed -> "Snoozed"
+        else -> task.dueLabel
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.12f),
+        contentColor = color,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -729,3 +787,5 @@ private val previewDayStrip = listOf(
         accessibilityLabel = "Wednesday, May 27",
     ),
 )
+
+private const val CHARACTER_CELEBRATION_VISIBLE_MILLIS = 3_200L

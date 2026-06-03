@@ -48,6 +48,9 @@ interface PlantDao {
     @Query("UPDATE plants SET archived_at = :archivedAt, updated_at = :archivedAt WHERE plant_id = :plantId")
     suspend fun archivePlant(plantId: String, archivedAt: Long)
 
+    @Query("UPDATE plants SET is_favorite = :isFavorite, updated_at = :updatedAt WHERE plant_id = :plantId")
+    suspend fun setPlantFavorite(plantId: String, isFavorite: Boolean, updatedAt: Long)
+
     @Query("UPDATE plants SET deleted_at = :deletedAt, updated_at = :deletedAt WHERE plant_id = :plantId")
     suspend fun softDeletePlant(plantId: String, deletedAt: Long)
 

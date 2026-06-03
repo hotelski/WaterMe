@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -73,7 +74,7 @@ data class SettingsUiState(
 
 sealed interface SettingsEvent {
     data object RetryClicked : SettingsEvent
-    data object ShowOnboardingClicked : SettingsEvent
+    data object FeedbackClicked : SettingsEvent
     data object CharactersClicked : SettingsEvent
     data object RequestNotificationPermissionClicked : SettingsEvent
     data object DeleteAllDataClicked : SettingsEvent
@@ -219,17 +220,19 @@ private fun AboutAppCard(
 ) {
     SettingsSectionCard(
         title = "About WaterMe",
-        subtitle = "App details and onboarding.",
+        subtitle = "App details and ways to share feedback.",
         icon = Icons.Rounded.Info,
     ) {
         SettingsInfoRow("App version", uiState.appVersion)
         SettingsInfoRow("Storage", "Room database + Preferences DataStore")
         OutlinedButton(
-            onClick = { onEvent(SettingsEvent.ShowOnboardingClicked) },
+            onClick = { onEvent(SettingsEvent.FeedbackClicked) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
         ) {
-            Text("Show onboarding again")
+            Icon(Icons.Rounded.RateReview, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Send feedback")
         }
     }
 }

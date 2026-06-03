@@ -40,5 +40,17 @@ object WaterMeMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            val hasPlants = db.query(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'plants'",
+            ).use { cursor -> cursor.moveToFirst() }
+
+            if (hasPlants) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

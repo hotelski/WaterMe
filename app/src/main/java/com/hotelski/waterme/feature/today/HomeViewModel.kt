@@ -20,6 +20,10 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 sealed interface HomeEffect {
+    data object NavigateToAddPlant : HomeEffect
+    data object NavigateToCalendar : HomeEffect
+    data object NavigateToFeedback : HomeEffect
+    data object NavigateToPlants : HomeEffect
     data class NavigateToPlantDetails(val plantId: String) : HomeEffect
 }
 
@@ -122,9 +126,10 @@ class HomeViewModel(
 
     fun onEvent(event: TodayEvent) {
         when (event) {
-            TodayEvent.AddPlantClicked -> Unit
-            TodayEvent.CalendarClicked -> Unit
-            TodayEvent.MyPlantsClicked -> Unit
+            TodayEvent.AddPlantClicked -> emitEffect(HomeEffect.NavigateToAddPlant)
+            TodayEvent.CalendarClicked -> emitEffect(HomeEffect.NavigateToCalendar)
+            TodayEvent.FeedbackClicked -> emitEffect(HomeEffect.NavigateToFeedback)
+            TodayEvent.MyPlantsClicked -> emitEffect(HomeEffect.NavigateToPlants)
             TodayEvent.RetryClicked -> seedDatabase()
 
             is TodayEvent.PlantClicked -> emitEffect(

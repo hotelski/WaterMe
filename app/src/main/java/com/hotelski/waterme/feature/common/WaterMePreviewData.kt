@@ -10,8 +10,19 @@ object WaterMePreviewData {
             name = "Monstera Deliciosa",
             plantType = "Tropical foliage",
             location = "Living room",
+            isFavorite = true,
             dueTaskCount = 2,
-            nextCareLabel = "Next: Water Today",
+            nextCareLabel = "Next: Water + Feed Today",
+            careRhythms = listOf(
+                PlantCareRhythmUiModel(
+                    careType = CareType.WATERING,
+                    summary = "Watering - Every 5 days - 8:00 AM - starts Today",
+                ),
+                PlantCareRhythmUiModel(
+                    careType = CareType.FERTILIZING,
+                    summary = "Fertilizing - Every 30 days - 9:00 AM - starts Today",
+                ),
+            ),
             notes = "Bright indirect light. Rotate weekly.",
         ),
         PlantCardUiModel(
@@ -21,6 +32,12 @@ object WaterMePreviewData {
             location = "Bedroom",
             dueTaskCount = 0,
             nextCareLabel = "Next: Water Tomorrow",
+            careRhythms = listOf(
+                PlantCareRhythmUiModel(
+                    careType = CareType.WATERING,
+                    summary = "Watering - Every 14 days - 8:00 AM - starts Tomorrow",
+                ),
+            ),
             notes = "Let soil dry completely.",
         ),
         PlantCardUiModel(
@@ -30,6 +47,12 @@ object WaterMePreviewData {
             location = "Kitchen shelf",
             dueTaskCount = 1,
             nextCareLabel = "Next: Prune Jun 2",
+            careRhythms = listOf(
+                PlantCareRhythmUiModel(
+                    careType = CareType.PRUNING,
+                    summary = "Pruning - Every 45 days - 10:00 AM - starts Jun 2",
+                ),
+            ),
             notes = "Trim vines for fuller growth.",
         ),
     )

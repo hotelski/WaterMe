@@ -91,6 +91,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.R
+import com.hotelski.waterme.feature.common.icon
 import com.hotelski.waterme.model.CareHistoryEntry
 import com.hotelski.waterme.model.CareReminder
 import com.hotelski.waterme.model.CareType
@@ -1623,11 +1624,11 @@ private fun CareGlyph(
         color = color.copy(alpha = 0.14f),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = type.shortLabel.take(1),
-                color = color,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
+            Icon(
+                imageVector = type.icon(),
+                contentDescription = type.label,
+                tint = color,
+                modifier = Modifier.size(size * 0.48f),
             )
         }
     }

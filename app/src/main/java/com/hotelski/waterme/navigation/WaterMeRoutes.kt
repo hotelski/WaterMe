@@ -11,8 +11,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed interface WaterMeRoute {
     val route: String
 
-    data object Onboarding : WaterMeRoute {
-        override val route = "onboarding"
+    data object Feedback : WaterMeRoute {
+        override val route = "feedback"
     }
 
     data object Today : WaterMeRoute {

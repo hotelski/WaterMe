@@ -42,8 +42,7 @@ class AddPlantViewModel(
             AddPlantEvent.BackClicked -> emitEffect(AddPlantEffect.NavigateBack)
             AddPlantEvent.ChoosePhotoClicked -> emitEffect(AddPlantEffect.OpenPhotoPicker)
             AddPlantEvent.SaveClicked -> savePlant()
-            AddPlantEvent.StartDateClicked -> updateField { copy(showStartDatePicker = true) }
-            AddPlantEvent.DismissStartDatePicker -> updateField { copy(showStartDatePicker = false) }
+            AddPlantEvent.DismissStartDatePicker -> updateField { copy(startDatePickerCareType = null) }
             is AddPlantEvent.StartDateSelected -> updateStartDate(event.millis)
             is AddPlantEvent.NameChanged -> updateField {
                 copy(
@@ -52,13 +51,10 @@ class AddPlantViewModel(
                 )
             }
             is AddPlantEvent.NotesChanged -> updateField { copy(notes = event.value.take(MAX_NOTES_LENGTH)) }
-            is AddPlantEvent.ReminderCareTypeSelected -> updateField {
-                copy(
-                    reminderCareType = event.careType,
-                    fieldErrors = fieldErrors.copy(reminder = null),
-                )
+            is AddPlantEvent.ReminderEnabledChanged -> updateReminder(event.careType) {
+                copy(enabled = event.enabled)
             }
-            is AddPlantEvent.FrequencySelected -> updateField {
+            is AddPlantEvent.FrequencySelected -> updateReminder(event.careType) {
                 copy(
                     frequency = event.frequency,
                     customFrequencyDays = if (
@@ -69,16 +65,14 @@ class AddPlantViewModel(
                     } else {
                         customFrequencyDays
                     },
-                    fieldErrors = fieldErrors.copy(reminder = null),
                 )
             }
-            is AddPlantEvent.CustomFrequencyDaysChanged -> updateField {
+            is AddPlantEvent.CustomFrequencyDaysChanged -> updateReminder(event.careType) {
                 copy(
                     customFrequencyDays = event.value.filter { it.isDigit() }.take(MAX_FREQUENCY_DIGITS),
-                    fieldErrors = fieldErrors.copy(reminder = null),
                 )
             }
-            is AddPlantEvent.ReminderTimeSelected -> updateField {
+            is AddPlantEvent.ReminderTimeSelected -> updateReminder(event.careType) {
                 copy(
                     reminderTime = event.time,
                     customReminderHour = if (
@@ -97,20 +91,20 @@ class AddPlantViewModel(
                     } else {
                         customReminderMinute
                     },
-                    fieldErrors = fieldErrors.copy(reminder = null),
                 )
             }
-            is AddPlantEvent.CustomReminderHourChanged -> updateField {
+            is AddPlantEvent.CustomReminderHourChanged -> updateReminder(event.careType) {
                 copy(
                     customReminderHour = event.value.filter { it.isDigit() }.take(MAX_TIME_DIGITS),
-                    fieldErrors = fieldErrors.copy(reminder = null),
                 )
             }
-            is AddPlantEvent.CustomReminderMinuteChanged -> updateField {
+            is AddPlantEvent.CustomReminderMinuteChanged -> updateReminder(event.careType) {
                 copy(
                     customReminderMinute = event.value.filter { it.isDigit() }.take(MAX_TIME_DIGITS),
-                    fieldErrors = fieldErrors.copy(reminder = null),
                 )
+            }
+            is AddPlantEvent.StartDateClicked -> updateField {
+                copy(startDatePickerCareType = event.careType)
             }
             AddPlantEvent.RetryClicked -> _uiState.update { it.copy(errorMessage = null) }
         }
@@ -138,10 +132,7 @@ class AddPlantViewModel(
             _uiState.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }
             runCatching {
                 val plantName = current.name.trim()
-                val frequencyDays = current.resolvedFrequencyDays()
-                val reminderHour = current.resolvedReminderHour()
-                val reminderMinute = current.resolvedReminderMinute()
-                val dueAtMillis = current.startDateMillis.toDueAtMillis(reminderHour, reminderMinute)
+                val enabledReminders = current.reminders.filter { it.enabled }
                 val plantId = plantRepository.addPlant(
                     userId = WaterMeAppContainer.LOCAL_USER_ID,
                     name = plantName,
@@ -150,23 +141,30 @@ class AddPlantViewModel(
                     notes = current.notes,
                     primaryPhotoUri = current.selectedPhotoUri,
                 )
-                val reminderId = reminderRepository.addReminder(
-                    plantId = plantId,
-                    careType = current.reminderCareType,
-                    frequencyDays = frequencyDays,
-                    nextDueAt = dueAtMillis,
-                    preferredHour = reminderHour,
-                    preferredMinute = reminderMinute,
-                    notificationsEnabled = true,
-                )
-                scheduleInitialReminder(
-                    plantId = plantId,
-                    plantName = plantName,
-                    reminderId = reminderId,
-                    careType = current.reminderCareType,
-                    dueAtMillis = dueAtMillis,
-                    frequencyDays = frequencyDays,
-                )
+
+                enabledReminders.forEach { reminder ->
+                    val frequencyDays = reminder.resolvedFrequencyDays()
+                    val reminderHour = reminder.resolvedReminderHour()
+                    val reminderMinute = reminder.resolvedReminderMinute()
+                    val dueAtMillis = reminder.startDateMillis.toDueAtMillis(reminderHour, reminderMinute)
+                    val reminderId = reminderRepository.addReminder(
+                        plantId = plantId,
+                        careType = reminder.careType,
+                        frequencyDays = frequencyDays,
+                        nextDueAt = dueAtMillis,
+                        preferredHour = reminderHour,
+                        preferredMinute = reminderMinute,
+                        notificationsEnabled = true,
+                    )
+                    scheduleInitialReminder(
+                        plantId = plantId,
+                        plantName = plantName,
+                        reminderId = reminderId,
+                        careType = reminder.careType,
+                        dueAtMillis = dueAtMillis,
+                        frequencyDays = frequencyDays,
+                    )
+                }
                 plantId
             }
                 .onSuccess { plantId ->
@@ -196,14 +194,21 @@ class AddPlantViewModel(
             state.name.length > MAX_NAME_LENGTH -> "Plant name is too long."
             else -> null
         }
+        val enabledReminders = state.reminders.filter { it.enabled }
         val reminderError = when {
-            state.reminderCareType != CareType.WATERING && state.reminderCareType != CareType.FERTILIZING ->
-                "Choose watering or fertilizing."
-            state.resolvedFrequencyDays() !in 1..MAX_REMINDER_DAYS -> "Choose a frequency between 1 and $MAX_REMINDER_DAYS days."
-            state.resolvedReminderHour() !in 0..23 -> "Choose an hour between 0 and 23."
-            state.resolvedReminderMinute() !in 0..59 -> "Choose minutes between 0 and 59."
-            state.startDateMillis < todayStartMillis() -> "Choose today or a future start date."
-            else -> null
+            enabledReminders.isEmpty() -> "Enable watering, fertilizing, or both."
+            else -> enabledReminders.firstNotNullOfOrNull { reminder ->
+                val label = reminder.careType.label
+                when {
+                    reminder.careType !in ReminderCareTypes -> "$label is not available for the first schedule."
+                    reminder.resolvedFrequencyDays() !in 1..MAX_REMINDER_DAYS ->
+                        "$label: choose a frequency between 1 and $MAX_REMINDER_DAYS days."
+                    reminder.resolvedReminderHour() !in 0..23 -> "$label: choose an hour between 0 and 23."
+                    reminder.resolvedReminderMinute() !in 0..59 -> "$label: choose minutes between 0 and 59."
+                    reminder.startDateMillis < todayStartMillis() -> "$label: choose today or a future start date."
+                    else -> null
+                }
+            }
         }
 
         return if (nameError == null && reminderError == null) {
@@ -214,12 +219,20 @@ class AddPlantViewModel(
     }
 
     private fun updateStartDate(millis: Long?) {
-        val selectedDateMillis = millis?.toLocalStartMillis() ?: _uiState.value.startDateMillis
-        _uiState.update {
-            it.copy(
+        val careType = _uiState.value.startDatePickerCareType ?: return
+        val selectedDateMillis = millis?.toLocalStartMillis()
+            ?: _uiState.value.reminders.firstOrNull { it.careType == careType }?.startDateMillis
+            ?: todayStartMillis()
+
+        updateReminder(careType) {
+            copy(
                 startDateMillis = selectedDateMillis,
                 startDateLabel = selectedDateMillis.toDateLabel(),
-                showStartDatePicker = false,
+            )
+        }
+        _uiState.update {
+            it.copy(
+                startDatePickerCareType = null,
                 fieldErrors = it.fieldErrors.copy(reminder = null),
                 errorMessage = null,
                 successMessage = null,
@@ -229,6 +242,22 @@ class AddPlantViewModel(
 
     private fun updateField(reducer: AddPlantUiState.() -> AddPlantUiState) {
         _uiState.update { it.reducer().copy(errorMessage = null, successMessage = null) }
+    }
+
+    private fun updateReminder(
+        careType: CareType,
+        reducer: AddPlantReminderDraftUiModel.() -> AddPlantReminderDraftUiModel,
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                reminders = state.reminders.map { reminder ->
+                    if (reminder.careType == careType) reminder.reducer() else reminder
+                },
+                fieldErrors = state.fieldErrors.copy(reminder = null),
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
     }
 
     private fun scheduleInitialReminder(
@@ -260,21 +289,21 @@ class AddPlantViewModel(
         }
     }
 
-    private fun AddPlantUiState.resolvedFrequencyDays(): Int =
+    private fun AddPlantReminderDraftUiModel.resolvedFrequencyDays(): Int =
         if (frequency == AddPlantFrequencyOption.CUSTOM) {
             customFrequencyDays.toIntOrNull() ?: 0
         } else {
             frequency.days
         }
 
-    private fun AddPlantUiState.resolvedReminderHour(): Int =
+    private fun AddPlantReminderDraftUiModel.resolvedReminderHour(): Int =
         if (reminderTime == AddPlantReminderTimeOption.CUSTOM) {
             customReminderHour.toIntOrNull() ?: -1
         } else {
             reminderTime.hour
         }
 
-    private fun AddPlantUiState.resolvedReminderMinute(): Int =
+    private fun AddPlantReminderDraftUiModel.resolvedReminderMinute(): Int =
         if (reminderTime == AddPlantReminderTimeOption.CUSTOM) {
             customReminderMinute.toIntOrNull() ?: -1
         } else {
@@ -317,10 +346,40 @@ class AddPlantViewModel(
     private fun defaultUiState(): AddPlantUiState {
         val todayMillis = todayStartMillis()
         return AddPlantUiState(
-            startDateMillis = todayMillis,
-            startDateLabel = todayMillis.toDateLabel(),
+            reminders = ReminderCareTypes.map { careType ->
+                careType.toDefaultReminderDraft(todayMillis)
+            },
         )
     }
+
+    private fun CareType.toDefaultReminderDraft(todayMillis: Long): AddPlantReminderDraftUiModel {
+        val startDateMillis = if (this == CareType.WATERING) {
+            todayMillis
+        } else {
+            LocalDate.now()
+                .plusDays(defaultFrequencyDays.toLong())
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        }
+        val frequency = defaultFrequencyOption()
+        return AddPlantReminderDraftUiModel(
+            careType = this,
+            enabled = this == CareType.WATERING,
+            frequency = frequency,
+            customFrequencyDays = if (frequency == AddPlantFrequencyOption.CUSTOM) {
+                defaultFrequencyDays.toString()
+            } else {
+                ""
+            },
+            startDateMillis = startDateMillis,
+            startDateLabel = startDateMillis.toDateLabel(),
+        )
+    }
+
+    private fun CareType.defaultFrequencyOption(): AddPlantFrequencyOption =
+        AddPlantFrequencyOption.entries.firstOrNull { it.days == defaultFrequencyDays }
+            ?: AddPlantFrequencyOption.EVERY_3_DAYS
 
     private fun emitEffect(effect: AddPlantEffect) {
         viewModelScope.launch { _effects.emit(effect) }
@@ -337,6 +396,7 @@ class AddPlantViewModel(
         const val MAX_REMINDER_DAYS = 365
         const val MAX_FREQUENCY_DIGITS = 3
         const val MAX_TIME_DIGITS = 2
+        val ReminderCareTypes = listOf(CareType.WATERING, CareType.FERTILIZING)
         val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
     }
 }

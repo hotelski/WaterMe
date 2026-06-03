@@ -24,9 +24,12 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Compost
+import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -497,14 +500,23 @@ fun CareTypeBadge(
             .background(color.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = careType.shortLabel().take(1),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Black,
-            color = color,
+        Icon(
+            imageVector = careType.icon(),
+            contentDescription = careType.label(),
+            modifier = Modifier.size(size * 0.50f),
+            tint = color,
         )
     }
 }
+
+fun CareType.icon(): ImageVector =
+    when (this) {
+        CareType.WATERING -> Icons.Rounded.WaterDrop
+        CareType.FERTILIZING -> Icons.Rounded.Compost
+        CareType.REPOTTING -> Icons.Rounded.LocalFlorist
+        CareType.MISTING -> Icons.Rounded.WaterDrop
+        CareType.PRUNING -> Icons.Rounded.ContentCut
+    }
 
 @Composable
 fun PlantCard(

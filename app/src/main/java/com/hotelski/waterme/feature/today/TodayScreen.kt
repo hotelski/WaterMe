@@ -23,8 +23,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Snooze
-import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,6 +63,7 @@ import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.accentColor
+import com.hotelski.waterme.feature.common.icon
 import com.hotelski.waterme.feature.common.label
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
@@ -72,7 +73,6 @@ import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.MutedInk
 import com.hotelski.waterme.ui.theme.WaterMeTheme
-import com.hotelski.waterme.model.CareType
 
 data class DashboardProgressUiModel(
     val completedToday: Int = 0,
@@ -123,6 +123,7 @@ data class TodayUiState(
 sealed interface TodayEvent {
     data object AddPlantClicked : TodayEvent
     data object CalendarClicked : TodayEvent
+    data object FeedbackClicked : TodayEvent
     data object MyPlantsClicked : TodayEvent
     data object RetryClicked : TodayEvent
     data class PlantClicked(val plantId: String) : TodayEvent
@@ -136,11 +137,19 @@ fun TodayScreen(
     uiState: TodayUiState,
     onEvent: (TodayEvent) -> Unit,
     modifier: Modifier = Modifier,
+    onFeedbackClick: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GardenBackground,
-        topBar = { WaterMeTopBar(title = "Home") },
+        topBar = {
+            WaterMeTopBar(
+                title = "Home",
+                actionIcon = Icons.Rounded.RateReview,
+                actionContentDescription = "Share feedback",
+                onActionClick = onFeedbackClick,
+            )
+        },
     ) { innerPadding ->
         when {
             uiState.isLoading -> WaterMeLoadingState(
@@ -1002,7 +1011,7 @@ private fun HomeCareTaskCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = task.careType.homeTaskIcon(),
+                        imageVector = task.careType.icon(),
                         contentDescription = null,
                         tint = accentColor,
                         modifier = Modifier.size(23.dp),
@@ -1130,15 +1139,6 @@ private fun CareTaskStatusChip(task: CareTaskUiModel) {
         )
     }
 }
-
-private fun CareType.homeTaskIcon(): ImageVector =
-    when (this) {
-        CareType.WATERING -> Icons.Rounded.WaterDrop
-        CareType.FERTILIZING -> Icons.Rounded.Eco
-        CareType.REPOTTING -> Icons.Rounded.LocalFlorist
-        CareType.MISTING -> Icons.Rounded.WaterDrop
-        CareType.PRUNING -> Icons.Rounded.Eco
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

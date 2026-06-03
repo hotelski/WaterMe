@@ -23,9 +23,8 @@ import com.hotelski.waterme.feature.common.PlantDetailsRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
 import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.onboarding.OnboardingEvent
-import com.hotelski.waterme.feature.onboarding.OnboardingScreen
-import com.hotelski.waterme.feature.onboarding.OnboardingUiState
+import com.hotelski.waterme.feature.feedback.FeedbackScreen
+import com.hotelski.waterme.feature.feedback.FeedbackUiState
 import com.hotelski.waterme.feature.reminders.ReminderSetupEvent
 import com.hotelski.waterme.feature.reminders.ReminderSetupScreen
 import com.hotelski.waterme.feature.reminders.ReminderSetupUiState
@@ -34,7 +33,7 @@ import com.hotelski.waterme.feature.reminders.ReminderSetupUiState
 fun AppNavGraph(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    startDestination: String = WaterMeRoute.Onboarding.route,
+    startDestination: String = WaterMeRoute.Today.route,
 ) {
     val navigationActions = WaterMeNavigationActions(navController)
 
@@ -47,15 +46,10 @@ fun AppNavGraph(
         popEnterTransition = { fadeIn(tween(NavTransitionDurationMillis)) },
         popExitTransition = { fadeOut(tween(NavTransitionDurationMillis)) },
     ) {
-        waterMeComposable(WaterMeRoute.Onboarding.route) {
-            OnboardingScreen(
-                uiState = OnboardingUiState(),
-                onEvent = { event ->
-                    when (event) {
-                        OnboardingEvent.StartClicked -> navigationActions.navigateFromOnboardingToToday()
-                        OnboardingEvent.RetryClicked -> Unit
-                    }
-                },
+        waterMeComposable(WaterMeRoute.Feedback.route) {
+            FeedbackScreen(
+                uiState = FeedbackUiState(),
+                onBack = navigationActions::back,
             )
         }
 
@@ -63,6 +57,7 @@ fun AppNavGraph(
             HomeRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
                 onOpenCalendar = navigationActions::navigateToCalendar,
+                onOpenFeedback = navigationActions::navigateToFeedback,
                 onOpenPlant = { plantId -> navigationActions.navigateToPlantDetails(plantId) },
                 onOpenPlants = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
@@ -167,7 +162,7 @@ fun AppNavGraph(
 
         waterMeComposable(WaterMeRoute.Settings.route) {
             SettingsRoute(
-                onShowOnboarding = { navController.navigate(WaterMeRoute.Onboarding.route) },
+                onOpenFeedback = navigationActions::navigateToFeedback,
                 onRequestNotificationPermission = {},
                 onOpenCharacters = navigationActions::navigateToCharacters,
             )

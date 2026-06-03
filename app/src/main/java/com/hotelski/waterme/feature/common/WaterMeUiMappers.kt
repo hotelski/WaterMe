@@ -18,22 +18,30 @@ import java.time.format.DateTimeFormatter
 fun PlantWithDetails.toPlantCardUiModel(
     dueTaskCount: Int = 0,
     clock: Clock = Clock.systemDefaultZone(),
-): PlantCardUiModel =
-    PlantCardUiModel(
+): PlantCardUiModel {
+    val activeReminders = reminders
+        .filter { it.isEnabled && it.deletedAt == null }
+        .sortedWith(compareBy<ReminderEntity> { it.nextDueAt }.thenBy { it.careType.ordinal })
+    val careRhythms = activeReminders.map { reminder ->
+        PlantCareRhythmUiModel(
+            careType = reminder.careType,
+            summary = reminder.toPlantScheduleSummary(clock),
+        )
+    }
+
+    return PlantCardUiModel(
         id = plant.plantId,
         name = plant.name,
         plantType = plant.plantType,
         location = plant.location,
         photoUri = primaryPhotoUri(),
+        isFavorite = plant.isFavorite,
         dueTaskCount = dueTaskCount,
-        nextCareLabel = reminders
-            .filter { it.isEnabled && it.deletedAt == null }
-            .minByOrNull { it.nextDueAt }
-            ?.let { "Next: ${it.careType.shortLabel()} ${it.nextDueAt.toDueDateLabel(clock)}" },
-        scheduleSummary = reminders
-            .filter { it.isEnabled && it.deletedAt == null }
-            .minByOrNull { it.nextDueAt }
-            ?.toPlantScheduleSummary(clock)
+        nextCareLabel = activeReminders.toNextCareLabel(clock),
+        careRhythms = careRhythms,
+        scheduleSummary = careRhythms
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(separator = "\n") { it.summary }
             ?: "No reminder set",
         careLogCount = careHistory.count { it.action != HistoryAction.HEALTH_NOTE },
         recentCareLogs = careHistory
@@ -43,6 +51,7 @@ fun PlantWithDetails.toPlantCardUiModel(
             .map { it.toCareHistoryUiModel(plant.name, clock) },
         notes = plant.notes,
     )
+}
 
 fun PlantWithDetails.toPlantDetailsUiModel(): PlantDetailsUiModel =
     PlantDetailsUiModel(
@@ -175,6 +184,19 @@ fun calendarWindowEndMillis(daysAhead: Long, clock: Clock = Clock.systemDefaultZ
 
 private fun PlantWithDetails.primaryPhotoUri(): String? =
     photos.firstOrNull { it.isPrimary }?.localUri ?: photos.firstOrNull()?.localUri
+
+private fun List<ReminderEntity>.toNextCareLabel(clock: Clock): String? {
+    val nextReminder = firstOrNull() ?: return null
+    val nextDate = nextReminder.nextDueAt.toLocalDate(clock.zone)
+    val nextReminders = filter { it.nextDueAt.toLocalDate(clock.zone) == nextDate }
+    val careLabels = nextReminders
+        .take(2)
+        .joinToString(separator = " + ") { it.careType.shortLabel() }
+    val extraCount = nextReminders.size - 2
+    val extraLabel = if (extraCount > 0) " +$extraCount" else ""
+
+    return "Next: $careLabels$extraLabel ${nextReminder.nextDueAt.toDueDateLabel(clock)}"
+}
 
 private fun Long.toLocalDate(zoneId: ZoneId): LocalDate =
     Instant.ofEpochMilli(this).atZone(zoneId).toLocalDate()

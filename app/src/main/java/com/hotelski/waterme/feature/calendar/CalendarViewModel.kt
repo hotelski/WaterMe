@@ -186,6 +186,7 @@ class CalendarViewModel(
             is CalendarEvent.PlantFilterSelected -> selectedPlantId.value = event.plantId
             is CalendarEvent.TaskClicked -> emitEffect(CalendarEffect.NavigateToPlantDetails(event.plantId))
             is CalendarEvent.CompleteTask -> completeTask(event.taskId)
+            is CalendarEvent.CharacterCelebrationExpired -> clearCharacterCelebration(event.heartBurstKey)
             CalendarEvent.RetryClicked -> seedDatabase()
         }
     }
@@ -205,6 +206,12 @@ class CalendarViewModel(
                     )
                 }
                 .onFailure { actionState.value = CalendarActionState(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun clearCharacterCelebration(heartBurstKey: Long) {
+        if (actionState.value.heartBurstKey == heartBurstKey) {
+            actionState.value = CalendarActionState()
         }
     }
 

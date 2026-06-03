@@ -119,6 +119,14 @@ class RoomPlantRepository(
         }
     }
 
+    suspend fun setPlantFavorite(
+        plantId: String,
+        isFavorite: Boolean,
+        nowMillis: Long = System.currentTimeMillis(),
+    ) {
+        plantDao.setPlantFavorite(plantId, isFavorite, nowMillis)
+    }
+
     suspend fun deletePlant(plantId: String, nowMillis: Long = System.currentTimeMillis()) {
         plantDao.softDeletePlant(plantId, nowMillis)
     }
