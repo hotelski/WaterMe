@@ -1,6 +1,7 @@
 package com.hotelski.waterme.notifications
 
 import android.content.Context
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,7 +35,7 @@ object ReminderEventStore {
                 .put("action", action)
                 .put("actionAtMillis", actionAtMillis),
         )
-        preferences.edit().putString(KEY_EVENTS, events.toString()).apply()
+        preferences.edit { putString(KEY_EVENTS, events.toString()) }
     }
 
     private const val PREFERENCES_NAME = "waterme_reminder_events"

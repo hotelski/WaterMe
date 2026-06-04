@@ -14,10 +14,6 @@
             android:name=".notifications.ReminderActionReceiver"
             android:exported="false" />
 
-        <receiver
-            android:name=".notifications.CareReminderReceiver"
-            android:exported="false" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -3,7 +3,6 @@ package com.hotelski.waterme.feature.feedback
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -67,6 +66,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.hotelski.waterme.R
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
@@ -539,7 +539,7 @@ private fun sendFeedback(
     }
 
     val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-        data = Uri.parse("mailto:$FeedbackRecipient")
+        data = "mailto:$FeedbackRecipient".toUri()
         putExtra(Intent.EXTRA_SUBJECT, "WaterMe feedback: ${topic.label}")
         putExtra(Intent.EXTRA_TEXT, body)
     }

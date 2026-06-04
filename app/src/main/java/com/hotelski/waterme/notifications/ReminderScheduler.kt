@@ -4,32 +4,11 @@ import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.hotelski.waterme.model.CareReminder
 import com.hotelski.waterme.model.CareType
-import com.hotelski.waterme.model.Plant
 import java.time.Duration
-import java.time.LocalTime
-import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 object ReminderScheduler {
-    private val defaultReminderTime = LocalTime.of(9, 0)
-
-    fun scheduleAll(context: Context, plants: List<Plant>) {
-        plants.forEach { plant ->
-            plant.reminders
-                .filter { it.enabled }
-                .forEach { reminder -> schedule(context, plant, reminder) }
-        }
-    }
-
-    fun schedule(context: Context, plant: Plant, reminder: CareReminder) {
-        scheduleReminder(
-            context = context,
-            schedule = reminder.toSchedule(plant),
-        )
-    }
-
     fun scheduleWateringReminder(
         context: Context,
         plantId: String,
@@ -63,63 +42,6 @@ object ReminderScheduler {
             plantName = plantName,
             reminderId = reminderId,
             careType = CareType.FERTILIZING,
-            dueAtMillis = dueAtMillis,
-            frequencyDays = frequencyDays,
-        )
-    }
-
-    fun scheduleRepottingReminder(
-        context: Context,
-        plantId: String,
-        plantName: String,
-        reminderId: String,
-        dueAtMillis: Long,
-        frequencyDays: Int,
-    ) {
-        scheduleCareTypeReminder(
-            context = context,
-            plantId = plantId,
-            plantName = plantName,
-            reminderId = reminderId,
-            careType = CareType.REPOTTING,
-            dueAtMillis = dueAtMillis,
-            frequencyDays = frequencyDays,
-        )
-    }
-
-    fun scheduleMistingReminder(
-        context: Context,
-        plantId: String,
-        plantName: String,
-        reminderId: String,
-        dueAtMillis: Long,
-        frequencyDays: Int,
-    ) {
-        scheduleCareTypeReminder(
-            context = context,
-            plantId = plantId,
-            plantName = plantName,
-            reminderId = reminderId,
-            careType = CareType.MISTING,
-            dueAtMillis = dueAtMillis,
-            frequencyDays = frequencyDays,
-        )
-    }
-
-    fun schedulePruningReminder(
-        context: Context,
-        plantId: String,
-        plantName: String,
-        reminderId: String,
-        dueAtMillis: Long,
-        frequencyDays: Int,
-    ) {
-        scheduleCareTypeReminder(
-            context = context,
-            plantId = plantId,
-            plantName = plantName,
-            reminderId = reminderId,
-            careType = CareType.PRUNING,
             dueAtMillis = dueAtMillis,
             frequencyDays = frequencyDays,
         )
@@ -233,25 +155,6 @@ object ReminderScheduler {
                 dueAtMillis = dueAtMillis,
                 frequencyDays = frequencyDays,
             ),
-        )
-    }
-
-    private fun CareReminder.toSchedule(plant: Plant): CareReminderSchedule {
-        val dueAtMillis = nextDueDate
-            .atTime(defaultReminderTime)
-            .atZone(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-
-        return CareReminderSchedule(
-            plantId = plant.id,
-            plantName = plant.name,
-            reminderId = id,
-            taskId = "$id-$dueAtMillis",
-            careType = type,
-            dueAtMillis = dueAtMillis,
-            frequencyDays = frequencyDays,
-            notificationsEnabled = enabled,
         )
     }
 

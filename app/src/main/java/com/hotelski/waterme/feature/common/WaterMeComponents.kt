@@ -1,7 +1,6 @@
 package com.hotelski.waterme.feature.common
 
 import android.graphics.BitmapFactory
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.hotelski.waterme.model.CareType
 import com.hotelski.waterme.model.HealthMood
 import com.hotelski.waterme.ui.theme.Clay
@@ -486,7 +486,7 @@ private fun rememberPlantImageBitmap(photoUri: String?): ImageBitmap? {
             withContext(Dispatchers.IO) {
                 runCatching {
                     context.contentResolver
-                        .openInputStream(Uri.parse(photoUri))
+                        .openInputStream(photoUri.toUri())
                         ?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
                 }.getOrNull()
             }

@@ -41,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 
@@ -80,7 +81,7 @@ fun PlantCharacterAvatar(
     Box(
         modifier = modifier
             .size(size)
-            .offset(y = bob.dp)
+            .offset { IntOffset(0, bob.dp.roundToPx()) }
             .scale(scale),
         contentAlignment = Alignment.Center,
     ) {
@@ -182,9 +183,9 @@ fun PlantCharacterCelebrationCard(
 private fun HeartBurstOverlay(
     burstKey: Any?,
     size: Dp,
+    modifier: Modifier = Modifier,
     color: Color,
     alwaysVisible: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val progress = androidx.compose.runtime.remember { Animatable(1f) }
     val isRunning = androidx.compose.runtime.remember { mutableStateOf(false) }

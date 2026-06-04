@@ -212,9 +212,7 @@ fun WaterMeTheme(
             window.statusBarColor = colorScheme.background.toArgb()
             window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
-            }
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
