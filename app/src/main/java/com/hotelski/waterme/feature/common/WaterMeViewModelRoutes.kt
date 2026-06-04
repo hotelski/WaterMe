@@ -24,6 +24,8 @@ import com.hotelski.waterme.feature.history.CareHistoryViewModel
 import com.hotelski.waterme.feature.editplant.EditPlantEffect
 import com.hotelski.waterme.feature.editplant.EditPlantScreen
 import com.hotelski.waterme.feature.editplant.EditPlantViewModel
+import com.hotelski.waterme.feature.feedback.FeedbackScreen
+import com.hotelski.waterme.feature.feedback.FeedbackViewModel
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsEffect
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsScreen
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsViewModel
@@ -65,6 +67,20 @@ fun HomeRoute(
         onEvent = homeViewModel::onEvent,
         onFeedbackClick = { homeViewModel.onEvent(TodayEvent.FeedbackClicked) },
         onDonateClick = { homeViewModel.onEvent(TodayEvent.DonateClicked) },
+    )
+}
+
+@Composable
+fun FeedbackRoute(
+    onBack: () -> Unit,
+    feedbackViewModel: FeedbackViewModel = viewModel(),
+) {
+    val uiState by feedbackViewModel.uiState.collectAsStateWithLifecycle()
+
+    FeedbackScreen(
+        uiState = uiState,
+        onEvent = feedbackViewModel::onEvent,
+        onBack = onBack,
     )
 }
 

@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val feedbackEndpointUrl = providers.gradleProperty("waterMeFeedbackEndpoint").orElse("").get()
+
+fun String.asBuildConfigString(): String =
+    "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
 android {
     namespace = "com.hotelski.waterme"
     compileSdk = 36
@@ -17,6 +22,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "FEEDBACK_ENDPOINT_URL", feedbackEndpointUrl.asBuildConfigString())
     }
 
     buildTypes {

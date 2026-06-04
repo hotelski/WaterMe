@@ -1,0 +1,7 @@
+name = "waterme-feedback"
+main = "worker.js"
+compatibility_date = "2026-06-04"
+
+[vars]
+FEEDBACK_TO_EMAIL = "waterme.feedback@gmail.com"
+FEEDBACK_FROM_EMAIL = "onboarding@resend.dev"

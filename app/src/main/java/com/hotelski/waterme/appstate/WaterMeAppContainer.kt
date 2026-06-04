@@ -1,6 +1,8 @@
 package com.hotelski.waterme.appstate
 
 import android.content.Context
+import com.hotelski.waterme.data.feedback.FeedbackRepository
+import com.hotelski.waterme.data.feedback.HttpFeedbackRepository
 import com.hotelski.waterme.data.local.WaterMeDatabase
 import com.hotelski.waterme.data.local.WaterMeSeedData
 import com.hotelski.waterme.data.preferences.SettingsDataStoreManager
@@ -18,6 +20,8 @@ object WaterMeAppContainer {
     private var databaseInstance: WaterMeDatabase? = null
     @Volatile
     private var settingsDataStoreInstance: SettingsDataStoreManager? = null
+    @Volatile
+    private var feedbackRepositoryInstance: FeedbackRepository? = null
 
     fun database(context: Context): WaterMeDatabase =
         databaseInstance ?: synchronized(this) {
@@ -39,6 +43,11 @@ object WaterMeAppContainer {
     fun settingsDataStore(context: Context): SettingsDataStoreManager =
         settingsDataStoreInstance ?: synchronized(this) {
             settingsDataStoreInstance ?: SettingsDataStoreManager(context).also { settingsDataStoreInstance = it }
+        }
+
+    fun feedbackRepository(): FeedbackRepository =
+        feedbackRepositoryInstance ?: synchronized(this) {
+            feedbackRepositoryInstance ?: HttpFeedbackRepository().also { feedbackRepositoryInstance = it }
         }
 
     suspend fun seedIfEmpty(context: Context) {

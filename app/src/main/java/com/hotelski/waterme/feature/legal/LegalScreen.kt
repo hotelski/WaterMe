@@ -162,7 +162,7 @@ private fun termsContent(): LegalContent =
             LegalSection(
                 title = "Feedback and support",
                 body = listOf(
-                    "If you send feedback, your device may open an email or sharing app. Anything sent through that external app is handled by that app and service.",
+                    "If you send feedback, WaterMe sends the message to the WaterMe feedback service so it can be delivered to the support inbox.",
                     "Optional creator support or donation features, when available, are voluntary and do not change your right to use the app features already available.",
                 ),
             ),
@@ -217,8 +217,8 @@ private fun privacyContent(): LegalContent =
             LegalSection(
                 title = "Feedback messages",
                 body = listOf(
-                    "When you send feedback, the message may include the name, email, topic, and text you entered.",
-                    "Feedback is sent through the email or sharing app you choose, so that external service may process the message under its own policy.",
+                    "When you send feedback, the message may include the name, email, topic, text, app version, and Android version you entered or used.",
+                    "Feedback is sent to the WaterMe feedback service and delivered to the WaterMe support inbox.",
                 ),
             ),
             LegalSection(

@@ -1,0 +1,18 @@
+{
+  "name": "waterme-feedback-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "login": "wrangler login",
+    "secret:resend": "wrangler secret put RESEND_API_KEY",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "resend": "^6.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

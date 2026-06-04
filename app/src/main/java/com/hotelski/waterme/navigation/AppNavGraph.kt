@@ -18,13 +18,12 @@ import com.hotelski.waterme.feature.common.CalendarRoute
 import com.hotelski.waterme.feature.common.CareHistoryRoute
 import com.hotelski.waterme.feature.common.CharactersRoute
 import com.hotelski.waterme.feature.common.EditPlantRoute
+import com.hotelski.waterme.feature.common.FeedbackRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
 import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
-import com.hotelski.waterme.feature.feedback.FeedbackScreen
-import com.hotelski.waterme.feature.feedback.FeedbackUiState
 import com.hotelski.waterme.feature.legal.LegalDocument
 import com.hotelski.waterme.feature.legal.LegalScreen
 import com.hotelski.waterme.feature.reminders.ReminderSetupEvent
@@ -49,8 +48,7 @@ fun AppNavGraph(
         popExitTransition = { fadeOut(tween(NavTransitionDurationMillis)) },
     ) {
         waterMeComposable(WaterMeRoute.Feedback.route) {
-            FeedbackScreen(
-                uiState = FeedbackUiState(),
+            FeedbackRoute(
                 onBack = navigationActions::back,
             )
         }
