@@ -24,6 +24,7 @@ import java.util.Calendar
 sealed interface HomeEffect {
     data object NavigateToAddPlant : HomeEffect
     data object NavigateToCalendar : HomeEffect
+    data object NavigateToDonate : HomeEffect
     data object NavigateToFeedback : HomeEffect
     data object NavigateToPlants : HomeEffect
 }
@@ -41,6 +42,7 @@ class HomeViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val actionState = MutableStateFlow(HomeActionState())
     private val _effects = MutableSharedFlow<HomeEffect>()
@@ -131,7 +133,7 @@ class HomeViewModel(
         when (event) {
             TodayEvent.AddPlantClicked -> emitEffect(HomeEffect.NavigateToAddPlant)
             TodayEvent.CalendarClicked -> emitEffect(HomeEffect.NavigateToCalendar)
-            TodayEvent.DonateClicked -> showMessage(successMessage = "Support creator option coming soon.")
+            TodayEvent.DonateClicked -> emitEffect(HomeEffect.NavigateToDonate)
             TodayEvent.FeedbackClicked -> emitEffect(HomeEffect.NavigateToFeedback)
             TodayEvent.MyPlantsClicked -> emitEffect(HomeEffect.NavigateToPlants)
             TodayEvent.RetryClicked -> seedDatabase()
@@ -145,6 +147,7 @@ class HomeViewModel(
         viewModelScope.launch {
             runCatching {
                 careRepository.markTaskCompleted(taskId)
+                reminderNotifications.syncScheduledReminders()
             }
                 .onSuccess {
                     showMessage(
@@ -164,6 +167,7 @@ class HomeViewModel(
         viewModelScope.launch {
             runCatching {
                 careRepository.skipTask(taskId)
+                reminderNotifications.syncScheduledReminders()
             }
                 .onSuccess {
                     showMessage(
@@ -184,6 +188,7 @@ class HomeViewModel(
 
             runCatching {
                 careRepository.snoozeTask(taskId, snoozedUntil)
+                reminderNotifications.syncScheduledReminders()
             }
                 .onSuccess {
                     showMessage(

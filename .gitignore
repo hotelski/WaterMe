@@ -10,6 +10,9 @@ captures/
 *.dex
 *.class
 *.log
+*.jks
+*.keystore
+keystore.properties
 *.iml
 .idea/
 node_modules/

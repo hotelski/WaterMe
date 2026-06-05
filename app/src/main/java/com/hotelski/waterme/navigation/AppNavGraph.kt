@@ -17,6 +17,7 @@ import com.hotelski.waterme.feature.common.AddPlantRoute
 import com.hotelski.waterme.feature.common.CalendarRoute
 import com.hotelski.waterme.feature.common.CareHistoryRoute
 import com.hotelski.waterme.feature.common.CharactersRoute
+import com.hotelski.waterme.feature.common.DonateRoute
 import com.hotelski.waterme.feature.common.EditPlantRoute
 import com.hotelski.waterme.feature.common.FeedbackRoute
 import com.hotelski.waterme.feature.common.HomeRoute
@@ -53,6 +54,13 @@ fun AppNavGraph(
             )
         }
 
+        waterMeComposable(WaterMeRoute.Donate.route) {
+            DonateRoute(
+                onBack = navigationActions::back,
+                onShareFeedback = navigationActions::navigateToFeedback,
+            )
+        }
+
         waterMeComposable(
             route = WaterMeRoute.Legal.route,
             arguments = listOf(navArgument(WaterMeRoute.Legal.DOCUMENT_ARG) { type = NavType.StringType }),
@@ -67,6 +75,7 @@ fun AppNavGraph(
             HomeRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
                 onOpenCalendar = navigationActions::navigateToCalendar,
+                onOpenDonate = navigationActions::navigateToDonate,
                 onOpenFeedback = navigationActions::navigateToFeedback,
                 onOpenPlants = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
@@ -174,7 +183,6 @@ fun AppNavGraph(
             SettingsRoute(
                 onOpenFeedback = navigationActions::navigateToFeedback,
                 onOpenLegal = { document -> navigationActions.navigateToLegal(document.routeValue) },
-                onRequestNotificationPermission = {},
                 onOpenCharacters = navigationActions::navigateToCharacters,
             )
         }

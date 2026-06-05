@@ -3,6 +3,7 @@ package com.hotelski.waterme.notifications
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.hotelski.waterme.appstate.WaterMeAppContainer
 import java.time.Duration
 
 class ReminderActionWorker(
@@ -15,14 +16,29 @@ class ReminderActionWorker(
             ?.let(ReminderNotificationAction::valueOf)
             ?: return Result.failure()
 
+        val careRepository = WaterMeAppContainer.careRepository(applicationContext)
+        val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(applicationContext)
+        NotificationHelper(applicationContext).cancel(schedule)
+
         when (action) {
-            ReminderNotificationAction.COMPLETE -> ReminderScheduler.markCompleted(applicationContext, schedule)
+            ReminderNotificationAction.COMPLETE -> {
+                val completedAt = System.currentTimeMillis()
+                ReminderEventStore.recordCompleted(applicationContext, schedule, completedAt)
+                careRepository.markTaskCompleted(schedule.taskId, completedAt = completedAt)
+            }
             ReminderNotificationAction.SNOOZE -> {
                 val minutes = inputData.getLong(KEY_SNOOZE_MINUTES, NotificationHelper.DEFAULT_SNOOZE_MINUTES)
-                ReminderScheduler.snooze(applicationContext, schedule, Duration.ofMinutes(minutes))
+                val snoozedUntil = System.currentTimeMillis() + Duration.ofMinutes(minutes).toMillis()
+                ReminderEventStore.recordSnoozed(applicationContext, schedule, snoozedUntil)
+                careRepository.snoozeTask(schedule.taskId, snoozedUntil)
             }
-            ReminderNotificationAction.SKIP -> ReminderScheduler.skip(applicationContext, schedule)
+            ReminderNotificationAction.SKIP -> {
+                val skippedAt = System.currentTimeMillis()
+                ReminderEventStore.recordSkipped(applicationContext, schedule, skippedAt)
+                careRepository.skipTask(schedule.taskId, skippedAt = skippedAt)
+            }
         }
+        reminderNotifications.syncScheduledReminders()
 
         return Result.success()
     }

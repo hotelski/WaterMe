@@ -1,6 +1,10 @@
 package com.hotelski.waterme.feature.common
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -24,6 +28,8 @@ import com.hotelski.waterme.feature.history.CareHistoryViewModel
 import com.hotelski.waterme.feature.editplant.EditPlantEffect
 import com.hotelski.waterme.feature.editplant.EditPlantScreen
 import com.hotelski.waterme.feature.editplant.EditPlantViewModel
+import com.hotelski.waterme.feature.donate.DonateScreen
+import com.hotelski.waterme.feature.donate.DonateViewModel
 import com.hotelski.waterme.feature.feedback.FeedbackScreen
 import com.hotelski.waterme.feature.feedback.FeedbackViewModel
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsEffect
@@ -40,11 +46,13 @@ import com.hotelski.waterme.feature.today.HomeEffect
 import com.hotelski.waterme.feature.today.HomeViewModel
 import com.hotelski.waterme.feature.today.TodayScreen
 import com.hotelski.waterme.feature.today.TodayEvent
+import com.hotelski.waterme.notifications.NotificationPermissionHelper
 
 @Composable
 fun HomeRoute(
     onAddPlant: () -> Unit,
     onOpenCalendar: () -> Unit,
+    onOpenDonate: () -> Unit,
     onOpenFeedback: () -> Unit,
     onOpenPlants: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
@@ -56,6 +64,7 @@ fun HomeRoute(
             when (effect) {
                 HomeEffect.NavigateToAddPlant -> onAddPlant()
                 HomeEffect.NavigateToCalendar -> onOpenCalendar()
+                HomeEffect.NavigateToDonate -> onOpenDonate()
                 HomeEffect.NavigateToFeedback -> onOpenFeedback()
                 HomeEffect.NavigateToPlants -> onOpenPlants()
             }
@@ -67,6 +76,26 @@ fun HomeRoute(
         onEvent = homeViewModel::onEvent,
         onFeedbackClick = { homeViewModel.onEvent(TodayEvent.FeedbackClicked) },
         onDonateClick = { homeViewModel.onEvent(TodayEvent.DonateClicked) },
+    )
+}
+
+@Composable
+fun DonateRoute(
+    onBack: () -> Unit,
+    onShareFeedback: () -> Unit,
+    donateViewModel: DonateViewModel = viewModel(),
+) {
+    val uiState by donateViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    DonateScreen(
+        uiState = uiState,
+        onBack = onBack,
+        onShareFeedback = onShareFeedback,
+        onSupportTierClick = { productId ->
+            donateViewModel.onSupportTierClicked(productId, context.findActivity())
+        },
+        onRetryClick = donateViewModel::onRetryClicked,
     )
 }
 
@@ -279,18 +308,25 @@ fun CareHistoryRoute(
 fun SettingsRoute(
     onOpenFeedback: () -> Unit,
     onOpenLegal: (LegalDocument) -> Unit,
-    onRequestNotificationPermission: () -> Unit,
     onOpenCharacters: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel(),
 ) {
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        settingsViewModel.onNotificationPermissionResult(granted)
+    }
 
     LaunchedEffect(settingsViewModel) {
         settingsViewModel.effects.collect { effect ->
             when (effect) {
                 SettingsEffect.NavigateToFeedback -> onOpenFeedback()
                 is SettingsEffect.NavigateToLegal -> onOpenLegal(effect.document)
-                SettingsEffect.RequestNotificationPermission -> onRequestNotificationPermission()
+                SettingsEffect.RequestNotificationPermission ->
+                    notificationPermissionLauncher.launch(NotificationPermissionHelper.permission)
+                SettingsEffect.OpenNotificationSettings -> context.openAppNotificationSettings()
                 SettingsEffect.NavigateToCharacters -> onOpenCharacters()
             }
         }
@@ -321,4 +357,18 @@ fun CharactersRoute(
         uiState = uiState,
         onEvent = charactersViewModel::onEvent,
     )
+}
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
+private fun Context.openAppNotificationSettings() {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    }
+    startActivity(intent)
 }

@@ -35,6 +35,7 @@ class EditPlantViewModel(
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val reminderRepository = WaterMeAppContainer.reminderRepository(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val plantId: String = checkNotNull(savedStateHandle[WaterMeRoute.EditPlant.PLANT_ID_ARG])
     private val _uiState = MutableStateFlow(EditPlantUiState(isLoading = true))
@@ -165,6 +166,7 @@ class EditPlantViewModel(
                         notificationsEnabled = true,
                     )
                 }
+                reminderNotifications.syncScheduledReminders()
             }
                 .onSuccess {
                     _uiState.update {
@@ -189,7 +191,10 @@ class EditPlantViewModel(
     private fun deletePlant() {
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true, errorMessage = null, successMessage = null) }
-            runCatching { plantRepository.deletePlant(plantId) }
+            runCatching {
+                plantRepository.deletePlant(plantId)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess {
                     _uiState.update { it.copy(isDeleting = false, successMessage = "Plant deleted.") }
                     _effects.emit(EditPlantEffect.NavigateToPlantsAfterDelete)

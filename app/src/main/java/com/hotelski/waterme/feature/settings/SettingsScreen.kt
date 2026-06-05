@@ -338,7 +338,7 @@ private fun NotificationSettingsCard(
             checked = uiState.notificationsEnabled,
             onCheckedChange = { onEvent(SettingsEvent.NotificationsChanged(it)) },
         )
-        // SettingsInfoRow("Permission", uiState.notificationPermissionLabel)
+        SettingsInfoRow("Permission", uiState.notificationPermissionLabel)
         OutlinedButton(
             onClick = { onEvent(SettingsEvent.RequestNotificationPermissionClicked) },
             shape = RoundedCornerShape(18.dp),

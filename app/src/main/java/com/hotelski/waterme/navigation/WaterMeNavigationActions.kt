@@ -23,6 +23,12 @@ class WaterMeNavigationActions(
         }
     }
 
+    fun navigateToDonate() {
+        navController.navigate(WaterMeRoute.Donate.route) {
+            launchSingleTop = true
+        }
+    }
+
     fun navigateToLegal(document: String) {
         navController.navigate(WaterMeRoute.Legal.createRoute(document)) {
             launchSingleTop = true

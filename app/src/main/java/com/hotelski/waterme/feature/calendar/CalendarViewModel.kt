@@ -59,6 +59,7 @@ class CalendarViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
     private val clock = Clock.systemDefaultZone()
 
     private val selectedDate = MutableStateFlow(LocalDate.now(clock))
@@ -201,7 +202,10 @@ class CalendarViewModel(
         }
 
         viewModelScope.launch {
-            runCatching { careRepository.markCalendarTaskCompleted(taskId) }
+            runCatching {
+                careRepository.markCalendarTaskCompleted(taskId)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess {
                     showMessage(
                         successMessage = "Care task completed.",

@@ -20,9 +20,9 @@ import java.util.UUID
 object WaterMeSeedData {
     const val LOCAL_USER_ID = "local-user"
 
-    suspend fun seedIfEmpty(database: WaterMeDatabase, nowMillis: Long = System.currentTimeMillis()) {
+    suspend fun seedIfEmpty(database: WaterMeDatabase, nowMillis: Long = System.currentTimeMillis()): Boolean {
         val plantDao = database.plantDao()
-        if (plantDao.countActivePlantsForUser(LOCAL_USER_ID) > 0) return
+        if (plantDao.countActivePlantsForUser(LOCAL_USER_ID) > 0) return false
 
         database.withTransaction {
             database.userDao().upsertUser(
@@ -60,6 +60,7 @@ object WaterMeSeedData {
                 history(monstera.plantId, CareType.WATERING, "Deep watered and wiped leaves.", nowMillis - 2 * DAY_MILLIS),
             )
         }
+        return true
     }
 
     suspend fun ensureLocalUser(database: WaterMeDatabase, nowMillis: Long = System.currentTimeMillis()) {

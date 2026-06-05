@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,18 @@ plugins {
 }
 
 val feedbackEndpointUrl = providers.gradleProperty("waterMeFeedbackEndpoint").orElse("").get()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use(::load)
+    }
+}
+val hasReleaseSigningConfig = listOf(
+    "releaseStoreFile",
+    "releaseStorePassword",
+    "releaseKeyAlias",
+    "releaseKeyPassword",
+).all { key -> keystoreProperties.getProperty(key).isNullOrBlank().not() }
 
 fun String.asBuildConfigString(): String =
     "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
@@ -25,6 +39,17 @@ android {
         buildConfigField("String", "FEEDBACK_ENDPOINT_URL", feedbackEndpointUrl.asBuildConfigString())
     }
 
+    signingConfigs {
+        if (hasReleaseSigningConfig) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("releaseStoreFile"))
+                storePassword = keystoreProperties.getProperty("releaseStorePassword")
+                keyAlias = keystoreProperties.getProperty("releaseKeyAlias")
+                keyPassword = keystoreProperties.getProperty("releaseKeyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -32,6 +57,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -64,6 +92,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.google.play.billing.ktx)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.animation)

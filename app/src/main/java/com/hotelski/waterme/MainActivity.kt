@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
         NotificationChannels.ensureCreated(this)
         lifecycleScope.launch {
             WaterMeAppContainer.settingsDataStore(this@MainActivity).recordAppOpen()
+            WaterMeAppContainer.reminderNotificationCoordinator(this@MainActivity).syncScheduledReminders()
         }
 
         setContent {

@@ -11,6 +11,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed interface WaterMeRoute {
     val route: String
 
+    data object Donate : WaterMeRoute {
+        override val route = "donate"
+    }
+
     data object Feedback : WaterMeRoute {
         override val route = "feedback"
     }

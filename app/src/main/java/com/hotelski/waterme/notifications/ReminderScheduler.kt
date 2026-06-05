@@ -169,6 +169,6 @@ object ReminderScheduler {
     }
 
     private val DEFAULT_SNOOZE_DURATION: Duration = Duration.ofHours(3)
-    private const val WORK_TAG_CARE_REMINDERS = "waterme-care-reminders"
+    const val WORK_TAG_CARE_REMINDERS = "waterme-care-reminders"
     private const val MINIMUM_DELAY_MS = 1_000L
 }

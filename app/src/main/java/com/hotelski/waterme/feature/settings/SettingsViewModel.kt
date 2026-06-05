@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,6 +30,7 @@ sealed interface SettingsEffect {
     data object NavigateToFeedback : SettingsEffect
     data class NavigateToLegal(val document: LegalDocument) : SettingsEffect
     data object RequestNotificationPermission : SettingsEffect
+    data object OpenNotificationSettings : SettingsEffect
     data object NavigateToCharacters : SettingsEffect
 }
 
@@ -46,6 +48,7 @@ class SettingsViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val actionState = MutableStateFlow(SettingsActionState())
     private val _effects = MutableSharedFlow<SettingsEffect>()
@@ -65,12 +68,19 @@ class SettingsViewModel(
             plantsAddedTotal = plants.size,
             appOpenDayStreak = settings.appOpenDayStreak,
         )
-            SettingsUiState(
-                isLoading = false,
-                selectedCharacterName = selectedCharacter.name,
-                activeCharacter = selectedCharacter,
-                notificationsEnabled = settings.notificationsEnabled,
-            notificationPermissionLabel = settings.notificationPermissionState.toPermissionLabel(),
+        val canPostNotifications = NotificationPermissionHelper.canPostNotifications(appContext)
+        val permissionState = when {
+            canPostNotifications -> NotificationPermissionState.GRANTED
+            settings.notificationPermissionState == NotificationPermissionState.NOT_REQUESTED ->
+                NotificationPermissionState.NOT_REQUESTED
+            else -> NotificationPermissionState.DENIED
+        }
+        SettingsUiState(
+            isLoading = false,
+            selectedCharacterName = selectedCharacter.name,
+            activeCharacter = selectedCharacter,
+            notificationsEnabled = settings.notificationsEnabled && canPostNotifications,
+            notificationPermissionLabel = permissionState.toPermissionLabel(),
             themePreference = settings.themePreference,
             textColorPreference = settings.textColorPreference,
             appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
@@ -97,7 +107,7 @@ class SettingsViewModel(
             SettingsEvent.FeedbackClicked -> emitEffect(SettingsEffect.NavigateToFeedback)
             is SettingsEvent.LegalDocumentClicked -> emitEffect(SettingsEffect.NavigateToLegal(event.document))
             SettingsEvent.CharactersClicked -> emitEffect(SettingsEffect.NavigateToCharacters)
-            SettingsEvent.RequestNotificationPermissionClicked -> emitEffect(SettingsEffect.RequestNotificationPermission)
+            SettingsEvent.RequestNotificationPermissionClicked -> requestNotificationPermission()
             is SettingsEvent.NotificationsChanged -> updateNotifications(event.enabled)
             SettingsEvent.ColorSchemeResetClicked -> resetColorScheme()
             is SettingsEvent.ThemePreferenceChanged -> updateThemePreference(event.value)
@@ -117,16 +127,28 @@ class SettingsViewModel(
         )
     }
 
+    private fun requestNotificationPermission() {
+        viewModelScope.launch {
+            val settings = settingsDataStore.settings.first()
+            when {
+                NotificationPermissionHelper.canPostNotifications(appContext) -> onNotificationPermissionResult(granted = true)
+                settings.notificationPermissionState == NotificationPermissionState.DENIED ->
+                    _effects.emit(SettingsEffect.OpenNotificationSettings)
+                else -> _effects.emit(SettingsEffect.RequestNotificationPermission)
+            }
+        }
+    }
+
     private fun updateNotifications(enabled: Boolean) {
         val canPostNotifications = NotificationPermissionHelper.canPostNotifications(appContext)
         if (enabled && !canPostNotifications) {
-            emitEffect(SettingsEffect.RequestNotificationPermission)
+            requestNotificationPermission()
             return
         }
 
         updateNotificationSettings(
             enabled = enabled,
-            permissionState = if (enabled) NotificationPermissionState.GRANTED else NotificationPermissionState.DENIED,
+            permissionState = if (canPostNotifications) NotificationPermissionState.GRANTED else NotificationPermissionState.DENIED,
             successMessage = if (enabled) "Notifications enabled." else "Notifications disabled.",
         )
     }
@@ -142,6 +164,11 @@ class SettingsViewModel(
                     enabled = enabled,
                     permissionState = permissionState,
                 )
+                if (enabled) {
+                    reminderNotifications.syncScheduledReminders()
+                } else {
+                    reminderNotifications.cancelScheduledReminders()
+                }
             }
                 .onSuccess { showSuccess(successMessage) }
                 .onFailure { showMessage(errorMessage = it.toUserMessage()) }

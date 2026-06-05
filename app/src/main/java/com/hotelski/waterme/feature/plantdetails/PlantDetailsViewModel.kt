@@ -68,6 +68,7 @@ class PlantDetailsViewModel(
     private val reminderRepository = WaterMeAppContainer.reminderRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val plantId: String = checkNotNull(savedStateHandle[WaterMeRoute.PlantDetails.PLANT_ID_ARG])
     private val healthDraft = MutableStateFlow(HealthNoteDraftState())
@@ -184,7 +185,10 @@ class PlantDetailsViewModel(
     private fun deletePlant() {
         viewModelScope.launch {
             actionState.value = PlantDetailsActionState(isDeleting = true, showDeleteConfirmation = false)
-            runCatching { plantRepository.deletePlant(plantId) }
+            runCatching {
+                plantRepository.deletePlant(plantId)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess {
                     showMessage(successMessage = "Plant deleted.")
                     _effects.emit(PlantDetailsEffect.NavigateToPlantsAfterDelete)
@@ -195,7 +199,10 @@ class PlantDetailsViewModel(
 
     private fun completeTask(taskId: String) {
         viewModelScope.launch {
-            runCatching { careRepository.markTaskCompleted(taskId) }
+            runCatching {
+                careRepository.markTaskCompleted(taskId)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess {
                     showMessage(
                         successMessage = "Care task completed.",
@@ -208,7 +215,10 @@ class PlantDetailsViewModel(
 
     private fun skipTask(taskId: String) {
         viewModelScope.launch {
-            runCatching { careRepository.skipTask(taskId) }
+            runCatching {
+                careRepository.skipTask(taskId)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess { showMessage(successMessage = "Care task skipped.") }
                 .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
@@ -217,7 +227,10 @@ class PlantDetailsViewModel(
     private fun snoozeTask(taskId: String) {
         viewModelScope.launch {
             val snoozedUntil = System.currentTimeMillis() + SNOOZE_THREE_HOURS_MILLIS
-            runCatching { careRepository.snoozeTask(taskId, snoozedUntil) }
+            runCatching {
+                careRepository.snoozeTask(taskId, snoozedUntil)
+                reminderNotifications.syncScheduledReminders()
+            }
                 .onSuccess { showMessage(successMessage = "Reminder snoozed for 3 hours.") }
                 .onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }

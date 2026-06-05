@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.model.CareType
-import com.hotelski.waterme.notifications.ReminderScheduler
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -30,6 +29,7 @@ class AddPlantViewModel(
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val reminderRepository = WaterMeAppContainer.reminderRepository(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val _uiState = MutableStateFlow(defaultUiState())
     private val _effects = MutableSharedFlow<AddPlantEffect>()
@@ -149,7 +149,7 @@ class AddPlantViewModel(
                     val reminderHour = reminder.resolvedReminderHour()
                     val reminderMinute = reminder.resolvedReminderMinute()
                     val dueAtMillis = reminder.startDateMillis.toDueAtMillis(reminderHour, reminderMinute)
-                    val reminderId = reminderRepository.addReminder(
+                    reminderRepository.addReminder(
                         plantId = plantId,
                         careType = reminder.careType,
                         frequencyDays = frequencyDays,
@@ -158,15 +158,8 @@ class AddPlantViewModel(
                         preferredMinute = reminderMinute,
                         notificationsEnabled = true,
                     )
-                    scheduleInitialReminder(
-                        plantId = plantId,
-                        plantName = plantName,
-                        reminderId = reminderId,
-                        careType = reminder.careType,
-                        dueAtMillis = dueAtMillis,
-                        frequencyDays = frequencyDays,
-                    )
                 }
+                reminderNotifications.syncScheduledReminders()
                 plantId
             }
                 .onSuccess { plantId ->
@@ -259,35 +252,6 @@ class AddPlantViewModel(
                 errorMessage = null,
                 successMessage = null,
             )
-        }
-    }
-
-    private fun scheduleInitialReminder(
-        plantId: String,
-        plantName: String,
-        reminderId: String,
-        careType: CareType,
-        dueAtMillis: Long,
-        frequencyDays: Int,
-    ) {
-        when (careType) {
-            CareType.WATERING -> ReminderScheduler.scheduleWateringReminder(
-                context = appContext,
-                plantId = plantId,
-                plantName = plantName,
-                reminderId = reminderId,
-                dueAtMillis = dueAtMillis,
-                frequencyDays = frequencyDays,
-            )
-            CareType.FERTILIZING -> ReminderScheduler.scheduleFertilizingReminder(
-                context = appContext,
-                plantId = plantId,
-                plantName = plantName,
-                reminderId = reminderId,
-                dueAtMillis = dueAtMillis,
-                frequencyDays = frequencyDays,
-            )
-            else -> Unit
         }
     }
 

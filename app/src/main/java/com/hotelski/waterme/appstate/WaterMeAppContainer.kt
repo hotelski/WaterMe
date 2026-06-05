@@ -1,6 +1,8 @@
 package com.hotelski.waterme.appstate
 
 import android.content.Context
+import com.hotelski.waterme.data.billing.BillingRepository
+import com.hotelski.waterme.data.billing.PlayBillingRepository
 import com.hotelski.waterme.data.feedback.FeedbackRepository
 import com.hotelski.waterme.data.feedback.HttpFeedbackRepository
 import com.hotelski.waterme.data.local.WaterMeDatabase
@@ -10,6 +12,7 @@ import com.hotelski.waterme.data.repository.RoomCareRepository
 import com.hotelski.waterme.data.repository.RoomPlantRepository
 import com.hotelski.waterme.data.repository.RoomReminderRepository
 import com.hotelski.waterme.data.repository.RoomSettingsRepository
+import com.hotelski.waterme.notifications.ReminderNotificationCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -22,6 +25,8 @@ object WaterMeAppContainer {
     private var settingsDataStoreInstance: SettingsDataStoreManager? = null
     @Volatile
     private var feedbackRepositoryInstance: FeedbackRepository? = null
+    @Volatile
+    private var billingRepositoryInstance: BillingRepository? = null
 
     fun database(context: Context): WaterMeDatabase =
         databaseInstance ?: synchronized(this) {
@@ -45,17 +50,33 @@ object WaterMeAppContainer {
             settingsDataStoreInstance ?: SettingsDataStoreManager(context).also { settingsDataStoreInstance = it }
         }
 
+    fun reminderNotificationCoordinator(context: Context): ReminderNotificationCoordinator =
+        ReminderNotificationCoordinator(
+            context = context.applicationContext,
+            database = database(context),
+            settingsDataStore = settingsDataStore(context),
+        )
+
     fun feedbackRepository(): FeedbackRepository =
         feedbackRepositoryInstance ?: synchronized(this) {
             feedbackRepositoryInstance ?: HttpFeedbackRepository().also { feedbackRepositoryInstance = it }
         }
 
+    fun billingRepository(context: Context): BillingRepository =
+        billingRepositoryInstance ?: synchronized(this) {
+            billingRepositoryInstance ?: PlayBillingRepository(context).also { billingRepositoryInstance = it }
+        }
+
     suspend fun seedIfEmpty(context: Context) {
         if (settingsDataStore(context).shouldSkipSeedData()) return
-        WaterMeSeedData.seedIfEmpty(database(context))
+        val seeded = WaterMeSeedData.seedIfEmpty(database(context))
+        if (seeded) {
+            reminderNotificationCoordinator(context).syncScheduledReminders()
+        }
     }
 
     suspend fun deleteAllData(context: Context) {
+        reminderNotificationCoordinator(context).cancelScheduledReminders()
         withContext(Dispatchers.IO) {
             val database = database(context)
             database.clearAllTables()
