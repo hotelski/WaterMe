@@ -82,7 +82,6 @@ fun HomeRoute(
 @Composable
 fun DonateRoute(
     onBack: () -> Unit,
-    onShareFeedback: () -> Unit,
     donateViewModel: DonateViewModel = viewModel(),
 ) {
     val uiState by donateViewModel.uiState.collectAsStateWithLifecycle()
@@ -91,7 +90,6 @@ fun DonateRoute(
     DonateScreen(
         uiState = uiState,
         onBack = onBack,
-        onShareFeedback = onShareFeedback,
         onSupportTierClick = { productId ->
             donateViewModel.onSupportTierClicked(productId, context.findActivity())
         },

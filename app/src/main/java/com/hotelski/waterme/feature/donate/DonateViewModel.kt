@@ -222,20 +222,20 @@ enum class SupportTier(
     WateringCan(
         productId = "support_water_2",
         fallbackAmount = "$2",
-        title = "Watering can",
-        description = "A small thank you for keeping the garden tidy.",
+        title = "Small support",
+        description = "A quick thank you to the creator.",
     ),
     FreshGrowth(
         productId = "support_growth_5",
         fallbackAmount = "$5",
-        title = "Fresh growth",
-        description = "Support new care quality-of-life improvements.",
+        title = "Creator boost",
+        description = "Help keep WaterMe maintained.",
     ),
     GardenBoost(
         productId = "support_garden_10",
         fallbackAmount = "$10",
-        title = "Garden boost",
-        description = "Help fund richer characters and extra polish.",
+        title = "Big thanks",
+        description = "Extra support for future updates.",
     );
 
     fun toUiState(

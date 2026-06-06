@@ -59,7 +59,6 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.Donate.route) {
             DonateRoute(
                 onBack = navigationActions::back,
-                onShareFeedback = navigationActions::navigateToFeedback,
             )
         }
 
