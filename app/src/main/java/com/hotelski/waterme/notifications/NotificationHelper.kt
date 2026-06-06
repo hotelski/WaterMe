@@ -20,10 +20,11 @@ class NotificationHelper(
     fun canPostNotifications(): Boolean =
         NotificationPermissionHelper.canPostNotifications(context)
 
-    fun showCareReminder(schedule: CareReminderSchedule) {
-        if (!schedule.notificationsEnabled || !canPostNotifications()) return
+    fun showCareReminder(schedule: CareReminderSchedule): Boolean {
+        if (!schedule.notificationsEnabled || !canPostNotifications()) return false
 
         ensureChannels()
+        val manager = notificationManager() ?: return false
 
         val notification = NotificationCompat.Builder(context, NotificationChannels.CARE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_leaf)
@@ -49,7 +50,8 @@ class NotificationHelper(
             )
             .build()
 
-        notificationManager()?.notify(schedule.notificationId, notification)
+        manager.notify(schedule.notificationId, notification)
+        return true
     }
 
     fun cancel(schedule: CareReminderSchedule) {

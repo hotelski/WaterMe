@@ -12,8 +12,20 @@ class CareReminderWorker(
         val schedule = inputData.toCareReminderSchedule() ?: return Result.failure()
 
         if (!schedule.notificationsEnabled) return Result.success()
+        if (ReminderEventStore.hasHandledNotification(applicationContext, schedule)) return Result.success()
+        if (AppForegroundState.isInForeground) {
+            ReminderEventStore.recordSuppressedInForeground(
+                applicationContext,
+                schedule,
+                System.currentTimeMillis(),
+            )
+            return Result.success()
+        }
 
-        NotificationHelper(applicationContext).showCareReminder(schedule)
+        val wasShown = NotificationHelper(applicationContext).showCareReminder(schedule)
+        if (wasShown) {
+            ReminderEventStore.recordDelivered(applicationContext, schedule, System.currentTimeMillis())
+        }
         return Result.success()
     }
 }

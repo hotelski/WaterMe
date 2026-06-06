@@ -29,6 +29,15 @@ class ReminderNotificationCoordinator(
             .getActiveNotificationReminders()
             .forEach { reminder ->
                 val schedule = reminder.toSchedule() ?: return@forEach
+                if (ReminderEventStore.hasHandledNotification(appContext, schedule)) return@forEach
+                if (AppForegroundState.isInForeground && schedule.dueAtMillis <= System.currentTimeMillis()) {
+                    ReminderEventStore.recordSuppressedInForeground(
+                        appContext,
+                        schedule,
+                        System.currentTimeMillis(),
+                    )
+                    return@forEach
+                }
                 ReminderScheduler.scheduleReminder(appContext, schedule)
             }
     }
