@@ -118,9 +118,18 @@ fun PlantsRoute(
     onAddPlant: () -> Unit,
     onOpenPlant: (String) -> Unit,
     onEditPlant: (String) -> Unit,
+    pendingSuccessMessage: String? = null,
+    onPendingSuccessMessageConsumed: () -> Unit = {},
     plantsViewModel: PlantsViewModel = viewModel(),
 ) {
     val uiState by plantsViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pendingSuccessMessage) {
+        if (pendingSuccessMessage != null) {
+            plantsViewModel.showSuccessMessage(pendingSuccessMessage)
+            onPendingSuccessMessageConsumed()
+        }
+    }
 
     LaunchedEffect(plantsViewModel) {
         plantsViewModel.effects.collect { effect ->

@@ -156,7 +156,7 @@ class PlantDetailsViewModel(
             PlantDetailsEvent.BackClicked -> emitEffect(PlantDetailsEffect.NavigateBack)
             PlantDetailsEvent.EditClicked -> emitEffect(PlantDetailsEffect.NavigateToEditPlant(plantId))
             PlantDetailsEvent.ViewAllHistoryClicked -> emitEffect(PlantDetailsEffect.NavigateToCareHistory(plantId))
-            PlantDetailsEvent.DeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = true) }
+            PlantDetailsEvent.DeleteClicked -> deletePlant()
             PlantDetailsEvent.DismissDeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = false) }
             PlantDetailsEvent.ConfirmDeleteClicked -> deletePlant()
             PlantDetailsEvent.AddHealthNoteClicked -> addHealthNote()

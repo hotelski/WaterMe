@@ -4,9 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import com.hotelski.waterme.data.local.model.CareTaskWithPlant
+import com.hotelski.waterme.data.local.model.PlantWithDetails
 import com.hotelski.waterme.feature.common.PlantCardUiModel
 import com.hotelski.waterme.feature.common.endOfTodayMillis
 import com.hotelski.waterme.feature.common.toPlantCardUiModel
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
+import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.model.PlantEnvironment
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,6 +32,7 @@ sealed interface PlantsEffect {
 private data class PlantsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 )
 
 private data class PlantsFilterState(
@@ -36,12 +41,19 @@ private data class PlantsFilterState(
     val selectedEnvironment: PlantEnvironment? = null,
 )
 
+private data class PlantsDataState(
+    val plants: List<PlantWithDetails>,
+    val tasksDueToday: List<CareTaskWithPlant>,
+    val activeCharacter: PlantCharacterUiModel,
+)
+
 class PlantsViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
     private val appContext = application.applicationContext
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
+    private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
 
     private val searchQuery = MutableStateFlow("")
     private val showFavoritesOnly = MutableStateFlow(false)
@@ -57,18 +69,36 @@ class PlantsViewModel(
         PlantsFilterState(searchQuery = query, showFavoritesOnly = favoritesOnly, selectedEnvironment = environment)
     }
 
-    val uiState = combine(
+    private val plantsData = combine(
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeTasksDueBy(endOfTodayMillis()),
+        careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
+        settingsDataStore.settings,
+    ) { plants, tasksDueToday, careHistory, settings ->
+        PlantsDataState(
+            plants = plants,
+            tasksDueToday = tasksDueToday,
+            activeCharacter = activePlantCharacter(
+                careHistory = careHistory,
+                selectedCharacterId = settings.selectedCharacterId,
+                plantsAddedTotal = plants.size,
+                appOpenDayStreak = settings.appOpenDayStreak,
+            ),
+        )
+    }
+
+    val uiState = combine(
+        plantsData,
         filters,
         selectedPlantPanels,
         actionState,
-    ) { plants, tasksDueToday, filters, selectedPanels, action ->
+    ) { data, filters, selectedPanels, action ->
+        val plants = data.plants
         val query = filters.searchQuery
         val favoritesOnly = filters.showFavoritesOnly
         val environment = filters.selectedEnvironment
         val normalizedQuery = query.trim()
-        val dueCountsByPlantId = tasksDueToday.groupingBy { it.plantId }.eachCount()
+        val dueCountsByPlantId = data.tasksDueToday.groupingBy { it.plantId }.eachCount()
         val plantCards = plants
             .map { plant -> plant.toPlantCardUiModel(dueTaskCount = dueCountsByPlantId[plant.plant.plantId] ?: 0) }
             .sortedWith(compareByDescending<PlantCardUiModel> { it.isFavorite }.thenBy { it.name.lowercase() })
@@ -88,8 +118,10 @@ class PlantsViewModel(
             selectedEnvironment = environment,
             favoriteCount = favoriteCount,
             selectedPlantPanels = selectedPanels,
+            activeCharacter = data.activeCharacter,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
+            heartBurstKey = action.heartBurstKey,
         )
     }
         .catch { error -> emit(PlantsUiState(errorMessage = error.toUserMessage())) }
@@ -118,6 +150,10 @@ class PlantsViewModel(
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
         }
+    }
+
+    fun showSuccessMessage(message: String) {
+        showMessage(successMessage = message, heartBurstKey = System.nanoTime())
     }
 
     private fun togglePlantPanel(plantId: String, panel: PlantCardPanel) {
@@ -161,13 +197,23 @@ class PlantsViewModel(
     private fun showMessage(
         successMessage: String? = null,
         errorMessage: String? = null,
+        heartBurstKey: Long = 0L,
     ) {
-        actionState.value = PlantsActionState(successMessage = successMessage, errorMessage = errorMessage)
+        actionState.value = PlantsActionState(
+            successMessage = successMessage,
+            errorMessage = errorMessage,
+            heartBurstKey = heartBurstKey,
+        )
         messageDismissJob?.cancel()
         messageDismissJob = viewModelScope.launch {
             delay(MESSAGE_VISIBLE_MILLIS)
-            if (actionState.value.successMessage == successMessage && actionState.value.errorMessage == errorMessage) {
-                actionState.value = actionState.value.copy(successMessage = null, errorMessage = null)
+            val current = actionState.value
+            if (
+                current.successMessage == successMessage &&
+                current.errorMessage == errorMessage &&
+                current.heartBurstKey == heartBurstKey
+            ) {
+                actionState.value = current.copy(successMessage = null, errorMessage = null, heartBurstKey = 0L)
             }
         }
     }

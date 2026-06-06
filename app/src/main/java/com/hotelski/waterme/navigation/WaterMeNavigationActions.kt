@@ -17,6 +17,19 @@ class WaterMeNavigationActions(
         }
     }
 
+    fun navigateToPlantsAfterPlantDeleted(message: String = "Plant deleted.") {
+        navController.navigate(WaterMeRoute.Plants.route) {
+            launchSingleTop = true
+            restoreState = false
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = false
+            }
+        }
+        navController.currentBackStackEntry
+            ?.savedStateHandle
+            ?.set(WaterMeRoute.Plants.SUCCESS_MESSAGE_KEY, message)
+    }
+
     fun navigateToFeedback() {
         navController.navigate(WaterMeRoute.Feedback.route) {
             launchSingleTop = true

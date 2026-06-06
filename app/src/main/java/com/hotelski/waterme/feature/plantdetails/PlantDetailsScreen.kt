@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
@@ -258,7 +259,7 @@ private fun PlantDetailsContent(
             ExpandableDetailsSection(
                 title = "Notes",
                 subtitle = "Plant notes and quick health observations",
-                icon = Icons.Rounded.Eco,
+                icon = Icons.AutoMirrored.Rounded.Notes,
             ) {
                 NotesSection(
                     plant = plant,

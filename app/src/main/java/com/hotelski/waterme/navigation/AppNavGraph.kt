@@ -4,7 +4,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
@@ -81,11 +83,19 @@ fun AppNavGraph(
             )
         }
 
-        waterMeComposable(WaterMeRoute.Plants.route) {
+        waterMeComposable(WaterMeRoute.Plants.route) { entry ->
+            val pendingSuccessMessage by entry.savedStateHandle
+                .getStateFlow<String?>(WaterMeRoute.Plants.SUCCESS_MESSAGE_KEY, null)
+                .collectAsStateWithLifecycle()
+
             PlantsRoute(
                 onAddPlant = navigationActions::navigateToAddPlant,
                 onOpenPlant = navigationActions::navigateToPlantDetails,
                 onEditPlant = navigationActions::navigateToEditPlant,
+                pendingSuccessMessage = pendingSuccessMessage,
+                onPendingSuccessMessageConsumed = {
+                    entry.savedStateHandle.remove<String>(WaterMeRoute.Plants.SUCCESS_MESSAGE_KEY)
+                },
             )
         }
 
@@ -105,7 +115,7 @@ fun AppNavGraph(
                 onBack = navigationActions::back,
                 onEditPlant = navigationActions::navigateToEditPlant,
                 onViewHistory = { plantId -> navigationActions.navigateToCareHistory(plantId) },
-                onPlantDeleted = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
+                onPlantDeleted = { navigationActions.navigateToPlantsAfterPlantDeleted() },
             )
         }
 
@@ -116,7 +126,7 @@ fun AppNavGraph(
             EditPlantRoute(
                 onBack = navigationActions::back,
                 onPlantUpdated = navigationActions::onPlantUpdated,
-                onPlantDeleted = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
+                onPlantDeleted = { navigationActions.navigateToPlantsAfterPlantDeleted() },
                 onOpenPhotoPicker = {},
             )
         }

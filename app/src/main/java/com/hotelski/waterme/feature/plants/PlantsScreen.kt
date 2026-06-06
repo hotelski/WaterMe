@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,9 +50,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,12 +58,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.hotelski.waterme.feature.common.CareTypeBadge
 import com.hotelski.waterme.feature.common.PlantCardUiModel
@@ -81,12 +73,13 @@ import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.common.label
+import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
+import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.model.PlantEnvironment
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.WaterMeTheme
-import kotlin.math.roundToInt
 
 enum class PlantCardPanel {
     NOTES,
@@ -101,11 +94,16 @@ data class PlantsUiState(
     val selectedEnvironment: PlantEnvironment? = null,
     val favoriteCount: Int = 0,
     val selectedPlantPanels: Map<String, PlantCardPanel> = emptyMap(),
+    val activeCharacter: PlantCharacterUiModel? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val heartBurstKey: Long = 0L,
 ) {
     val isEmpty: Boolean
         get() = !isLoading && plants.isEmpty() && searchQuery.isBlank() && !showFavoritesOnly && selectedEnvironment == null
+
+    val shouldShowCharacterMessage: Boolean
+        get() = activeCharacter != null && successMessage != null
 }
 
 sealed interface PlantsEvent {
@@ -189,6 +187,22 @@ private fun PlantsContent(
                 onEnvironmentFilterSelected = { onEvent(PlantsEvent.EnvironmentFilterSelected(it)) },
             )
         }
+        if (uiState.successMessage != null) {
+            item {
+                if (uiState.shouldShowCharacterMessage) {
+                    PlantCharacterCelebrationCard(
+                        character = requireNotNull(uiState.activeCharacter),
+                        message = uiState.successMessage,
+                        heartBurstKey = uiState.heartBurstKey.takeIf { it != 0L },
+                    )
+                } else {
+                    PlantsInlineMessage(
+                        message = uiState.successMessage,
+                        color = LeafGreen,
+                    )
+                }
+            }
+        }
         if (uiState.errorMessage != null) {
             item {
                 PlantsInlineMessage(
@@ -230,7 +244,7 @@ private fun PlantsContent(
             }
 
             else -> items(uiState.plants, key = { plant -> plant.id }) { plant ->
-                SwipePlantCard(
+                PlantListCard(
                     plant = plant,
                     selectedPanel = uiState.selectedPlantPanels[plant.id],
                     onPlantClick = { onEvent(PlantsEvent.PlantClicked(plant.id)) },
@@ -441,101 +455,6 @@ private fun PlantsInlineMessage(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-    }
-}
-
-@Composable
-private fun SwipePlantCard(
-    plant: PlantCardUiModel,
-    selectedPanel: PlantCardPanel?,
-    onPlantClick: () -> Unit,
-    onEdit: () -> Unit,
-    onFavoriteToggle: () -> Unit,
-    onPanelClick: (PlantCardPanel) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val actionWidth = 176.dp
-    val actionWidthPx = with(LocalDensity.current) { actionWidth.toPx() }
-    var rawOffset by remember(plant.id) { mutableFloatStateOf(0f) }
-    val offset by animateFloatAsState(
-        targetValue = rawOffset,
-        animationSpec = tween(durationMillis = 220),
-        label = "plantSwipeOffset",
-    )
-
-    Box(modifier = modifier.fillMaxWidth()) {
-        SwipeActions(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .width(actionWidth),
-            onEdit = {
-                rawOffset = 0f
-                onEdit()
-            },
-            onPanelClick = { panel ->
-                rawOffset = 0f
-                onPanelClick(panel)
-            },
-        )
-        PlantListCard(
-            plant = plant,
-            selectedPanel = selectedPanel,
-            onPlantClick = onPlantClick,
-            onEdit = onEdit,
-            onFavoriteToggle = onFavoriteToggle,
-            onPanelClick = onPanelClick,
-            modifier = Modifier
-                .offset { IntOffset(offset.roundToInt(), 0) }
-                .pointerInput(plant.id) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            rawOffset = if (rawOffset < -actionWidthPx * 0.42f) {
-                                -actionWidthPx
-                            } else {
-                                0f
-                            }
-                        },
-                        onDragCancel = { rawOffset = 0f },
-                    ) { change, dragAmount ->
-                        change.consume()
-                        rawOffset = (rawOffset + dragAmount).coerceIn(-actionWidthPx, 0f)
-                    }
-                },
-        )
-    }
-}
-
-@Composable
-private fun SwipeActions(
-    onEdit: () -> Unit,
-    onPanelClick: (PlantCardPanel) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-            .padding(horizontal = 8.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = { onPanelClick(PlantCardPanel.NOTES) }) {
-            Icon(
-                Icons.AutoMirrored.Rounded.Notes,
-                contentDescription = "Show notes",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        IconButton(onClick = { onPanelClick(PlantCardPanel.LOGS) }) {
-            Icon(
-                Icons.Rounded.History,
-                contentDescription = "Show logs",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        IconButton(onClick = onEdit) {
-            Icon(Icons.Rounded.Edit, contentDescription = "Edit plant", tint = MaterialTheme.colorScheme.primary)
-        }
     }
 }
 

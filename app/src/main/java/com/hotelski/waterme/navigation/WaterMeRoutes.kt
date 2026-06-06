@@ -32,6 +32,7 @@ sealed interface WaterMeRoute {
     }
 
     data object Plants : WaterMeRoute {
+        const val SUCCESS_MESSAGE_KEY = "plants_success_message"
         override val route = "plants"
     }
 
