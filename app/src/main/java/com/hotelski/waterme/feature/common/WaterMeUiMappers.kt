@@ -144,7 +144,10 @@ fun CareHistoryEntity.toHealthNoteUiModel(
         plantName = plantName,
         mood = healthMood ?: HealthMood.ATTENTION,
         dateLabel = performedAt.toDueDateLabel(clock),
+        dateTimeLabel = performedAt.toNoteDateTimeLabel(clock),
+        performedAtMillis = performedAt,
         note = notes.orEmpty(),
+        photoUri = photoUri,
     )
 
 fun CareHistoryWithPlant.toHealthNoteUiModel(clock: Clock = Clock.systemDefaultZone()): HealthNoteUiModel =
@@ -153,7 +156,10 @@ fun CareHistoryWithPlant.toHealthNoteUiModel(clock: Clock = Clock.systemDefaultZ
         plantName = plantName,
         mood = healthMood ?: HealthMood.ATTENTION,
         dateLabel = performedAt.toDueDateLabel(clock),
+        dateTimeLabel = performedAt.toNoteDateTimeLabel(clock),
+        performedAtMillis = performedAt,
         note = notes.orEmpty(),
+        photoUri = photoUri,
     )
 
 fun calendarDaysFromTasks(
@@ -226,6 +232,18 @@ private fun Long.toDueDateLabel(clock: Clock): String {
     }
 }
 
+fun Long.toNoteDateTimeLabel(clock: Clock = Clock.systemDefaultZone()): String {
+    val today = LocalDate.now(clock)
+    val zonedDateTime = Instant.ofEpochMilli(this).atZone(clock.zone)
+    val date = zonedDateTime.toLocalDate()
+    val time = zonedDateTime.format(noteTimeFormatter)
+    return when (date) {
+        today -> "Today, $time"
+        today.minusDays(1) -> "Yesterday, $time"
+        else -> "${zonedDateTime.format(shortDateFormatter)}, $time"
+    }
+}
+
 private fun LocalDate.toCalendarDayLabel(today: LocalDate): String =
     when (this) {
         today -> "Today, ${format(shortDateFormatter)}"
@@ -245,6 +263,7 @@ private fun HistoryAction.displayLabel(): String =
 private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM d")
 private val calendarDateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 private val reminderTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+private val noteTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
 private fun ReminderEntity.toPlantScheduleSummary(clock: Clock): String {
     val frequency = if (frequencyDays == 1) "Every day" else "Every $frequencyDays days"

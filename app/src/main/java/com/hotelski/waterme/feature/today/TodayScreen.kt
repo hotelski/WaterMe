@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Snooze
@@ -61,6 +62,7 @@ import com.hotelski.waterme.feature.common.ReminderUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeLeafRefreshBox
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePreviewData
 import com.hotelski.waterme.feature.common.WaterMeTopBar
@@ -105,6 +107,7 @@ data class TodayUiState(
     val appOpenDayStreak: Int = 0,
     val completedThisWeek: Int = 0,
     val activeCharacter: PlantCharacterUiModel? = null,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
@@ -124,8 +127,10 @@ sealed interface TodayEvent {
     data object CalendarClicked : TodayEvent
     data object DonateClicked : TodayEvent
     data object FeedbackClicked : TodayEvent
+    data object HowToUseClicked : TodayEvent
     data object MyPlantsClicked : TodayEvent
     data object RetryClicked : TodayEvent
+    data object RefreshPulled : TodayEvent
     data class CompleteTask(val taskId: String) : TodayEvent
     data class SkipTask(val taskId: String) : TodayEvent
     data class SnoozeTask(val taskId: String) : TodayEvent
@@ -136,6 +141,7 @@ fun TodayScreen(
     uiState: TodayUiState,
     onEvent: (TodayEvent) -> Unit,
     modifier: Modifier = Modifier,
+    onHowToUseClick: () -> Unit = {},
     onFeedbackClick: () -> Unit = {},
     onDonateClick: () -> Unit = {},
 ) {
@@ -145,6 +151,9 @@ fun TodayScreen(
         topBar = {
             WaterMeTopBar(
                 title = "Home",
+                tertiaryActionIcon = Icons.Rounded.Info,
+                tertiaryActionContentDescription = "How to use WaterMe",
+                onTertiaryActionClick = onHowToUseClick,
                 secondaryActionIcon = Icons.Rounded.VolunteerActivism,
                 secondaryActionContentDescription = "Support creator",
                 onSecondaryActionClick = onDonateClick,
@@ -171,11 +180,16 @@ fun TodayScreen(
                 )
             }
 
-            else -> HomeDashboard(
-                uiState = uiState,
-                onEvent = onEvent,
+            else -> WaterMeLeafRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onEvent(TodayEvent.RefreshPulled) },
                 modifier = Modifier.padding(innerPadding),
-            )
+            ) {
+                HomeDashboard(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                )
+            }
         }
     }
 }

@@ -83,7 +83,10 @@ data class HealthNoteUiModel(
     val plantName: String,
     val mood: HealthMood,
     val dateLabel: String,
+    val dateTimeLabel: String,
+    val performedAtMillis: Long = 0L,
     val note: String,
+    val photoUri: String? = null,
 )
 
 data class CalendarDayUiModel(

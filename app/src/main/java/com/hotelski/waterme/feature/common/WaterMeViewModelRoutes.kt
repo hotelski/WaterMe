@@ -4,12 +4,16 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +29,7 @@ import com.hotelski.waterme.feature.characters.CharactersViewModel
 import com.hotelski.waterme.feature.history.CareHistoryEffect
 import com.hotelski.waterme.feature.history.CareHistoryScreen
 import com.hotelski.waterme.feature.history.CareHistoryViewModel
+import com.hotelski.waterme.feature.guide.HowToUseScreen
 import com.hotelski.waterme.feature.editplant.EditPlantEffect
 import com.hotelski.waterme.feature.editplant.EditPlantScreen
 import com.hotelski.waterme.feature.editplant.EditPlantViewModel
@@ -54,6 +59,7 @@ fun HomeRoute(
     onOpenCalendar: () -> Unit,
     onOpenDonate: () -> Unit,
     onOpenFeedback: () -> Unit,
+    onOpenGuide: () -> Unit,
     onOpenPlants: () -> Unit,
     homeViewModel: HomeViewModel = viewModel(),
 ) {
@@ -66,6 +72,7 @@ fun HomeRoute(
                 HomeEffect.NavigateToCalendar -> onOpenCalendar()
                 HomeEffect.NavigateToDonate -> onOpenDonate()
                 HomeEffect.NavigateToFeedback -> onOpenFeedback()
+                HomeEffect.NavigateToGuide -> onOpenGuide()
                 HomeEffect.NavigateToPlants -> onOpenPlants()
             }
         }
@@ -74,9 +81,17 @@ fun HomeRoute(
     TodayScreen(
         uiState = uiState,
         onEvent = homeViewModel::onEvent,
+        onHowToUseClick = { homeViewModel.onEvent(TodayEvent.HowToUseClicked) },
         onFeedbackClick = { homeViewModel.onEvent(TodayEvent.FeedbackClicked) },
         onDonateClick = { homeViewModel.onEvent(TodayEvent.DonateClicked) },
     )
+}
+
+@Composable
+fun GuideRoute(
+    onBack: () -> Unit,
+) {
+    HowToUseScreen(onBack = onBack)
 }
 
 @Composable
@@ -154,26 +169,17 @@ fun AddPlantRoute(
 ) {
     val context = LocalContext.current
     val uiState by addPlantViewModel.uiState.collectAsStateWithLifecycle()
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-        }
-        addPlantViewModel.onPhotoSelected(uri?.toString())
-    }
+    val openPlantPhotoPicker = rememberPlantPhotoPicker(
+        context = context,
+        onOpenPhotoPicker = onOpenPhotoPicker,
+        onPhotoSelected = addPlantViewModel::onPhotoSelected,
+    )
 
     LaunchedEffect(addPlantViewModel) {
         addPlantViewModel.effects.collect { effect ->
             when (effect) {
                 AddPlantEffect.NavigateBack -> onBack()
-                AddPlantEffect.OpenPhotoPicker -> {
-                    onOpenPhotoPicker()
-                    photoPicker.launch(arrayOf("image/*"))
-                }
+                AddPlantEffect.OpenPhotoPicker -> openPlantPhotoPicker()
                 is AddPlantEffect.NavigateToPlantDetails -> onPlantCreated(effect.plantId)
             }
         }
@@ -195,26 +201,17 @@ fun EditPlantRoute(
 ) {
     val context = LocalContext.current
     val uiState by editPlantViewModel.uiState.collectAsStateWithLifecycle()
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-        }
-        editPlantViewModel.onPhotoSelected(uri?.toString())
-    }
+    val openPlantPhotoPicker = rememberPlantPhotoPicker(
+        context = context,
+        onOpenPhotoPicker = onOpenPhotoPicker,
+        onPhotoSelected = editPlantViewModel::onPhotoSelected,
+    )
 
     LaunchedEffect(editPlantViewModel) {
         editPlantViewModel.effects.collect { effect ->
             when (effect) {
                 EditPlantEffect.NavigateBack -> onBack()
-                EditPlantEffect.OpenPhotoPicker -> {
-                    onOpenPhotoPicker()
-                    photoPicker.launch(arrayOf("image/*"))
-                }
+                EditPlantEffect.OpenPhotoPicker -> openPlantPhotoPicker()
                 is EditPlantEffect.NavigateToPlantDetails -> onPlantUpdated(effect.plantId)
                 EditPlantEffect.NavigateToPlantsAfterDelete -> onPlantDeleted()
             }
@@ -235,13 +232,20 @@ fun PlantDetailsRoute(
     onPlantDeleted: () -> Unit,
     plantDetailsViewModel: PlantDetailsViewModel = viewModel(),
 ) {
+    val context = LocalContext.current
     val uiState by plantDetailsViewModel.uiState.collectAsStateWithLifecycle()
+    val openHealthNotePhotoPicker = rememberPlantPhotoPicker(
+        context = context,
+        onOpenPhotoPicker = {},
+        onPhotoSelected = plantDetailsViewModel::onHealthNotePhotoSelected,
+    )
 
     LaunchedEffect(plantDetailsViewModel) {
         plantDetailsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantDetailsEffect.NavigateBack -> onBack()
                 PlantDetailsEffect.NavigateToPlantsAfterDelete -> onPlantDeleted()
+                PlantDetailsEffect.OpenHealthNotePhotoPicker -> openHealthNotePhotoPicker()
                 is PlantDetailsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
                 is PlantDetailsEffect.NavigateToCareHistory -> onViewHistory(effect.plantId)
             }
@@ -364,6 +368,69 @@ fun CharactersRoute(
         uiState = uiState,
         onEvent = charactersViewModel::onEvent,
     )
+}
+
+@Composable
+private fun rememberPlantPhotoPicker(
+    context: Context,
+    onOpenPhotoPicker: () -> Unit,
+    onPhotoSelected: (String?) -> Unit,
+): () -> Unit {
+    var showSourceDialog by remember { mutableStateOf(false) }
+    var cropSourceUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            cropSourceUri = uri
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        if (captured) {
+            cameraUri?.let { cropSourceUri = it }
+        }
+        cameraUri = null
+    }
+
+    if (showSourceDialog) {
+        PlantPhotoSourceDialog(
+            onTakePhoto = {
+                showSourceDialog = false
+                runCatching { createPlantCameraImageUri(context) }
+                    .onSuccess { uri ->
+                        cameraUri = uri
+                        cameraLauncher.launch(uri)
+                    }
+            },
+            onChooseImage = {
+                showSourceDialog = false
+                galleryPicker.launch(arrayOf("image/*"))
+            },
+            onDismiss = { showSourceDialog = false },
+        )
+    }
+
+    cropSourceUri?.let { sourceUri ->
+        PlantPhotoCropDialog(
+            sourceUri = sourceUri,
+            onPhotoCropped = { croppedUri ->
+                cropSourceUri = null
+                onPhotoSelected(croppedUri)
+            },
+            onDismiss = { cropSourceUri = null },
+        )
+    }
+
+    return {
+        onOpenPhotoPicker()
+        showSourceDialog = true
+    }
 }
 
 private tailrec fun Context.findActivity(): Activity? =

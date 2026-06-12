@@ -160,11 +160,13 @@ class RoomCareRepository(
         historyId: String,
         mood: HealthMood,
         notes: String,
+        photoUri: String? = null,
     ) {
         careHistoryDao.updateHealthNote(
             historyId = historyId,
             mood = mood,
             notes = notes.trim(),
+            photoUri = photoUri?.trim()?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -173,6 +175,7 @@ class RoomCareRepository(
         mood: HealthMood,
         performedAt: Long = System.currentTimeMillis(),
         notes: String,
+        photoUri: String? = null,
     ) {
         careHistoryDao.insertHistory(
             CareHistoryEntity(
@@ -183,6 +186,7 @@ class RoomCareRepository(
                 healthMood = mood,
                 performedAt = performedAt,
                 notes = notes.trim(),
+                photoUri = photoUri?.trim()?.takeIf { it.isNotBlank() },
                 createdAt = performedAt,
             ),
         )

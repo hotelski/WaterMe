@@ -68,6 +68,7 @@ import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeFloatingActionButton
+import com.hotelski.waterme.feature.common.WaterMeLeafRefreshBox
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
@@ -95,6 +96,7 @@ data class PlantsUiState(
     val favoriteCount: Int = 0,
     val selectedPlantPanels: Map<String, PlantCardPanel> = emptyMap(),
     val activeCharacter: PlantCharacterUiModel? = null,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
@@ -109,6 +111,7 @@ data class PlantsUiState(
 sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
+    data object RefreshPulled : PlantsEvent
     data class PlantClicked(val plantId: String) : PlantsEvent
     data class EditPlantClicked(val plantId: String) : PlantsEvent
     data class FavoriteToggled(val plantId: String, val isFavorite: Boolean) : PlantsEvent
@@ -152,11 +155,16 @@ fun PlantsScreen(
                 WaterMeErrorState(uiState.errorMessage, onRetryClick = { onEvent(PlantsEvent.RetryClicked) })
             }
 
-            else -> PlantsContent(
-                uiState = uiState,
-                onEvent = onEvent,
+            else -> WaterMeLeafRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onEvent(PlantsEvent.RefreshPulled) },
                 modifier = Modifier.padding(innerPadding),
-            )
+            ) {
+                PlantsContent(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                )
+            }
         }
     }
 }

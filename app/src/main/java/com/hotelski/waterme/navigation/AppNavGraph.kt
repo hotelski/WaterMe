@@ -22,6 +22,7 @@ import com.hotelski.waterme.feature.common.CharactersRoute
 import com.hotelski.waterme.feature.common.DonateRoute
 import com.hotelski.waterme.feature.common.EditPlantRoute
 import com.hotelski.waterme.feature.common.FeedbackRoute
+import com.hotelski.waterme.feature.common.GuideRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
@@ -62,6 +63,12 @@ fun AppNavGraph(
             )
         }
 
+        waterMeComposable(WaterMeRoute.Guide.route) {
+            GuideRoute(
+                onBack = navigationActions::back,
+            )
+        }
+
         waterMeComposable(
             route = WaterMeRoute.Legal.route,
             arguments = listOf(navArgument(WaterMeRoute.Legal.DOCUMENT_ARG) { type = NavType.StringType }),
@@ -78,6 +85,7 @@ fun AppNavGraph(
                 onOpenCalendar = navigationActions::navigateToCalendar,
                 onOpenDonate = navigationActions::navigateToDonate,
                 onOpenFeedback = navigationActions::navigateToFeedback,
+                onOpenGuide = navigationActions::navigateToGuide,
                 onOpenPlants = { navigationActions.navigateToTopLevel(TopLevelDestination.Plants) },
             )
         }

@@ -36,6 +36,12 @@ class WaterMeNavigationActions(
         }
     }
 
+    fun navigateToGuide() {
+        navController.navigate(WaterMeRoute.Guide.route) {
+            launchSingleTop = true
+        }
+    }
+
     fun navigateToDonate() {
         navController.navigate(WaterMeRoute.Donate.route) {
             launchSingleTop = true

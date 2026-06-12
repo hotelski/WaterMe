@@ -62,6 +62,7 @@ import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.WaterMeEmptyState
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeIconBadge
+import com.hotelski.waterme.feature.common.WaterMeLeafRefreshBox
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
 import com.hotelski.waterme.feature.common.WaterMePreviewData
@@ -105,6 +106,7 @@ data class CalendarUiState(
     val selectedPlantId: String? = null,
     val plantOptions: List<CalendarPlantFilterUiModel> = emptyList(),
     val activeCharacter: PlantCharacterUiModel? = null,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
@@ -119,6 +121,7 @@ data class CalendarUiState(
 sealed interface CalendarEvent {
     data object ScreenEntered : CalendarEvent
     data object RetryClicked : CalendarEvent
+    data object RefreshPulled : CalendarEvent
     data object TodayClicked : CalendarEvent
     data class DateSelected(val dateMillis: Long) : CalendarEvent
     data class PlantFilterSelected(val plantId: String?) : CalendarEvent
@@ -151,12 +154,17 @@ fun CalendarScreen(
                 WaterMeErrorState(uiState.errorMessage, onRetryClick = { onEvent(CalendarEvent.RetryClicked) })
             }
 
-            else -> CalendarContent(
-                uiState = uiState,
-                onEvent = onEvent,
-                onOpenCalendar = { showDatePicker = true },
+            else -> WaterMeLeafRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onEvent(CalendarEvent.RefreshPulled) },
                 modifier = Modifier.padding(innerPadding),
-            )
+            ) {
+                CalendarContent(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                    onOpenCalendar = { showDatePicker = true },
+                )
+            }
         }
     }
 

@@ -132,7 +132,8 @@ interface CareHistoryDao {
         """
         UPDATE care_history
         SET health_mood = :mood,
-            notes = :notes
+            notes = :notes,
+            photo_uri = :photoUri
         WHERE history_id = :historyId
             AND action = 'HEALTH_NOTE'
         """,
@@ -141,6 +142,7 @@ interface CareHistoryDao {
         historyId: String,
         mood: HealthMood,
         notes: String,
+        photoUri: String?,
     )
 
     @Query("DELETE FROM care_history WHERE history_id = :historyId")

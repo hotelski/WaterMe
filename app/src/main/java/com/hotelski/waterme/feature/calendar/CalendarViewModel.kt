@@ -41,6 +41,7 @@ private data class CalendarActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
+    val isRefreshing: Boolean = false,
 )
 
 private data class CalendarDataState(
@@ -157,6 +158,7 @@ class CalendarViewModel(
             selectedPlantId = plantId,
             plantOptions = plants,
             activeCharacter = character,
+            isRefreshing = action.isRefreshing,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
             heartBurstKey = action.heartBurstKey,
@@ -192,6 +194,7 @@ class CalendarViewModel(
             is CalendarEvent.CompleteTask -> completeTask(event.taskId)
             is CalendarEvent.CharacterCelebrationExpired -> clearCharacterCelebration(event.heartBurstKey)
             CalendarEvent.RetryClicked -> seedDatabase()
+            CalendarEvent.RefreshPulled -> refreshCalendar()
         }
     }
 
@@ -227,6 +230,21 @@ class CalendarViewModel(
             actionState.value = CalendarActionState()
             runCatching { WaterMeAppContainer.seedIfEmpty(appContext) }
                 .onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
+    private fun refreshCalendar() {
+        if (actionState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            actionState.value = CalendarActionState(isRefreshing = true)
+            val result = runCatching {
+                WaterMeAppContainer.seedIfEmpty(appContext)
+                reminderNotifications.syncScheduledReminders()
+            }
+            delay(LEAF_REFRESH_VISIBLE_MILLIS)
+            actionState.value = actionState.value.copy(isRefreshing = false)
+            result.onFailure { showMessage(errorMessage = it.toUserMessage()) }
         }
     }
 
@@ -315,3 +333,4 @@ private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM d")
 private val fullDateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 private val accessibilityDateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d")
 private const val MESSAGE_VISIBLE_MILLIS = 2_400L
+private const val LEAF_REFRESH_VISIBLE_MILLIS = 650L

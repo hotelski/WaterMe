@@ -33,6 +33,7 @@ private data class PlantsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
+    val isRefreshing: Boolean = false,
 )
 
 private data class PlantsFilterState(
@@ -54,6 +55,7 @@ class PlantsViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val searchQuery = MutableStateFlow("")
     private val showFavoritesOnly = MutableStateFlow(false)
@@ -119,6 +121,7 @@ class PlantsViewModel(
             favoriteCount = favoriteCount,
             selectedPlantPanels = selectedPanels,
             activeCharacter = data.activeCharacter,
+            isRefreshing = action.isRefreshing,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
             heartBurstKey = action.heartBurstKey,
@@ -149,6 +152,7 @@ class PlantsViewModel(
             is PlantsEvent.PlantPanelClicked -> togglePlantPanel(event.plantId, event.panel)
             is PlantsEvent.SearchQueryChanged -> updateSearchQuery(event.value)
             PlantsEvent.RetryClicked -> seedDatabase()
+            PlantsEvent.RefreshPulled -> refreshPlants()
         }
     }
 
@@ -194,6 +198,21 @@ class PlantsViewModel(
         }
     }
 
+    private fun refreshPlants() {
+        if (actionState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            actionState.value = PlantsActionState(isRefreshing = true)
+            val result = runCatching {
+                WaterMeAppContainer.seedIfEmpty(appContext)
+                reminderNotifications.syncScheduledReminders()
+            }
+            delay(LEAF_REFRESH_VISIBLE_MILLIS)
+            actionState.value = actionState.value.copy(isRefreshing = false)
+            result.onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
     private fun showMessage(
         successMessage: String? = null,
         errorMessage: String? = null,
@@ -228,5 +247,6 @@ class PlantsViewModel(
     private companion object {
         const val MAX_SEARCH_LENGTH = 80
         const val MESSAGE_VISIBLE_MILLIS = 2_400L
+        const val LEAF_REFRESH_VISIBLE_MILLIS = 650L
     }
 }

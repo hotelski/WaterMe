@@ -162,6 +162,7 @@ object WaterMePreviewData {
             plantName = "Monstera Deliciosa",
             mood = HealthMood.GROWTH,
             dateLabel = "Today",
+            dateTimeLabel = "Today, 9:15 AM",
             note = "New split leaf started unfurling.",
         ),
         HealthNoteUiModel(
@@ -169,6 +170,7 @@ object WaterMePreviewData {
             plantName = "Golden Pothos",
             mood = HealthMood.ATTENTION,
             dateLabel = "Yesterday",
+            dateTimeLabel = "Yesterday, 6:40 PM",
             note = "Two yellow leaves near the base.",
         ),
     )

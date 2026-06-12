@@ -26,6 +26,7 @@ sealed interface HomeEffect {
     data object NavigateToCalendar : HomeEffect
     data object NavigateToDonate : HomeEffect
     data object NavigateToFeedback : HomeEffect
+    data object NavigateToGuide : HomeEffect
     data object NavigateToPlants : HomeEffect
 }
 
@@ -33,6 +34,7 @@ private data class HomeActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val heartBurstKey: Long = 0L,
+    val isRefreshing: Boolean = false,
 )
 
 class HomeViewModel(
@@ -111,6 +113,7 @@ class HomeViewModel(
                 plantsAddedTotal = plants.size,
                 appOpenDayStreak = settings.appOpenDayStreak,
             ),
+            isRefreshing = action.isRefreshing,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
             heartBurstKey = action.heartBurstKey,
@@ -135,8 +138,10 @@ class HomeViewModel(
             TodayEvent.CalendarClicked -> emitEffect(HomeEffect.NavigateToCalendar)
             TodayEvent.DonateClicked -> emitEffect(HomeEffect.NavigateToDonate)
             TodayEvent.FeedbackClicked -> emitEffect(HomeEffect.NavigateToFeedback)
+            TodayEvent.HowToUseClicked -> emitEffect(HomeEffect.NavigateToGuide)
             TodayEvent.MyPlantsClicked -> emitEffect(HomeEffect.NavigateToPlants)
             TodayEvent.RetryClicked -> seedDatabase()
+            TodayEvent.RefreshPulled -> refreshHome()
             is TodayEvent.CompleteTask -> completeTask(event.taskId)
             is TodayEvent.SkipTask -> skipTask(event.taskId)
             is TodayEvent.SnoozeTask -> snoozeTask(event.taskId)
@@ -218,6 +223,25 @@ class HomeViewModel(
         }
     }
 
+    private fun refreshHome() {
+        if (actionState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            actionState.value = HomeActionState(isRefreshing = true)
+            val result = runCatching {
+                WaterMeAppContainer.seedIfEmpty(appContext)
+                reminderNotifications.syncScheduledReminders()
+            }
+            delay(LEAF_REFRESH_VISIBLE_MILLIS)
+            actionState.value = actionState.value.copy(isRefreshing = false)
+            result.onFailure {
+                showMessage(
+                    errorMessage = it.toUserMessage(),
+                )
+            }
+        }
+    }
+
     private fun showMessage(
         successMessage: String? = null,
         errorMessage: String? = null,
@@ -267,5 +291,6 @@ class HomeViewModel(
     private companion object {
         const val SNOOZE_THREE_HOURS_MILLIS = 10_800_000L
         const val MESSAGE_VISIBLE_MILLIS = 2_400L
+        const val LEAF_REFRESH_VISIBLE_MILLIS = 650L
     }
 }

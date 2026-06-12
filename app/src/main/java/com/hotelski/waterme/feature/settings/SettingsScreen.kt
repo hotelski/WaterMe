@@ -59,6 +59,7 @@ import com.hotelski.waterme.feature.characters.PlantCharacterCelebrationCard
 import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.feature.common.WaterMeCard
 import com.hotelski.waterme.feature.common.WaterMeErrorState
+import com.hotelski.waterme.feature.common.WaterMeLeafRefreshBox
 import com.hotelski.waterme.feature.common.WaterMeLoadingState
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.feature.legal.LegalDocument
@@ -82,12 +83,14 @@ data class SettingsUiState(
     val plantCount: Int = 0,
     val showDeleteAllDataConfirmation: Boolean = false,
     val isDeletingAllData: Boolean = false,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
 )
 
 sealed interface SettingsEvent {
     data object RetryClicked : SettingsEvent
+    data object RefreshPulled : SettingsEvent
     data object FeedbackClicked : SettingsEvent
     data object CharactersClicked : SettingsEvent
     data object RequestNotificationPermissionClicked : SettingsEvent
@@ -128,11 +131,16 @@ fun SettingsScreen(
                 WaterMeErrorState(blockingError, onRetryClick = { onEvent(SettingsEvent.RetryClicked) })
             }
 
-            else -> SettingsContent(
-                uiState = uiState,
-                onEvent = onEvent,
+            else -> WaterMeLeafRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { onEvent(SettingsEvent.RefreshPulled) },
                 modifier = Modifier.padding(innerPadding),
-            )
+            ) {
+                SettingsContent(
+                    uiState = uiState,
+                    onEvent = onEvent,
+                )
+            }
         }
     }
 }

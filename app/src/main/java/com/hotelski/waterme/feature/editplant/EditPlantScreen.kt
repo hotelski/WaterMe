@@ -238,7 +238,7 @@ private fun PlantProfileCard(
                         icon = Icons.Rounded.PhotoCamera,
                     )
                     Text(
-                        "Update notes, photo, and care schedule.",
+                        "Update notes, plant photo, and care schedule.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

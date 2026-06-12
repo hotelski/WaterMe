@@ -14,6 +14,7 @@ import com.hotelski.waterme.data.local.model.PlantWithDetails
 import com.hotelski.waterme.feature.common.toCareHistoryUiModel
 import com.hotelski.waterme.feature.common.toCareTaskUiModel
 import com.hotelski.waterme.feature.common.toHealthNoteUiModel
+import com.hotelski.waterme.feature.common.toNoteDateTimeLabel
 import com.hotelski.waterme.feature.common.toPlantDetailsUiModel
 import com.hotelski.waterme.feature.common.toReminderUiModel
 import com.hotelski.waterme.feature.characters.activePlantCharacter
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 sealed interface PlantDetailsEffect {
     data object NavigateBack : PlantDetailsEffect
     data object NavigateToPlantsAfterDelete : PlantDetailsEffect
+    data object OpenHealthNotePhotoPicker : PlantDetailsEffect
     data class NavigateToEditPlant(val plantId: String) : PlantDetailsEffect
     data class NavigateToCareHistory(val plantId: String) : PlantDetailsEffect
 }
@@ -41,6 +43,8 @@ sealed interface PlantDetailsEffect {
 private data class HealthNoteDraftState(
     val note: String = "",
     val mood: HealthMood = HealthMood.ATTENTION,
+    val photoUri: String? = null,
+    val performedAtMillis: Long = System.currentTimeMillis(),
     val editingNoteId: String? = null,
 )
 
@@ -135,6 +139,8 @@ class PlantDetailsViewModel(
                 .map { it.toHealthNoteUiModel(plantUi?.name.orEmpty()) },
             healthNoteDraft = draft.note,
             selectedHealthMood = draft.mood,
+            healthNotePhotoUri = draft.photoUri,
+            healthNoteDateTimeLabel = draft.performedAtMillis.toNoteDateTimeLabel(),
             editingHealthNoteId = draft.editingNoteId,
             activeCharacter = character,
             isDeleting = action.isDeleting,
@@ -160,6 +166,8 @@ class PlantDetailsViewModel(
             PlantDetailsEvent.DismissDeleteClicked -> actionState.update { it.copy(showDeleteConfirmation = false) }
             PlantDetailsEvent.ConfirmDeleteClicked -> deletePlant()
             PlantDetailsEvent.AddHealthNoteClicked -> addHealthNote()
+            PlantDetailsEvent.ChooseHealthNotePhotoClicked -> emitEffect(PlantDetailsEffect.OpenHealthNotePhotoPicker)
+            PlantDetailsEvent.RemoveHealthNotePhotoClicked -> healthDraft.update { it.copy(photoUri = null) }
             PlantDetailsEvent.CancelHealthNoteEditClicked -> {
                 healthDraft.value = HealthNoteDraftState(mood = healthDraft.value.mood)
                 actionState.value = PlantDetailsActionState()
@@ -171,12 +179,15 @@ class PlantDetailsViewModel(
                 healthDraft.value = HealthNoteDraftState(
                     note = event.note,
                     mood = event.mood,
+                    photoUri = event.photoUri,
+                    performedAtMillis = event.performedAtMillis,
                     editingNoteId = event.noteId,
                 )
                 actionState.value = PlantDetailsActionState()
             }
             is PlantDetailsEvent.DeleteHealthNoteClicked -> deleteHealthNote(event.noteId)
             is PlantDetailsEvent.HealthNoteChanged -> updateHealthNote(event.value)
+            is PlantDetailsEvent.HealthNotePhotoSelected -> updateHealthNotePhoto(event.uri)
             is PlantDetailsEvent.HealthMoodSelected -> healthDraft.update { it.copy(mood = event.mood) }
             PlantDetailsEvent.RetryClicked -> actionState.value = PlantDetailsActionState()
         }
@@ -245,6 +256,19 @@ class PlantDetailsViewModel(
         }
     }
 
+    fun onHealthNotePhotoSelected(uri: String?) {
+        updateHealthNotePhoto(uri)
+    }
+
+    private fun updateHealthNotePhoto(uri: String?) {
+        healthDraft.update {
+            it.copy(
+                photoUri = uri?.takeIf { value -> value.isNotBlank() },
+            )
+        }
+        actionState.value = PlantDetailsActionState()
+    }
+
     private fun addHealthNote() {
         val draft = healthDraft.value
         if (draft.note.isBlank()) {
@@ -255,17 +279,25 @@ class PlantDetailsViewModel(
         viewModelScope.launch {
             runCatching {
                 val editingNoteId = draft.editingNoteId
+                val performedAt = if (editingNoteId == null) {
+                    System.currentTimeMillis()
+                } else {
+                    draft.performedAtMillis
+                }
                 if (editingNoteId == null) {
                     careRepository.logHealthNote(
                         plantId = plantId,
                         mood = draft.mood,
+                        performedAt = performedAt,
                         notes = draft.note,
+                        photoUri = draft.photoUri,
                     )
                 } else {
                     careRepository.updateHealthNote(
                         historyId = editingNoteId,
                         mood = draft.mood,
                         notes = draft.note,
+                        photoUri = draft.photoUri,
                     )
                 }
             }

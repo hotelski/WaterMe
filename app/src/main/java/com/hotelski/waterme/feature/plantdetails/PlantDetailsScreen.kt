@@ -3,6 +3,7 @@ package com.hotelski.waterme.feature.plantdetails
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Park
 import androidx.compose.material.icons.rounded.Spa
@@ -102,6 +104,8 @@ data class PlantDetailsUiState(
     val healthNotes: List<HealthNoteUiModel> = emptyList(),
     val healthNoteDraft: String = "",
     val selectedHealthMood: HealthMood = HealthMood.ATTENTION,
+    val healthNotePhotoUri: String? = null,
+    val healthNoteDateTimeLabel: String = "",
     val editingHealthNoteId: String? = null,
     val activeCharacter: PlantCharacterUiModel? = null,
     val isDeleting: Boolean = false,
@@ -129,14 +133,23 @@ sealed interface PlantDetailsEvent {
     data object DismissDeleteClicked : PlantDetailsEvent
     data object ViewAllHistoryClicked : PlantDetailsEvent
     data object AddHealthNoteClicked : PlantDetailsEvent
+    data object ChooseHealthNotePhotoClicked : PlantDetailsEvent
+    data object RemoveHealthNotePhotoClicked : PlantDetailsEvent
     data object CancelHealthNoteEditClicked : PlantDetailsEvent
     data object RetryClicked : PlantDetailsEvent
     data class CompleteTask(val taskId: String) : PlantDetailsEvent
     data class SkipTask(val taskId: String) : PlantDetailsEvent
     data class SnoozeTask(val taskId: String) : PlantDetailsEvent
-    data class EditHealthNoteClicked(val noteId: String, val note: String, val mood: HealthMood) : PlantDetailsEvent
+    data class EditHealthNoteClicked(
+        val noteId: String,
+        val note: String,
+        val mood: HealthMood,
+        val photoUri: String?,
+        val performedAtMillis: Long,
+    ) : PlantDetailsEvent
     data class DeleteHealthNoteClicked(val noteId: String) : PlantDetailsEvent
     data class HealthNoteChanged(val value: String) : PlantDetailsEvent
+    data class HealthNotePhotoSelected(val uri: String?) : PlantDetailsEvent
     data class HealthMoodSelected(val mood: HealthMood) : PlantDetailsEvent
 }
 
@@ -266,6 +279,8 @@ private fun PlantDetailsContent(
                     healthNotes = uiState.healthNotes,
                     draft = uiState.healthNoteDraft,
                     selectedMood = uiState.selectedHealthMood,
+                    selectedPhotoUri = uiState.healthNotePhotoUri,
+                    dateTimeLabel = uiState.healthNoteDateTimeLabel,
                     editingNoteId = uiState.editingHealthNoteId,
                     character = uiState.activeCharacter,
                     successMessage = uiState.successMessage,
@@ -314,33 +329,50 @@ private fun PlantHeroCard(
 
     WaterMePremiumCard(
         modifier = Modifier.animateContentSize(),
-        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
         accentColor = healthColor,
-        shape = RoundedCornerShape(34.dp),
+        shape = RoundedCornerShape(28.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            val imageShape = RoundedCornerShape(24.dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(210.dp)
-                    .clip(RoundedCornerShape(30.dp))
+                    .height(236.dp)
+                    .clip(imageShape)
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                LeafGreen.copy(alpha = 0.18f),
-                                healthColor.copy(alpha = 0.12f),
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
+                                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
                             ),
                         ),
-                    ),
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f),
+                        shape = imageShape,
+                    )
+                    .clickable { showPhotoPreview = true },
                 contentAlignment = Alignment.Center,
             ) {
                 PlantPhotoTile(
                     photoUri = plant.primaryPhotoUri,
                     plantName = plant.name,
-                    modifier = Modifier.clickable { showPhotoPreview = true },
-                    size = 210.dp,
+                    size = 236.dp,
                     fillContainer = true,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.10f),
+                                ),
+                            ),
+                        ),
                 )
                 DetailsMetaPill(
                     label = plant.environment.detailsLabel(),
@@ -348,11 +380,11 @@ private fun PlantHeroCard(
                     color = LeafGreen,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(14.dp),
+                        .padding(12.dp),
                 )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = plant.name,
                     style = MaterialTheme.typography.headlineSmall,
@@ -363,7 +395,7 @@ private fun PlantHeroCard(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DetailsMetricTile("${plant.reminderCount}", "reminders", Icons.Rounded.Event, LeafGreen, Modifier.weight(1f))
                 DetailsMetricTile("${plant.careHistoryCount}", "logs", Icons.Rounded.History, Clay, Modifier.weight(1f))
             }
@@ -426,7 +458,7 @@ private fun PlantPhotoPreviewDialog(
                 PlantPhotoTile(
                     photoUri = plant.primaryPhotoUri,
                     plantName = plant.name,
-                    size = 280.dp,
+                    size = 340.dp,
                 )
             }
         },
@@ -445,15 +477,16 @@ private fun DetailsMetaPill(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+            .border(1.dp, Color.White.copy(alpha = 0.74f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(15.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
@@ -472,26 +505,27 @@ private fun DetailsMetricTile(
 ) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 11.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(color.copy(alpha = 0.13f)),
+                .size(30.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(color.copy(alpha = 0.11f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
         }
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Bold,
                 color = color,
                 maxLines = 1,
             )
@@ -633,6 +667,8 @@ private fun NotesSection(
     healthNotes: List<HealthNoteUiModel>,
     draft: String,
     selectedMood: HealthMood,
+    selectedPhotoUri: String?,
+    dateTimeLabel: String,
     editingNoteId: String?,
     character: PlantCharacterUiModel?,
     successMessage: String?,
@@ -660,6 +696,8 @@ private fun NotesSection(
         HealthNoteComposer(
             draft = draft,
             selectedMood = selectedMood,
+            selectedPhotoUri = selectedPhotoUri,
+            dateTimeLabel = dateTimeLabel,
             isEditing = editingNoteId != null,
             onEvent = onEvent,
         )
@@ -690,6 +728,8 @@ private fun NotesSection(
                                 noteId = note.id,
                                 note = note.note,
                                 mood = note.mood,
+                                photoUri = note.photoUri,
+                                performedAtMillis = note.performedAtMillis,
                             ),
                         )
                     },
@@ -704,6 +744,8 @@ private fun NotesSection(
 private fun HealthNoteComposer(
     draft: String,
     selectedMood: HealthMood,
+    selectedPhotoUri: String?,
+    dateTimeLabel: String,
     isEditing: Boolean,
     onEvent: (PlantDetailsEvent) -> Unit,
 ) {
@@ -747,6 +789,11 @@ private fun HealthNoteComposer(
                 minLines = 2,
                 shape = RoundedCornerShape(20.dp),
             )
+            HealthNotePhotoPickerRow(
+                photoUri = selectedPhotoUri,
+                onChoosePhoto = { onEvent(PlantDetailsEvent.ChooseHealthNotePhotoClicked) },
+                onRemovePhoto = { onEvent(PlantDetailsEvent.RemoveHealthNotePhotoClicked) },
+            )
             WaterMePrimaryButton(
                 label = if (isEditing) "Save note" else "Add note",
                 onClick = { onEvent(PlantDetailsEvent.AddHealthNoteClicked) },
@@ -762,11 +809,68 @@ private fun HealthNoteComposer(
 }
 
 @Composable
+private fun HealthNotePhotoPickerRow(
+    photoUri: String?,
+    onChoosePhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedButton(
+            onClick = onChoosePhoto,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Icon(Icons.Rounded.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (photoUri.isNullOrBlank()) "Add photo" else "Change photo")
+        }
+        if (!photoUri.isNullOrBlank()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlantPhotoTile(
+                    photoUri = photoUri,
+                    plantName = "Health note",
+                    size = 92.dp,
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "Photo attached",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "This image will be saved with the note.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onRemovePhoto) {
+                        Text("Remove photo")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun EditableHealthNoteRow(
     note: HealthNoteUiModel,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var previewPhotoUri by rememberSaveable(note.id) { mutableStateOf<String?>(null) }
+
+    previewPhotoUri?.let { photoUri ->
+        HealthNotePhotoPreviewDialog(
+            photoUri = photoUri,
+            plantName = note.plantName,
+            onDismiss = { previewPhotoUri = null },
+        )
+    }
+
     WaterMeCard {
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -796,12 +900,30 @@ private fun EditableHealthNoteRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${note.mood.label()} - ${note.dateLabel}",
+                    text = "${note.mood.label()} - ${note.dateTimeLabel}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (!note.photoUri.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier.padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlantPhotoTile(
+                            photoUri = note.photoUri,
+                            plantName = note.plantName,
+                            modifier = Modifier.clickable { previewPhotoUri = note.photoUri },
+                            size = 58.dp,
+                        )
+                        StatusPill(
+                            label = "Photo",
+                            color = LeafGreen,
+                        )
+                    }
+                }
             }
 
             IconButton(onClick = onEdit, modifier = Modifier.size(38.dp)) {
@@ -812,6 +934,45 @@ private fun EditableHealthNoteRow(
             }
         }
     }
+}
+
+@Composable
+private fun HealthNotePhotoPreviewDialog(
+    photoUri: String,
+    plantName: String,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        title = {
+            Text(
+                text = "Health note photo",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                PlantPhotoTile(
+                    photoUri = photoUri,
+                    plantName = plantName,
+                    size = 280.dp,
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(30.dp),
+    )
 }
 
 @Composable
@@ -1150,4 +1311,5 @@ private fun plantDetailsPreviewState(): PlantDetailsUiState =
         healthNotes = WaterMePreviewData.healthNotes,
         healthNoteDraft = "Two leaves look a little dry near the window.",
         selectedHealthMood = HealthMood.ATTENTION,
+        healthNoteDateTimeLabel = "Today, 9:15 AM",
     )

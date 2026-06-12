@@ -19,6 +19,10 @@ sealed interface WaterMeRoute {
         override val route = "feedback"
     }
 
+    data object Guide : WaterMeRoute {
+        override val route = "guide"
+    }
+
     data object Legal : WaterMeRoute {
         const val DOCUMENT_ARG = "document"
         override val route = "legal/{$DOCUMENT_ARG}"

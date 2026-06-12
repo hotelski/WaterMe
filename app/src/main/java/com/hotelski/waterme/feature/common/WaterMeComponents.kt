@@ -1,6 +1,7 @@
 package com.hotelski.waterme.feature.common
 
-import android.graphics.BitmapFactory
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Compost
 import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Refresh
@@ -44,7 +47,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +58,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,8 +78,6 @@ import com.hotelski.waterme.ui.theme.FreshGreen
 import com.hotelski.waterme.ui.theme.LeafGreen
 import com.hotelski.waterme.ui.theme.MistBlue
 import com.hotelski.waterme.ui.theme.WaterMeTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +93,9 @@ fun WaterMeTopBar(
     secondaryActionIcon: ImageVector? = null,
     secondaryActionContentDescription: String? = null,
     onSecondaryActionClick: (() -> Unit)? = null,
+    tertiaryActionIcon: ImageVector? = null,
+    tertiaryActionContentDescription: String? = null,
+    onTertiaryActionClick: (() -> Unit)? = null,
 ) {
     TopAppBar(
         title = {
@@ -107,6 +115,11 @@ fun WaterMeTopBar(
             }
         },
         actions = {
+            if (tertiaryActionIcon != null && onTertiaryActionClick != null) {
+                IconButton(onClick = onTertiaryActionClick) {
+                    Icon(tertiaryActionIcon, contentDescription = tertiaryActionContentDescription)
+                }
+            }
             if (secondaryActionIcon != null && onSecondaryActionClick != null) {
                 IconButton(onClick = onSecondaryActionClick) {
                     Icon(secondaryActionIcon, contentDescription = secondaryActionContentDescription)
@@ -126,6 +139,106 @@ fun WaterMeTopBar(
         ),
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WaterMeLeafRefreshBox(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val pullToRefreshState = rememberPullToRefreshState()
+    val progress = if (isRefreshing) 1f else pullToRefreshState.distanceFraction.coerceIn(0f, 1f)
+    val contentOffset by animateDpAsState(
+        targetValue = LeafRefreshSpaceHeight * progress,
+        label = "leafRefreshContentOffset",
+    )
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier,
+        state = pullToRefreshState,
+        indicator = {
+            WaterMeLeafRefreshIndicator(
+                isRefreshing = isRefreshing,
+                distanceFraction = pullToRefreshState.distanceFraction,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        },
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = contentOffset),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun WaterMeLeafRefreshIndicator(
+    isRefreshing: Boolean,
+    distanceFraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    val progress = if (isRefreshing) 1f else distanceFraction.coerceIn(0f, 1f)
+
+    AnimatedVisibility(
+        visible = isRefreshing || distanceFraction > 0f,
+        modifier = modifier.padding(top = 5.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .graphicsLayer {
+                        alpha = (0.24f + progress * 0.76f).coerceIn(0f, 1f)
+                        scaleX = 0.68f + progress * 0.32f
+                        scaleY = 0.68f + progress * 0.32f
+                        translationY = -8f + progress * 5f
+                    }
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                    .border(1.dp, LeafGreen.copy(alpha = 0.22f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Eco,
+                    contentDescription = "Refresh",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .graphicsLayer {
+                            rotationZ = if (isRefreshing) 10f else -26f + progress * 36f
+                        },
+                    tint = LeafGreen,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(3) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .graphicsLayer {
+                                alpha = (0.22f + progress * (0.42f + index * 0.1f)).coerceIn(0f, 1f)
+                            }
+                            .clip(CircleShape)
+                            .background(LeafGreen.copy(alpha = 0.72f)),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val LeafRefreshSpaceHeight = 58.dp
 
 @Composable
 fun WaterMeCard(
@@ -357,11 +470,11 @@ fun PlantPhotoTile(
     fillContainer: Boolean = false,
 ) {
     val imageBitmap = rememberPlantImageBitmap(photoUri)
-    val shape = RoundedCornerShape(size * 0.28f)
+    val shape = if (fillContainer) RoundedCornerShape(24.dp) else RoundedCornerShape(size * 0.28f)
     Box(
         modifier = (if (fillContainer) modifier.fillMaxSize() else modifier.size(size))
             .shadow(
-                elevation = 8.dp,
+                elevation = if (fillContainer) 0.dp else 8.dp,
                 shape = shape,
                 ambientColor = LeafGreen.copy(alpha = 0.16f),
                 spotColor = LeafGreen.copy(alpha = 0.12f),
@@ -483,13 +596,7 @@ private fun rememberPlantImageBitmap(photoUri: String?): ImageBitmap? {
         value = if (photoUri.isNullOrBlank()) {
             null
         } else {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver
-                        .openInputStream(photoUri.toUri())
-                        ?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
-                }.getOrNull()
-            }
+            loadPlantPhotoBitmap(context, photoUri.toUri())?.asImageBitmap()
         }
     }
     return imageState.value

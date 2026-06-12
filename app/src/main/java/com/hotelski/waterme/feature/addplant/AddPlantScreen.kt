@@ -323,7 +323,7 @@ private fun ImageUploadPanel(
                     icon = Icons.Rounded.PhotoCamera,
                 )
                 Text(
-                    text = "Add a thumbnail for a richer plant card.",
+                    text = "Take or choose a photo for the plant card.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -333,7 +333,7 @@ private fun ImageUploadPanel(
                 ) {
                     Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (photoUri == null) "Choose photo" else "Change photo")
+                    Text(if (photoUri == null) "Add photo" else "Change photo")
                 }
             }
         }

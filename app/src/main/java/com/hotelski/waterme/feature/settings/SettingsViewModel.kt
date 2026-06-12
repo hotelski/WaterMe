@@ -37,6 +37,7 @@ sealed interface SettingsEffect {
 private data class SettingsActionState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
+    val isRefreshing: Boolean = false,
     val showDeleteAllDataConfirmation: Boolean = false,
     val isDeletingAllData: Boolean = false,
 )
@@ -87,6 +88,7 @@ class SettingsViewModel(
             plantCount = plants.size,
             showDeleteAllDataConfirmation = action.showDeleteAllDataConfirmation,
             isDeletingAllData = action.isDeletingAllData,
+            isRefreshing = action.isRefreshing,
             errorMessage = action.errorMessage,
             successMessage = action.successMessage,
         )
@@ -116,6 +118,7 @@ class SettingsViewModel(
             SettingsEvent.DismissDeleteAllDataClicked -> actionState.value = actionState.value.copy(showDeleteAllDataConfirmation = false)
             SettingsEvent.ConfirmDeleteAllDataClicked -> deleteAllData()
             SettingsEvent.RetryClicked -> seedDatabase()
+            SettingsEvent.RefreshPulled -> refreshSettings()
         }
     }
 
@@ -240,6 +243,21 @@ class SettingsViewModel(
         }
     }
 
+    private fun refreshSettings() {
+        if (actionState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            actionState.value = SettingsActionState(isRefreshing = true)
+            val result = runCatching {
+                WaterMeAppContainer.seedIfEmpty(appContext)
+                reminderNotifications.syncScheduledReminders()
+            }
+            delay(LeafRefreshVisibleMillis)
+            actionState.value = actionState.value.copy(isRefreshing = false)
+            result.onFailure { showMessage(errorMessage = it.toUserMessage()) }
+        }
+    }
+
     private fun emitEffect(effect: SettingsEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
@@ -265,5 +283,6 @@ class SettingsViewModel(
     private companion object {
         val timestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a")
         const val SuccessMessageVisibleMillis = 2_400L
+        const val LeafRefreshVisibleMillis = 650L
     }
 }
