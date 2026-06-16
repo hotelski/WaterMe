@@ -54,8 +54,20 @@ class WaterMeNavigationActions(
         }
     }
 
-    fun navigateToAddPlant() {
-        navController.navigate(WaterMeRoute.AddPlant.route)
+    fun navigateToAddPlant(
+        prefillName: String? = null,
+        prefillPhotoUri: String? = null,
+    ) {
+        navController.navigate(
+            WaterMeRoute.AddPlant.createRoute(
+                prefillName = prefillName,
+                prefillPhotoUri = prefillPhotoUri,
+            ),
+        )
+    }
+
+    fun navigateToPlantScanner() {
+        navController.navigate(WaterMeRoute.PlantScanner.route)
     }
 
     fun navigateToPlantDetails(plantId: String, builder: NavOptionsBuilder.() -> Unit = {}) {

@@ -40,6 +40,10 @@ import com.hotelski.waterme.feature.feedback.FeedbackViewModel
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsEffect
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsScreen
 import com.hotelski.waterme.feature.plantdetails.PlantDetailsViewModel
+import com.hotelski.waterme.feature.plantscanner.PlantScannerEffect
+import com.hotelski.waterme.feature.plantscanner.PlantScannerEvent
+import com.hotelski.waterme.feature.plantscanner.PlantScannerScreen
+import com.hotelski.waterme.feature.plantscanner.PlantScannerViewModel
 import com.hotelski.waterme.feature.plants.PlantsEffect
 import com.hotelski.waterme.feature.plants.PlantsScreen
 import com.hotelski.waterme.feature.plants.PlantsViewModel
@@ -129,6 +133,7 @@ fun FeedbackRoute(
 @Composable
 fun PlantsRoute(
     onAddPlant: () -> Unit,
+    onOpenPlantScanner: () -> Unit,
     onOpenPlant: (String) -> Unit,
     onEditPlant: (String) -> Unit,
     pendingSuccessMessage: String? = null,
@@ -148,6 +153,7 @@ fun PlantsRoute(
         plantsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantsEffect.NavigateToAddPlant -> onAddPlant()
+                PlantsEffect.NavigateToPlantScanner -> onOpenPlantScanner()
                 is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
                 is PlantsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
             }
@@ -161,10 +167,92 @@ fun PlantsRoute(
 }
 
 @Composable
+fun PlantScannerRoute(
+    onBack: () -> Unit,
+    onSaveToPlants: (String, String) -> Unit,
+    plantScannerViewModel: PlantScannerViewModel = viewModel(),
+) {
+    val context = LocalContext.current
+    val uiState by plantScannerViewModel.uiState.collectAsStateWithLifecycle()
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cropSourceUri by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            cropSourceUri = uri
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        if (captured) {
+            cameraUri?.let { cropSourceUri = it }
+        }
+        cameraUri = null
+    }
+
+    LaunchedEffect(plantScannerViewModel) {
+        plantScannerViewModel.effects.collect { effect ->
+            when (effect) {
+                PlantScannerEffect.NavigateBack -> onBack()
+                is PlantScannerEffect.NavigateToAddPlant -> onSaveToPlants(effect.name, effect.photoUri)
+                PlantScannerEffect.OpenGallery -> {
+                    runCatching { galleryPicker.launch(arrayOf("image/*")) }
+                        .onFailure {
+                            plantScannerViewModel.onEvent(
+                                PlantScannerEvent.PhotoLaunchFailed("WaterMe could not open the gallery."),
+                            )
+                        }
+                }
+                PlantScannerEffect.OpenCamera -> {
+                    runCatching { createPlantCameraImageUri(context) }
+                        .onSuccess { uri ->
+                            cameraUri = uri
+                            runCatching { cameraLauncher.launch(uri) }
+                                .onFailure {
+                                    plantScannerViewModel.onEvent(
+                                        PlantScannerEvent.PhotoLaunchFailed("WaterMe could not open the camera."),
+                                    )
+                                }
+                        }
+                        .onFailure {
+                            plantScannerViewModel.onEvent(
+                                PlantScannerEvent.PhotoLaunchFailed("WaterMe could not open the camera."),
+                            )
+                        }
+                }
+            }
+        }
+    }
+
+    cropSourceUri?.let { sourceUri ->
+        PlantPhotoCropDialog(
+            sourceUri = sourceUri,
+            onPhotoCropped = { croppedUri ->
+                cropSourceUri = null
+                plantScannerViewModel.onEvent(PlantScannerEvent.ImageSelected(croppedUri))
+            },
+            onDismiss = { cropSourceUri = null },
+        )
+    }
+
+    PlantScannerScreen(
+        uiState = uiState,
+        onEvent = plantScannerViewModel::onEvent,
+    )
+}
+
+@Composable
 fun AddPlantRoute(
     onBack: () -> Unit,
     onOpenPhotoPicker: () -> Unit,
     onPlantCreated: (String) -> Unit,
+    prefillName: String? = null,
+    prefillPhotoUri: String? = null,
     addPlantViewModel: AddPlantViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -174,6 +262,13 @@ fun AddPlantRoute(
         onOpenPhotoPicker = onOpenPhotoPicker,
         onPhotoSelected = addPlantViewModel::onPhotoSelected,
     )
+
+    LaunchedEffect(prefillName, prefillPhotoUri) {
+        addPlantViewModel.applyPrefill(
+            name = prefillName,
+            photoUri = prefillPhotoUri,
+        )
+    }
 
     LaunchedEffect(addPlantViewModel) {
         addPlantViewModel.effects.collect { effect ->

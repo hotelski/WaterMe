@@ -25,6 +25,7 @@ import com.hotelski.waterme.feature.common.FeedbackRoute
 import com.hotelski.waterme.feature.common.GuideRoute
 import com.hotelski.waterme.feature.common.HomeRoute
 import com.hotelski.waterme.feature.common.PlantDetailsRoute
+import com.hotelski.waterme.feature.common.PlantScannerRoute
 import com.hotelski.waterme.feature.common.PlantsRoute
 import com.hotelski.waterme.feature.common.SettingsRoute
 import com.hotelski.waterme.feature.common.WaterMePreviewData
@@ -81,7 +82,7 @@ fun AppNavGraph(
 
         waterMeComposable(WaterMeRoute.Today.route) {
             HomeRoute(
-                onAddPlant = navigationActions::navigateToAddPlant,
+                onAddPlant = { navigationActions.navigateToAddPlant() },
                 onOpenCalendar = navigationActions::navigateToCalendar,
                 onOpenDonate = navigationActions::navigateToDonate,
                 onOpenFeedback = navigationActions::navigateToFeedback,
@@ -96,7 +97,8 @@ fun AppNavGraph(
                 .collectAsStateWithLifecycle()
 
             PlantsRoute(
-                onAddPlant = navigationActions::navigateToAddPlant,
+                onAddPlant = { navigationActions.navigateToAddPlant() },
+                onOpenPlantScanner = navigationActions::navigateToPlantScanner,
                 onOpenPlant = navigationActions::navigateToPlantDetails,
                 onEditPlant = navigationActions::navigateToEditPlant,
                 pendingSuccessMessage = pendingSuccessMessage,
@@ -106,11 +108,39 @@ fun AppNavGraph(
             )
         }
 
-        waterMeComposable(WaterMeRoute.AddPlant.route) {
+        waterMeComposable(
+            route = WaterMeRoute.AddPlant.route,
+            arguments = listOf(
+                navArgument(WaterMeRoute.AddPlant.PREFILL_NAME_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(WaterMeRoute.AddPlant.PREFILL_PHOTO_URI_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { entry ->
             AddPlantRoute(
                 onBack = navigationActions::back,
                 onOpenPhotoPicker = {},
                 onPlantCreated = navigationActions::onPlantSaved,
+                prefillName = entry.arguments?.getString(WaterMeRoute.AddPlant.PREFILL_NAME_ARG),
+                prefillPhotoUri = entry.arguments?.getString(WaterMeRoute.AddPlant.PREFILL_PHOTO_URI_ARG),
+            )
+        }
+
+        waterMeComposable(WaterMeRoute.PlantScanner.route) {
+            PlantScannerRoute(
+                onBack = navigationActions::back,
+                onSaveToPlants = { name, photoUri ->
+                    navigationActions.navigateToAddPlant(
+                        prefillName = name,
+                        prefillPhotoUri = photoUri,
+                    )
+                },
             )
         }
 

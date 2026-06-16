@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Home
@@ -110,6 +111,7 @@ data class PlantsUiState(
 
 sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
+    data object PlantScannerClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
     data object RefreshPulled : PlantsEvent
     data class PlantClicked(val plantId: String) : PlantsEvent
@@ -138,15 +140,25 @@ fun PlantsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { WaterMeTopBar(title = "My Plants") },
         floatingActionButton = {
-            WaterMeFloatingActionButton(
-                onClick = { onEvent(PlantsEvent.AddPlantClicked) },
-                icon = Icons.Rounded.Add,
-                contentDescription = "Add plant",
-                modifier = Modifier.graphicsLayer {
-                    scaleX = fabScale
-                    scaleY = fabScale
-                },
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                WaterMeFloatingActionButton(
+                    onClick = { onEvent(PlantsEvent.PlantScannerClicked) },
+                    icon = Icons.Rounded.AutoAwesome,
+                    contentDescription = "Scan plant",
+                )
+                WaterMeFloatingActionButton(
+                    onClick = { onEvent(PlantsEvent.AddPlantClicked) },
+                    icon = Icons.Rounded.Add,
+                    contentDescription = "Add plant",
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = fabScale
+                        scaleY = fabScale
+                    },
+                )
+            }
         },
     ) { innerPadding ->
         when {

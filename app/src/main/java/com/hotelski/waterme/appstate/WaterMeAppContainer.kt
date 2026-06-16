@@ -7,6 +7,8 @@ import com.hotelski.waterme.data.feedback.FeedbackRepository
 import com.hotelski.waterme.data.feedback.HttpFeedbackRepository
 import com.hotelski.waterme.data.local.WaterMeDatabase
 import com.hotelski.waterme.data.local.WaterMeSeedData
+import com.hotelski.waterme.data.plantnet.PlantIdentificationRepository
+import com.hotelski.waterme.data.plantnet.PlantNetPlantIdentificationRepository
 import com.hotelski.waterme.data.preferences.SettingsDataStoreManager
 import com.hotelski.waterme.data.repository.RoomCareRepository
 import com.hotelski.waterme.data.repository.RoomPlantRepository
@@ -25,6 +27,8 @@ object WaterMeAppContainer {
     private var settingsDataStoreInstance: SettingsDataStoreManager? = null
     @Volatile
     private var feedbackRepositoryInstance: FeedbackRepository? = null
+    @Volatile
+    private var plantIdentificationRepositoryInstance: PlantIdentificationRepository? = null
     @Volatile
     private var billingRepositoryInstance: BillingRepository? = null
 
@@ -60,6 +64,14 @@ object WaterMeAppContainer {
     fun feedbackRepository(): FeedbackRepository =
         feedbackRepositoryInstance ?: synchronized(this) {
             feedbackRepositoryInstance ?: HttpFeedbackRepository().also { feedbackRepositoryInstance = it }
+        }
+
+    fun plantIdentificationRepository(context: Context): PlantIdentificationRepository =
+        plantIdentificationRepositoryInstance ?: synchronized(this) {
+            plantIdentificationRepositoryInstance
+                ?: PlantNetPlantIdentificationRepository(context).also {
+                    plantIdentificationRepositoryInstance = it
+                }
         }
 
     fun billingRepository(context: Context): BillingRepository =

@@ -41,7 +41,33 @@ sealed interface WaterMeRoute {
     }
 
     data object AddPlant : WaterMeRoute {
-        override val route = "plants/add"
+        const val BASE_ROUTE = "plants/add"
+        const val PREFILL_NAME_ARG = "prefillName"
+        const val PREFILL_PHOTO_URI_ARG = "prefillPhotoUri"
+        override val route = "$BASE_ROUTE?$PREFILL_NAME_ARG={$PREFILL_NAME_ARG}&$PREFILL_PHOTO_URI_ARG={$PREFILL_PHOTO_URI_ARG}"
+
+        fun createRoute(
+            prefillName: String? = null,
+            prefillPhotoUri: String? = null,
+        ): String {
+            val queryParameters = buildList {
+                prefillName?.takeIf { it.isNotBlank() }?.let {
+                    add("$PREFILL_NAME_ARG=${Uri.encode(it)}")
+                }
+                prefillPhotoUri?.takeIf { it.isNotBlank() }?.let {
+                    add("$PREFILL_PHOTO_URI_ARG=${Uri.encode(it)}")
+                }
+            }
+            return if (queryParameters.isEmpty()) {
+                BASE_ROUTE
+            } else {
+                "$BASE_ROUTE?${queryParameters.joinToString("&")}"
+            }
+        }
+    }
+
+    data object PlantScanner : WaterMeRoute {
+        override val route = "plants/scanner"
     }
 
     data object PlantDetails : WaterMeRoute {

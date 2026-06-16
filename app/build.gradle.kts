@@ -8,6 +8,13 @@ plugins {
 }
 
 val feedbackEndpointUrl = providers.gradleProperty("waterMeFeedbackEndpoint").orElse("").get()
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties().apply {
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+val plantNetApiKey = localProperties.getProperty("PLANTNET_API_KEY").orEmpty()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -37,6 +44,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "FEEDBACK_ENDPOINT_URL", feedbackEndpointUrl.asBuildConfigString())
+        buildConfigField("String", "PLANTNET_API_KEY", plantNetApiKey.asBuildConfigString())
     }
 
     signingConfigs {
@@ -93,6 +101,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.google.play.billing.ktx)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.animation)

@@ -121,6 +121,30 @@ class AddPlantViewModel(
         }
     }
 
+    fun applyPrefill(
+        name: String?,
+        photoUri: String?,
+    ) {
+        val normalizedName = name
+            ?.trim()
+            ?.take(MAX_NAME_LENGTH)
+            .orEmpty()
+        val normalizedPhotoUri = photoUri?.takeIf { it.isNotBlank() }
+        if (normalizedName.isBlank() && normalizedPhotoUri == null) {
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                name = normalizedName.ifBlank { it.name },
+                selectedPhotoUri = normalizedPhotoUri ?: it.selectedPhotoUri,
+                fieldErrors = it.fieldErrors.copy(name = null),
+                errorMessage = null,
+                successMessage = null,
+            )
+        }
+    }
+
     private fun savePlant() {
         val current = _uiState.value
         val validation = validate(current)
