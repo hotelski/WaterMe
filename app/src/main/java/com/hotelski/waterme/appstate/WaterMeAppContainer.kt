@@ -9,6 +9,7 @@ import com.hotelski.waterme.data.local.WaterMeDatabase
 import com.hotelski.waterme.data.local.WaterMeSeedData
 import com.hotelski.waterme.data.plantnet.PlantIdentificationRepository
 import com.hotelski.waterme.data.plantnet.PlantNetPlantIdentificationRepository
+import com.hotelski.waterme.data.preferences.PlantScannerQuotaDataStoreManager
 import com.hotelski.waterme.data.preferences.SettingsDataStoreManager
 import com.hotelski.waterme.data.repository.RoomCareRepository
 import com.hotelski.waterme.data.repository.RoomPlantRepository
@@ -25,6 +26,8 @@ object WaterMeAppContainer {
     private var databaseInstance: WaterMeDatabase? = null
     @Volatile
     private var settingsDataStoreInstance: SettingsDataStoreManager? = null
+    @Volatile
+    private var plantScannerQuotaDataStoreInstance: PlantScannerQuotaDataStoreManager? = null
     @Volatile
     private var feedbackRepositoryInstance: FeedbackRepository? = null
     @Volatile
@@ -52,6 +55,12 @@ object WaterMeAppContainer {
     fun settingsDataStore(context: Context): SettingsDataStoreManager =
         settingsDataStoreInstance ?: synchronized(this) {
             settingsDataStoreInstance ?: SettingsDataStoreManager(context).also { settingsDataStoreInstance = it }
+        }
+
+    fun plantScannerQuotaDataStore(context: Context): PlantScannerQuotaDataStoreManager =
+        plantScannerQuotaDataStoreInstance ?: synchronized(this) {
+            plantScannerQuotaDataStoreInstance
+                ?: PlantScannerQuotaDataStoreManager(context).also { plantScannerQuotaDataStoreInstance = it }
         }
 
     fun reminderNotificationCoordinator(context: Context): ReminderNotificationCoordinator =

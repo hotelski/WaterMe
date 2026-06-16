@@ -118,6 +118,10 @@ private fun PlantScannerContent(
             ScannerHeroCard(
                 onTakePhoto = { onEvent(PlantScannerEvent.TakePhotoClicked) },
                 onChooseGallery = { onEvent(PlantScannerEvent.ChooseFromGalleryClicked) },
+                remainingScans = uiState.remainingScans,
+                scanLimit = uiState.scanLimit,
+                isQuotaExhausted = uiState.isScanQuotaExhausted,
+                resetCountdown = uiState.scanQuotaResetCountdown,
             )
         }
 
@@ -169,6 +173,10 @@ private fun PlantScannerContent(
 private fun ScannerHeroCard(
     onTakePhoto: () -> Unit,
     onChooseGallery: () -> Unit,
+    remainingScans: Int,
+    scanLimit: Int,
+    isQuotaExhausted: Boolean,
+    resetCountdown: String?,
     modifier: Modifier = Modifier,
 ) {
     WaterMePremiumCard(
@@ -210,6 +218,7 @@ private fun ScannerHeroCard(
             ) {
                 Button(
                     onClick = onTakePhoto,
+                    enabled = !isQuotaExhausted,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -221,6 +230,7 @@ private fun ScannerHeroCard(
                 }
                 OutlinedButton(
                     onClick = onChooseGallery,
+                    enabled = !isQuotaExhausted,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -231,6 +241,61 @@ private fun ScannerHeroCard(
                     Text("Gallery", fontWeight = FontWeight.SemiBold)
                 }
             }
+
+            ScannerQuotaStatus(
+                remainingScans = remainingScans,
+                scanLimit = scanLimit,
+                isQuotaExhausted = isQuotaExhausted,
+                resetCountdown = resetCountdown,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ScannerQuotaStatus(
+    remainingScans: Int,
+    scanLimit: Int,
+    isQuotaExhausted: Boolean,
+    resetCountdown: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (isQuotaExhausted) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.34f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(20.dp),
+                )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = "Daily scan limit reached",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Resets in ${resetCountdown ?: "--:--"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            WaterMeStatusChip(
+                label = "$remainingScans/$scanLimit scans left today",
+                color = LeafGreen,
+                icon = Icons.Rounded.AutoAwesome,
+            )
         }
     }
 }

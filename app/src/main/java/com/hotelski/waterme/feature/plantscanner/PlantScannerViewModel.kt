@@ -4,7 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import com.hotelski.waterme.data.preferences.PlantScannerQuotaConsumeResult
+import com.hotelski.waterme.data.preferences.PlantScannerQuotaSnapshot
 import com.hotelski.waterme.model.PlantIdentificationResult
+import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +44,10 @@ data class PlantScannerUiState(
     val errorMessage: String? = null,
     val results: List<PlantScannerResultUiModel> = emptyList(),
     val actionMessage: String? = null,
+    val scanLimit: Int = 3,
+    val remainingScans: Int = 3,
+    val scanQuotaResetCountdown: String? = null,
+    val isScanQuotaExhausted: Boolean = false,
 ) {
     val isEmpty: Boolean
         get() = selectedImageUri == null && !isLoading && errorMessage == null && results.isEmpty()
@@ -65,14 +74,21 @@ sealed interface PlantScannerEffect {
 class PlantScannerViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
+    private val appContext = application.applicationContext
     private val plantIdentificationRepository =
-        WaterMeAppContainer.plantIdentificationRepository(application.applicationContext)
+        WaterMeAppContainer.plantIdentificationRepository(appContext)
+    private val plantScannerQuotaDataStore =
+        WaterMeAppContainer.plantScannerQuotaDataStore(appContext)
     private val _uiState = MutableStateFlow(PlantScannerUiState())
     private val _effects = MutableSharedFlow<PlantScannerEffect>()
     private var scanJob: Job? = null
 
     val uiState = _uiState.asStateFlow()
     val effects = _effects.asSharedFlow()
+
+    init {
+        observeScanQuota()
+    }
 
     fun onEvent(event: PlantScannerEvent) {
         when (event) {
@@ -95,6 +111,16 @@ class PlantScannerViewModel(
                         actionMessage = null,
                     )
                 }
+            }
+        }
+    }
+
+    private fun observeScanQuota() {
+        viewModelScope.launch {
+            while (isActive) {
+                runCatching { plantScannerQuotaDataStore.currentQuota(WaterMeAppContainer.LOCAL_USER_ID) }
+                    .onSuccess(::applyQuotaSnapshot)
+                delay(QuotaTickMillis)
             }
         }
     }
@@ -147,6 +173,31 @@ class PlantScannerViewModel(
             )
         }
         scanJob = viewModelScope.launch {
+            val quotaResult = runCatching {
+                plantScannerQuotaDataStore.consumeScan(WaterMeAppContainer.LOCAL_USER_ID)
+            }.getOrElse { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.toUserMessage(),
+                        results = emptyList(),
+                    )
+                }
+                return@launch
+            }
+            applyQuotaSnapshot(quotaResult.snapshot)
+            if (quotaResult is PlantScannerQuotaConsumeResult.Exhausted) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = ScanQuotaLimitMessage,
+                        results = emptyList(),
+                        actionMessage = null,
+                    )
+                }
+                return@launch
+            }
+
             runCatching { plantIdentificationRepository.identifyPlant(selectedUri) }
                 .onSuccess { results ->
                     _uiState.update {
@@ -173,10 +224,50 @@ class PlantScannerViewModel(
         _uiState.update { it.copy(actionMessage = message, errorMessage = null) }
     }
 
+    private fun applyQuotaSnapshot(snapshot: PlantScannerQuotaSnapshot) {
+        val resetCountdown = if (snapshot.isExhausted) {
+            snapshot.resetAtMillis.toResetCountdownLabel()
+        } else {
+            null
+        }
+        _uiState.update { state ->
+            state.copy(
+                scanLimit = snapshot.scanLimit,
+                remainingScans = snapshot.remainingScans,
+                scanQuotaResetCountdown = resetCountdown,
+                isScanQuotaExhausted = snapshot.isExhausted,
+                errorMessage = if (!snapshot.isExhausted && state.errorMessage == ScanQuotaLimitMessage) {
+                    null
+                } else {
+                    state.errorMessage
+                },
+            )
+        }
+    }
+
+    private fun Long.toResetCountdownLabel(): String {
+        val totalSeconds = ((this - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+        val hours = totalSeconds / SecondsPerHour
+        val minutes = (totalSeconds % SecondsPerHour) / SecondsPerMinute
+        val seconds = totalSeconds % SecondsPerMinute
+        return if (hours > 0) {
+            String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        }
+    }
+
     private fun emitEffect(effect: PlantScannerEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
 
     private fun Throwable.toUserMessage(): String =
         message?.takeIf { it.isNotBlank() } ?: "WaterMe could not identify this plant."
+
+    private companion object {
+        const val QuotaTickMillis = 1_000L
+        const val SecondsPerMinute = 60L
+        const val SecondsPerHour = 60L * SecondsPerMinute
+        const val ScanQuotaLimitMessage = "Daily scan limit reached."
+    }
 }
