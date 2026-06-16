@@ -1,6 +1,10 @@
 package com.hotelski.waterme.appstate
 
 import android.content.Context
+import com.hotelski.waterme.data.aiplantcare.AiCareCacheRepository
+import com.hotelski.waterme.data.aiplantcare.AiPlantCareRepository
+import com.hotelski.waterme.data.aiplantcare.FirebaseAiPlantCareRepository
+import com.hotelski.waterme.data.aiplantcare.RoomAiCareCacheRepository
 import com.hotelski.waterme.data.billing.BillingRepository
 import com.hotelski.waterme.data.billing.PlayBillingRepository
 import com.hotelski.waterme.data.feedback.FeedbackRepository
@@ -32,6 +36,10 @@ object WaterMeAppContainer {
     private var feedbackRepositoryInstance: FeedbackRepository? = null
     @Volatile
     private var plantIdentificationRepositoryInstance: PlantIdentificationRepository? = null
+    @Volatile
+    private var aiPlantCareRepositoryInstance: AiPlantCareRepository? = null
+    @Volatile
+    private var aiCareCacheRepositoryInstance: AiCareCacheRepository? = null
     @Volatile
     private var billingRepositoryInstance: BillingRepository? = null
 
@@ -81,6 +89,18 @@ object WaterMeAppContainer {
                 ?: PlantNetPlantIdentificationRepository(context).also {
                     plantIdentificationRepositoryInstance = it
                 }
+        }
+
+    fun aiPlantCareRepository(): AiPlantCareRepository =
+        aiPlantCareRepositoryInstance ?: synchronized(this) {
+            aiPlantCareRepositoryInstance
+                ?: FirebaseAiPlantCareRepository().also { aiPlantCareRepositoryInstance = it }
+        }
+
+    fun aiCareCacheRepository(context: Context): AiCareCacheRepository =
+        aiCareCacheRepositoryInstance ?: synchronized(this) {
+            aiCareCacheRepositoryInstance
+                ?: RoomAiCareCacheRepository(database(context)).also { aiCareCacheRepositoryInstance = it }
         }
 
     fun billingRepository(context: Context): BillingRepository =

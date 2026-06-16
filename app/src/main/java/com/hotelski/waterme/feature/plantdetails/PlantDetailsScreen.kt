@@ -1069,14 +1069,6 @@ private fun CareTimelineItem(
                     .clip(RoundedCornerShape(8.dp))
                     .background(entry.careType.accentColor()),
             )
-            if (!isLast) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(58.dp)
-                        .background(entry.careType.accentColor().copy(alpha = 0.22f)),
-                )
-            }
         }
         Column(
             modifier = Modifier

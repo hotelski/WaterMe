@@ -17,6 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hotelski.waterme.feature.aiplantcare.AiPlantCareEffect
+import com.hotelski.waterme.feature.aiplantcare.AiPlantCareScreen
+import com.hotelski.waterme.feature.aiplantcare.AiPlantCareViewModel
 import com.hotelski.waterme.feature.addplant.AddPlantEffect
 import com.hotelski.waterme.feature.addplant.AddPlantScreen
 import com.hotelski.waterme.feature.addplant.AddPlantViewModel
@@ -133,6 +136,7 @@ fun FeedbackRoute(
 @Composable
 fun PlantsRoute(
     onAddPlant: () -> Unit,
+    onOpenAiCare: () -> Unit,
     onOpenPlantScanner: () -> Unit,
     onOpenPlant: (String) -> Unit,
     onEditPlant: (String) -> Unit,
@@ -153,6 +157,7 @@ fun PlantsRoute(
         plantsViewModel.effects.collect { effect ->
             when (effect) {
                 PlantsEffect.NavigateToAddPlant -> onAddPlant()
+                PlantsEffect.NavigateToAiPlantCare -> onOpenAiCare()
                 PlantsEffect.NavigateToPlantScanner -> onOpenPlantScanner()
                 is PlantsEffect.NavigateToPlantDetails -> onOpenPlant(effect.plantId)
                 is PlantsEffect.NavigateToEditPlant -> onEditPlant(effect.plantId)
@@ -163,6 +168,27 @@ fun PlantsRoute(
     PlantsScreen(
         uiState = uiState,
         onEvent = plantsViewModel::onEvent,
+    )
+}
+
+@Composable
+fun AiPlantCareRoute(
+    onBack: () -> Unit,
+    aiPlantCareViewModel: AiPlantCareViewModel = viewModel(),
+) {
+    val uiState by aiPlantCareViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(aiPlantCareViewModel) {
+        aiPlantCareViewModel.effects.collect { effect ->
+            when (effect) {
+                AiPlantCareEffect.NavigateBack -> onBack()
+            }
+        }
+    }
+
+    AiPlantCareScreen(
+        uiState = uiState,
+        onEvent = aiPlantCareViewModel::onEvent,
     )
 }
 

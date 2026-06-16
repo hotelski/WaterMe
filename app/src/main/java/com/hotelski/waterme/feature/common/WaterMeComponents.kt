@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,12 +89,15 @@ fun WaterMeTopBar(
     navigationContentDescription: String? = null,
     onNavigationClick: (() -> Unit)? = null,
     actionIcon: ImageVector? = null,
+    actionLabel: String? = null,
     actionContentDescription: String? = null,
     onActionClick: (() -> Unit)? = null,
     secondaryActionIcon: ImageVector? = null,
+    secondaryActionLabel: String? = null,
     secondaryActionContentDescription: String? = null,
     onSecondaryActionClick: (() -> Unit)? = null,
     tertiaryActionIcon: ImageVector? = null,
+    tertiaryActionLabel: String? = null,
     tertiaryActionContentDescription: String? = null,
     onTertiaryActionClick: (() -> Unit)? = null,
 ) {
@@ -116,19 +120,28 @@ fun WaterMeTopBar(
         },
         actions = {
             if (tertiaryActionIcon != null && onTertiaryActionClick != null) {
-                IconButton(onClick = onTertiaryActionClick) {
-                    Icon(tertiaryActionIcon, contentDescription = tertiaryActionContentDescription)
-                }
+                WaterMeTopBarAction(
+                    icon = tertiaryActionIcon,
+                    label = tertiaryActionLabel,
+                    contentDescription = tertiaryActionContentDescription,
+                    onClick = onTertiaryActionClick,
+                )
             }
             if (secondaryActionIcon != null && onSecondaryActionClick != null) {
-                IconButton(onClick = onSecondaryActionClick) {
-                    Icon(secondaryActionIcon, contentDescription = secondaryActionContentDescription)
-                }
+                WaterMeTopBarAction(
+                    icon = secondaryActionIcon,
+                    label = secondaryActionLabel,
+                    contentDescription = secondaryActionContentDescription,
+                    onClick = onSecondaryActionClick,
+                )
             }
             if (actionIcon != null && onActionClick != null) {
-                IconButton(onClick = onActionClick) {
-                    Icon(actionIcon, contentDescription = actionContentDescription)
-                }
+                WaterMeTopBarAction(
+                    icon = actionIcon,
+                    label = actionLabel,
+                    contentDescription = actionContentDescription,
+                    onClick = onActionClick,
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -138,6 +151,40 @@ fun WaterMeTopBar(
             actionIconContentColor = MaterialTheme.colorScheme.onBackground,
         ),
     )
+}
+
+@Composable
+private fun WaterMeTopBarAction(
+    icon: ImageVector,
+    label: String?,
+    contentDescription: String?,
+    onClick: () -> Unit,
+) {
+    if (label.isNullOrBlank()) {
+        IconButton(onClick = onClick) {
+            Icon(icon, contentDescription = contentDescription)
+        }
+    } else {
+        TextButton(
+            onClick = onClick,
+            modifier = Modifier.height(40.dp),
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
+        ) {
+            Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -534,12 +534,6 @@ private fun TimelineMarker(
         ) {
             CareTypeBadge(careType, size = 30.dp)
         }
-        Box(
-            modifier = Modifier
-                .width(2.dp)
-                .height(86.dp)
-                .background(LeafGreen.copy(alpha = 0.18f)),
-        )
     }
 }
 

@@ -58,7 +58,6 @@ import com.hotelski.waterme.feature.common.PlantPhotoTile
 import com.hotelski.waterme.feature.common.WaterMeErrorState
 import com.hotelski.waterme.feature.common.WaterMeIconBadge
 import com.hotelski.waterme.feature.common.WaterMePremiumCard
-import com.hotelski.waterme.feature.common.WaterMePrimaryButton
 import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.ui.theme.LeafGreen
@@ -157,7 +156,6 @@ private fun PlantScannerContent(
             uiState.results.isNotEmpty() -> item {
                 PlantScannerResultCard(
                     result = uiState.results.first(),
-                    onAskCareAdvice = { onEvent(PlantScannerEvent.AskCareAdviceClicked) },
                     onSaveToPlants = { onEvent(PlantScannerEvent.SaveToPlantsClicked) },
                 )
             }
@@ -470,7 +468,6 @@ private fun ScannerLoadingCard(modifier: Modifier = Modifier) {
 @Composable
 private fun PlantScannerResultCard(
     result: PlantScannerResultUiModel,
-    onAskCareAdvice: () -> Unit,
     onSaveToPlants: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -549,51 +546,16 @@ private fun PlantScannerResultCard(
                 }
             }
 
-            Column(
+            OutlinedButton(
+                onClick = onSaveToPlants,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                LeafGreen.copy(alpha = 0.12f),
-                                MistBlue.copy(alpha = 0.10f),
-                            ),
-                        ),
-                    )
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .height(52.dp),
+                shape = RoundedCornerShape(18.dp),
             ) {
-                Text(
-                    text = "Care summary",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = "Placeholder care summary: ask AI for care advice once that service is connected.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                WaterMePrimaryButton(
-                    label = "Ask AI for care advice",
-                    onClick = onAskCareAdvice,
-                    icon = Icons.Rounded.AutoAwesome,
-                )
-                OutlinedButton(
-                    onClick = onSaveToPlants,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(18.dp),
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Save to my plants", fontWeight = FontWeight.SemiBold)
-                }
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Save to my plants", fontWeight = FontWeight.SemiBold)
             }
 
             Text(

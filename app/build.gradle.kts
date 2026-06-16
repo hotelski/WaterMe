@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val feedbackEndpointUrl = providers.gradleProperty("waterMeFeedbackEndpoint").orElse("").get()
 val localPropertiesFile = rootProject.file("local.properties")
 val localProperties = Properties().apply {
@@ -104,6 +108,8 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.ai)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.animation)

@@ -70,6 +70,10 @@ class WaterMeNavigationActions(
         navController.navigate(WaterMeRoute.PlantScanner.route)
     }
 
+    fun navigateToAiPlantCare() {
+        navController.navigate(WaterMeRoute.AiPlantCare.route)
+    }
+
     fun navigateToPlantDetails(plantId: String, builder: NavOptionsBuilder.() -> Unit = {}) {
         navController.navigate(WaterMeRoute.PlantDetails.createRoute(plantId), builder)
     }

@@ -58,7 +58,6 @@ sealed interface PlantScannerEvent {
     data object TakePhotoClicked : PlantScannerEvent
     data object ChooseFromGalleryClicked : PlantScannerEvent
     data object RetryClicked : PlantScannerEvent
-    data object AskCareAdviceClicked : PlantScannerEvent
     data object SaveToPlantsClicked : PlantScannerEvent
     data class ImageSelected(val uri: String?) : PlantScannerEvent
     data class PhotoLaunchFailed(val message: String) : PlantScannerEvent
@@ -97,9 +96,6 @@ class PlantScannerViewModel(
             PlantScannerEvent.ChooseFromGalleryClicked -> emitEffect(PlantScannerEffect.OpenGallery)
             is PlantScannerEvent.ImageSelected -> scanSelectedImage(event.uri)
             PlantScannerEvent.RetryClicked -> retryScan()
-            PlantScannerEvent.AskCareAdviceClicked -> showActionMessage(
-                "AI care advice is mocked for now. The real service will be connected later.",
-            )
             PlantScannerEvent.SaveToPlantsClicked -> navigateToAddPlantWithResult()
             is PlantScannerEvent.PhotoLaunchFailed -> {
                 scanJob?.cancel()

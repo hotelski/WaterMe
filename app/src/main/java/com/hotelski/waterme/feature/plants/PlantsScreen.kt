@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,6 +112,7 @@ data class PlantsUiState(
 
 sealed interface PlantsEvent {
     data object AddPlantClicked : PlantsEvent
+    data object AiCareClicked : PlantsEvent
     data object PlantScannerClicked : PlantsEvent
     data object RetryClicked : PlantsEvent
     data object RefreshPulled : PlantsEvent
@@ -138,27 +140,28 @@ fun PlantsScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = { WaterMeTopBar(title = "My Plants") },
+        topBar = {
+            WaterMeTopBar(
+                title = "My Plants",
+                actionIcon = Icons.Rounded.AutoAwesome,
+                actionContentDescription = "Scan plant",
+                onActionClick = { onEvent(PlantsEvent.PlantScannerClicked) },
+                secondaryActionIcon = Icons.Rounded.TipsAndUpdates,
+                secondaryActionLabel = "AI Care",
+                secondaryActionContentDescription = "AI Care",
+                onSecondaryActionClick = { onEvent(PlantsEvent.AiCareClicked) },
+            )
+        },
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                WaterMeFloatingActionButton(
-                    onClick = { onEvent(PlantsEvent.PlantScannerClicked) },
-                    icon = Icons.Rounded.AutoAwesome,
-                    contentDescription = "Scan plant",
-                )
-                WaterMeFloatingActionButton(
-                    onClick = { onEvent(PlantsEvent.AddPlantClicked) },
-                    icon = Icons.Rounded.Add,
-                    contentDescription = "Add plant",
-                    modifier = Modifier.graphicsLayer {
-                        scaleX = fabScale
-                        scaleY = fabScale
-                    },
-                )
-            }
+            WaterMeFloatingActionButton(
+                onClick = { onEvent(PlantsEvent.AddPlantClicked) },
+                icon = Icons.Rounded.Add,
+                contentDescription = "Add plant",
+                modifier = Modifier.graphicsLayer {
+                    scaleX = fabScale
+                    scaleY = fabScale
+                },
+            )
         },
     ) { innerPadding ->
         when {

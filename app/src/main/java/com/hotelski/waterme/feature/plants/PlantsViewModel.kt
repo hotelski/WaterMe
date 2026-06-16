@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 
 sealed interface PlantsEffect {
     data object NavigateToAddPlant : PlantsEffect
+    data object NavigateToAiPlantCare : PlantsEffect
     data object NavigateToPlantScanner : PlantsEffect
     data class NavigateToPlantDetails(val plantId: String) : PlantsEffect
     data class NavigateToEditPlant(val plantId: String) : PlantsEffect
@@ -142,6 +143,7 @@ class PlantsViewModel(
     fun onEvent(event: PlantsEvent) {
         when (event) {
             PlantsEvent.AddPlantClicked -> emitEffect(PlantsEffect.NavigateToAddPlant)
+            PlantsEvent.AiCareClicked -> emitEffect(PlantsEffect.NavigateToAiPlantCare)
             PlantsEvent.PlantScannerClicked -> emitEffect(PlantsEffect.NavigateToPlantScanner)
             is PlantsEvent.PlantClicked -> emitEffect(PlantsEffect.NavigateToPlantDetails(event.plantId))
             is PlantsEvent.EditPlantClicked -> emitEffect(PlantsEffect.NavigateToEditPlant(event.plantId))

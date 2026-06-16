@@ -70,6 +70,10 @@ sealed interface WaterMeRoute {
         override val route = "plants/scanner"
     }
 
+    data object AiPlantCare : WaterMeRoute {
+        override val route = "plants/ai-care"
+    }
+
     data object PlantDetails : WaterMeRoute {
         const val PLANT_ID_ARG = "plantId"
         override val route = "plants/{$PLANT_ID_ARG}"

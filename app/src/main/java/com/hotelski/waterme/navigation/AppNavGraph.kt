@@ -15,6 +15,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.hotelski.waterme.feature.common.AiPlantCareRoute
 import com.hotelski.waterme.feature.common.AddPlantRoute
 import com.hotelski.waterme.feature.common.CalendarRoute
 import com.hotelski.waterme.feature.common.CareHistoryRoute
@@ -98,6 +99,7 @@ fun AppNavGraph(
 
             PlantsRoute(
                 onAddPlant = { navigationActions.navigateToAddPlant() },
+                onOpenAiCare = navigationActions::navigateToAiPlantCare,
                 onOpenPlantScanner = navigationActions::navigateToPlantScanner,
                 onOpenPlant = navigationActions::navigateToPlantDetails,
                 onEditPlant = navigationActions::navigateToEditPlant,
@@ -141,6 +143,12 @@ fun AppNavGraph(
                         prefillPhotoUri = photoUri,
                     )
                 },
+            )
+        }
+
+        waterMeComposable(WaterMeRoute.AiPlantCare.route) {
+            AiPlantCareRoute(
+                onBack = navigationActions::back,
             )
         }
 

@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.hotelski.waterme.data.local.dao.AiCareAdviceCacheDao
 import com.hotelski.waterme.data.local.dao.CareHistoryDao
 import com.hotelski.waterme.data.local.dao.CareTaskDao
 import com.hotelski.waterme.data.local.dao.PlantDao
@@ -12,6 +13,7 @@ import com.hotelski.waterme.data.local.dao.PlantPhotoDao
 import com.hotelski.waterme.data.local.dao.ReminderDao
 import com.hotelski.waterme.data.local.dao.UserDao
 import com.hotelski.waterme.data.local.dao.UserSettingsDao
+import com.hotelski.waterme.data.local.entity.AiCareAdviceCacheEntity
 import com.hotelski.waterme.data.local.entity.CareHistoryEntity
 import com.hotelski.waterme.data.local.entity.CareTaskEntity
 import com.hotelski.waterme.data.local.entity.PlantEntity
@@ -29,8 +31,9 @@ import com.hotelski.waterme.data.local.entity.UserSettingsEntity
         CareTaskEntity::class,
         CareHistoryEntity::class,
         UserSettingsEntity::class,
+        AiCareAdviceCacheEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(WaterMeTypeConverters::class)
@@ -42,6 +45,7 @@ abstract class WaterMeDatabase : RoomDatabase() {
     abstract fun careTaskDao(): CareTaskDao
     abstract fun careHistoryDao(): CareHistoryDao
     abstract fun userSettingsDao(): UserSettingsDao
+    abstract fun aiCareAdviceCacheDao(): AiCareAdviceCacheDao
 
     companion object {
         const val DATABASE_NAME = "waterme.db"

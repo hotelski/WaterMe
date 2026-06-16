@@ -91,6 +91,20 @@ class RoomPlantRepository(
         )
     }
 
+    suspend fun updatePlantNotes(
+        plantId: String,
+        notes: String,
+        nowMillis: Long = System.currentTimeMillis(),
+    ) {
+        val current = plantDao.getPlant(plantId) ?: return
+        plantDao.upsertPlant(
+            current.copy(
+                notes = notes.trim(),
+                updatedAt = nowMillis,
+            ),
+        )
+    }
+
     suspend fun setPrimaryPhoto(
         plantId: String,
         photoId: String,

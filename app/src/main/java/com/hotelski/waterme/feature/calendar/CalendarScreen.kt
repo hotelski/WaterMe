@@ -545,12 +545,6 @@ private fun CalendarTaskCard(
             horizontalArrangement = Arrangement.spacedBy(13.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(width = 4.dp, height = 58.dp)
-                    .clip(RoundedCornerShape(99.dp))
-                    .background(task.careType.accentColor()),
-            )
             Box {
                 PlantPhotoTile(
                     photoUri = task.plantPhotoUri,
