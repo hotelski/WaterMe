@@ -10,6 +10,8 @@ import com.hotelski.waterme.data.aiplantcare.buildAiCareCacheKey
 import com.hotelski.waterme.data.local.entity.HistoryAction
 import com.hotelski.waterme.data.local.entity.ReminderEntity
 import com.hotelski.waterme.data.local.model.PlantWithDetails
+import com.hotelski.waterme.data.preferences.AiCareQuotaConsumeResult
+import com.hotelski.waterme.data.preferences.AiCareQuotaSnapshot
 import com.hotelski.waterme.feature.characters.PlantCharacterUiModel
 import com.hotelski.waterme.feature.characters.activePlantCharacter
 import com.hotelski.waterme.model.CareType
@@ -24,6 +26,7 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -98,19 +101,27 @@ data class AiPlantCareUiState(
     val isFollowUpLoading: Boolean = false,
     val followUpErrorMessage: String? = null,
     val followUpItems: List<AiCareFollowUpUiModel> = emptyList(),
+    val aiCareRequestLimit: Int = 3,
+    val remainingAiCareRequests: Int = 3,
+    val aiCareQuotaResetCountdown: String? = null,
+    val isAiCareQuotaExhausted: Boolean = false,
 ) {
     val selectedPlant: AiPlantCarePlantUiModel?
         get() = savedPlants.firstOrNull { it.id == selectedPlantId }
 
+    val hasAdviceTarget: Boolean
+        get() = when (inputMode) {
+            AiPlantCareInputMode.SAVED_PLANT -> selectedPlant != null
+            AiPlantCareInputMode.TEMPORARY_PLANT -> temporaryPlantName.isNotBlank()
+        }
+
     val canRequestAdvice: Boolean
         get() = !isAdviceLoading &&
-            when (inputMode) {
-                AiPlantCareInputMode.SAVED_PLANT -> selectedPlant != null
-                AiPlantCareInputMode.TEMPORARY_PLANT -> temporaryPlantName.isNotBlank()
-            }
+            !isAiCareQuotaExhausted &&
+            hasAdviceTarget
 
     val shouldShowAdviceButton: Boolean
-        get() = isAdviceLoading || canRequestAdvice
+        get() = isAdviceLoading || hasAdviceTarget
 
     val shouldShowEmptyState: Boolean
         get() = !isLoadingPlants &&
@@ -260,16 +271,22 @@ class AiPlantCareViewModel(
     private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
     private val aiPlantCareRepository = WaterMeAppContainer.aiPlantCareRepository()
     private val aiCareCacheRepository = WaterMeAppContainer.aiCareCacheRepository(appContext)
+    private val aiCareQuotaDataStore = WaterMeAppContainer.aiCareQuotaDataStore(appContext)
     private val formState = MutableStateFlow(AiPlantCareFormState())
     private val adviceState = MutableStateFlow(AiPlantCareAdviceState())
     private val suggestedActionState = MutableStateFlow(AiCareSuggestedActionState())
     private val followUpState = MutableStateFlow(AiCareFollowUpState())
+    private val quotaState = MutableStateFlow<AiCareQuotaSnapshot?>(null)
     private val _effects = MutableSharedFlow<AiPlantCareEffect>()
     private var adviceJob: Job? = null
     private var cacheLoadJob: Job? = null
     private var followUpJob: Job? = null
     private var actionMessageDismissJob: Job? = null
     private var runningAdviceCacheKey: String? = null
+
+    init {
+        observeAiCareQuota()
+    }
 
     private val savedPlantsState = plantRepository
         .observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID)
@@ -332,11 +349,23 @@ class AiPlantCareViewModel(
         )
     }
 
-    val uiState = combine(
+    private val characterUiState = combine(
         baseUiState,
         activeCharacterState,
     ) { state, activeCharacter ->
         state.copy(activeCharacter = activeCharacter)
+    }
+
+    val uiState = combine(
+        characterUiState,
+        quotaState,
+    ) { state, quota ->
+        state.copy(
+            aiCareRequestLimit = quota?.requestLimit ?: state.aiCareRequestLimit,
+            remainingAiCareRequests = quota?.remainingRequests ?: state.remainingAiCareRequests,
+            aiCareQuotaResetCountdown = quota?.takeIf { it.isExhausted }?.resetAtMillis?.toResetCountdownLabel(),
+            isAiCareQuotaExhausted = quota?.isExhausted ?: false,
+        )
     }
         .stateIn(
             scope = viewModelScope,
@@ -363,6 +392,16 @@ class AiPlantCareViewModel(
             AiPlantCareEvent.DismissSuggestedActionClicked -> suggestedActionState.value = AiCareSuggestedActionState()
             is AiPlantCareEvent.FollowUpQuestionChanged -> updateFollowUpQuestion(event.value)
             AiPlantCareEvent.SendFollowUpClicked -> sendFollowUpQuestion()
+        }
+    }
+
+    private fun observeAiCareQuota() {
+        viewModelScope.launch {
+            while (isActive) {
+                runCatching { aiCareQuotaDataStore.currentQuota(WaterMeAppContainer.LOCAL_USER_ID) }
+                    .onSuccess { snapshot -> quotaState.value = snapshot }
+                delay(QuotaTickMillis)
+            }
         }
     }
 
@@ -466,6 +505,31 @@ class AiPlantCareViewModel(
                 }
 
                 val previousAdviceState = adviceState.value.takeIf { it.cacheKey == target.cacheKey && it.advice != null }
+                val quotaResult = runCatching {
+                    aiCareQuotaDataStore.consumeRequest(WaterMeAppContainer.LOCAL_USER_ID)
+                }.getOrElse { error ->
+                    adviceState.value = previousAdviceState?.copy(
+                        isLoading = false,
+                        errorMessage = error.toUserMessage(),
+                    ) ?: AiPlantCareAdviceState(
+                        cacheKey = target.cacheKey,
+                        errorMessage = error.toUserMessage(),
+                    )
+                    return@launch
+                }
+                applyAiCareQuotaSnapshot(quotaResult.snapshot)
+                if (quotaResult is AiCareQuotaConsumeResult.Exhausted) {
+                    adviceState.value = previousAdviceState?.copy(
+                        isLoading = false,
+                        errorMessage = AiCareQuotaLimitMessage,
+                        aiAvailabilityMessage = null,
+                    ) ?: AiPlantCareAdviceState(
+                        cacheKey = target.cacheKey,
+                        errorMessage = AiCareQuotaLimitMessage,
+                    )
+                    return@launch
+                }
+
                 adviceState.value = previousAdviceState?.copy(
                     isLoading = true,
                     errorMessage = null,
@@ -521,6 +585,16 @@ class AiPlantCareViewModel(
             if (cachedAdvice != null && resolveAdviceTarget()?.cacheKey == target.cacheKey) {
                 adviceState.value = cachedAdvice.toAdviceState(target.cacheKey)
             }
+        }
+    }
+
+    private fun applyAiCareQuotaSnapshot(snapshot: AiCareQuotaSnapshot) {
+        quotaState.value = snapshot
+        if (!snapshot.isExhausted && adviceState.value.errorMessage == AiCareQuotaLimitMessage) {
+            adviceState.update { it.copy(errorMessage = null) }
+        }
+        if (!snapshot.isExhausted && followUpState.value.errorMessage == AiCareQuotaLimitMessage) {
+            followUpState.update { it.copy(errorMessage = null) }
         }
     }
 
@@ -618,6 +692,28 @@ class AiPlantCareViewModel(
             ?: advice.scientificName
 
         followUpJob = viewModelScope.launch {
+            val quotaResult = runCatching {
+                aiCareQuotaDataStore.consumeRequest(WaterMeAppContainer.LOCAL_USER_ID)
+            }.getOrElse { error ->
+                followUpState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.toUserMessage(),
+                    )
+                }
+                return@launch
+            }
+            applyAiCareQuotaSnapshot(quotaResult.snapshot)
+            if (quotaResult is AiCareQuotaConsumeResult.Exhausted) {
+                followUpState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = AiCareQuotaLimitMessage,
+                    )
+                }
+                return@launch
+            }
+
             followUpState.update { it.copy(isLoading = true, errorMessage = null) }
             aiPlantCareRepository
                 .generatePlantCareFollowUpAnswer(
@@ -1060,6 +1156,18 @@ class AiPlantCareViewModel(
             .getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             .format(Date(this))
 
+    private fun Long.toResetCountdownLabel(): String {
+        val totalSeconds = ((this - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+        val hours = totalSeconds / SecondsPerHour
+        val minutes = (totalSeconds % SecondsPerHour) / SecondsPerMinute
+        val seconds = totalSeconds % SecondsPerMinute
+        return if (hours > 0) {
+            String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
+        }
+    }
+
     private fun String.appendAiCareNote(note: String): String {
         val cleanExisting = trim()
         val cleanNote = note.trim()
@@ -1183,6 +1291,10 @@ class AiPlantCareViewModel(
         const val MaxAddPlantPrefillNotesLength = 320
         const val MaxFollowUpQuestionLength = 240
         const val ActionMessageVisibleMillis = 2_400L
+        const val QuotaTickMillis = 1_000L
+        const val SecondsPerMinute = 60L
+        const val SecondsPerHour = 60L * SecondsPerMinute
+        const val AiCareQuotaLimitMessage = "Daily AI Care limit reached."
         const val SavedAdviceUnavailableMessage = "Showing saved AI advice. Refresh is unavailable right now."
         val ShortDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
     }

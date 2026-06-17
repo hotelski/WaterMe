@@ -165,6 +165,14 @@ private fun AiPlantCareContent(
 
         if (uiState.shouldShowAdviceButton) {
             item {
+                AiCareQuotaStatus(
+                    remainingRequests = uiState.remainingAiCareRequests,
+                    requestLimit = uiState.aiCareRequestLimit,
+                    isQuotaExhausted = uiState.isAiCareQuotaExhausted,
+                    resetCountdown = uiState.aiCareQuotaResetCountdown,
+                )
+            }
+            item {
                 GetAiCareAdviceButton(
                     enabled = uiState.canRequestAdvice,
                     isLoading = uiState.isAdviceLoading,
@@ -216,6 +224,8 @@ private fun AiPlantCareContent(
                     isLoading = uiState.isFollowUpLoading,
                     errorMessage = uiState.followUpErrorMessage,
                     items = uiState.followUpItems,
+                    isQuotaExhausted = uiState.isAiCareQuotaExhausted,
+                    resetCountdown = uiState.aiCareQuotaResetCountdown,
                     onQuestionChanged = { onEvent(AiPlantCareEvent.FollowUpQuestionChanged(it)) },
                     onSend = { onEvent(AiPlantCareEvent.SendFollowUpClicked) },
                 )
@@ -285,6 +295,52 @@ private fun AiCareHeroCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AiCareQuotaStatus(
+    remainingRequests: Int,
+    requestLimit: Int,
+    isQuotaExhausted: Boolean,
+    resetCountdown: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (isQuotaExhausted) {
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.34f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.16f)),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    text = "Daily AI Care limit reached",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Resets in ${resetCountdown ?: "--:--"}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            WaterMeStatusChip(
+                label = "$remainingRequests/$requestLimit AI requests left today",
+                color = LeafGreen,
+                icon = Icons.Rounded.TipsAndUpdates,
+            )
         }
     }
 }
@@ -864,6 +920,8 @@ private fun AiCareFollowUpCard(
     isLoading: Boolean,
     errorMessage: String?,
     items: List<AiCareFollowUpUiModel>,
+    isQuotaExhausted: Boolean,
+    resetCountdown: String?,
     onQuestionChanged: (String) -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
@@ -899,10 +957,17 @@ private fun AiCareFollowUpCard(
                 }
             }
 
+            if (isQuotaExhausted) {
+                AiCareFollowUpMessage(
+                    message = "Daily AI Care limit reached. Resets in ${resetCountdown ?: "--:--"}.",
+                    isError = true,
+                )
+            }
+
             OutlinedTextField(
                 value = question,
                 onValueChange = onQuestionChanged,
-                enabled = !isLoading,
+                enabled = !isLoading && !isQuotaExhausted,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Ask about this plant...") },
                 minLines = 1,
@@ -912,7 +977,7 @@ private fun AiCareFollowUpCard(
 
             Button(
                 onClick = onSend,
-                enabled = question.isNotBlank() && !isLoading,
+                enabled = question.isNotBlank() && !isLoading && !isQuotaExhausted,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
