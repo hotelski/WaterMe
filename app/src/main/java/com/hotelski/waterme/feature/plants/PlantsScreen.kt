@@ -144,12 +144,14 @@ fun PlantsScreen(
             WaterMeTopBar(
                 title = "My Plants",
                 actionIcon = Icons.Rounded.AutoAwesome,
+                actionLabel = "Scanner",
                 actionContentDescription = "Scan plant",
                 onActionClick = { onEvent(PlantsEvent.PlantScannerClicked) },
                 secondaryActionIcon = Icons.Rounded.TipsAndUpdates,
                 secondaryActionLabel = "AI Care",
                 secondaryActionContentDescription = "AI Care",
                 onSecondaryActionClick = { onEvent(PlantsEvent.AiCareClicked) },
+                animateActions = true,
             )
         },
         floatingActionButton = {

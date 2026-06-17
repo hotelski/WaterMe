@@ -1,7 +1,10 @@
 package com.hotelski.waterme.feature.common
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,8 +54,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -100,6 +105,7 @@ fun WaterMeTopBar(
     tertiaryActionLabel: String? = null,
     tertiaryActionContentDescription: String? = null,
     onTertiaryActionClick: (() -> Unit)? = null,
+    animateActions: Boolean = false,
 ) {
     TopAppBar(
         title = {
@@ -119,28 +125,38 @@ fun WaterMeTopBar(
             }
         },
         actions = {
+            var hasVisibleAction = false
+            val actionSpacing = if (animateActions) 8.dp else 0.dp
             if (tertiaryActionIcon != null && onTertiaryActionClick != null) {
+                if (hasVisibleAction && actionSpacing > 0.dp) Spacer(Modifier.width(actionSpacing))
                 WaterMeTopBarAction(
                     icon = tertiaryActionIcon,
                     label = tertiaryActionLabel,
                     contentDescription = tertiaryActionContentDescription,
                     onClick = onTertiaryActionClick,
+                    animated = animateActions,
                 )
+                hasVisibleAction = true
             }
             if (secondaryActionIcon != null && onSecondaryActionClick != null) {
+                if (hasVisibleAction && actionSpacing > 0.dp) Spacer(Modifier.width(actionSpacing))
                 WaterMeTopBarAction(
                     icon = secondaryActionIcon,
                     label = secondaryActionLabel,
                     contentDescription = secondaryActionContentDescription,
                     onClick = onSecondaryActionClick,
+                    animated = animateActions,
                 )
+                hasVisibleAction = true
             }
             if (actionIcon != null && onActionClick != null) {
+                if (hasVisibleAction && actionSpacing > 0.dp) Spacer(Modifier.width(actionSpacing))
                 WaterMeTopBarAction(
                     icon = actionIcon,
                     label = actionLabel,
                     contentDescription = actionContentDescription,
                     onClick = onActionClick,
+                    animated = animateActions,
                 )
             }
         },
@@ -159,19 +175,71 @@ private fun WaterMeTopBarAction(
     label: String?,
     contentDescription: String?,
     onClick: () -> Unit,
+    animated: Boolean,
 ) {
+    if (!animated) {
+        if (label.isNullOrBlank()) {
+            IconButton(onClick = onClick) {
+                Icon(icon, contentDescription = contentDescription)
+            }
+        } else {
+            TextButton(
+                onClick = onClick,
+                modifier = Modifier.height(40.dp),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        return
+    }
+
+    val pulse = rememberTopBarActionPulse()
+    val actionColor = MaterialTheme.colorScheme.primary
+    val actionShape = RoundedCornerShape(16.dp)
     if (label.isNullOrBlank()) {
-        IconButton(onClick = onClick) {
-            Icon(icon, contentDescription = contentDescription)
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = pulse.scale
+                    scaleY = pulse.scale
+                }
+                .clip(actionShape)
+                .background(actionColor.copy(alpha = pulse.containerAlpha)),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = actionColor,
+            )
         }
     } else {
         TextButton(
             onClick = onClick,
-            modifier = Modifier.height(40.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .height(40.dp)
+                .graphicsLayer {
+                    scaleX = pulse.scale
+                    scaleY = pulse.scale
+                },
+            shape = actionShape,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
             colors = ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = actionColor.copy(alpha = pulse.containerAlpha),
+                contentColor = actionColor,
             ),
         ) {
             Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp))
@@ -186,6 +254,43 @@ private fun WaterMeTopBarAction(
         }
     }
 }
+
+@Composable
+private fun rememberTopBarActionPulse(): TopBarActionPulse {
+    val progress = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        val endAtMillis = SystemClock.elapsedRealtime() + TopBarActionPulseDurationMillis
+        var target = 1f
+        while (SystemClock.elapsedRealtime() < endAtMillis) {
+            val remainingMillis = (endAtMillis - SystemClock.elapsedRealtime())
+                .coerceAtMost(TopBarActionPulseHalfCycleMillis.toLong())
+                .toInt()
+            if (remainingMillis <= 0) break
+
+            progress.animateTo(
+                targetValue = target,
+                animationSpec = tween(durationMillis = remainingMillis),
+            )
+            target = if (target == 1f) 0f else 1f
+        }
+        progress.snapTo(0f)
+    }
+
+    val pulse = progress.value
+    return TopBarActionPulse(
+        scale = 1f + (0.035f * pulse),
+        containerAlpha = 0.06f + (0.09f * pulse),
+    )
+}
+
+private data class TopBarActionPulse(
+    val scale: Float,
+    val containerAlpha: Float,
+)
+
+private const val TopBarActionPulseDurationMillis = 10_000L
+private const val TopBarActionPulseHalfCycleMillis = 1_250
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
