@@ -174,6 +174,13 @@ fun PlantsRoute(
 @Composable
 fun AiPlantCareRoute(
     onBack: () -> Unit,
+    onAddPlant: (
+        name: String,
+        scientificName: String?,
+        notes: String?,
+        wateringDays: Int?,
+        fertilizingDays: Int?,
+    ) -> Unit,
     aiPlantCareViewModel: AiPlantCareViewModel = viewModel(),
 ) {
     val uiState by aiPlantCareViewModel.uiState.collectAsStateWithLifecycle()
@@ -182,6 +189,13 @@ fun AiPlantCareRoute(
         aiPlantCareViewModel.effects.collect { effect ->
             when (effect) {
                 AiPlantCareEffect.NavigateBack -> onBack()
+                is AiPlantCareEffect.NavigateToAddPlant -> onAddPlant(
+                    effect.name,
+                    effect.scientificName,
+                    effect.notes,
+                    effect.wateringDays,
+                    effect.fertilizingDays,
+                )
             }
         }
     }
@@ -279,6 +293,10 @@ fun AddPlantRoute(
     onPlantCreated: (String) -> Unit,
     prefillName: String? = null,
     prefillPhotoUri: String? = null,
+    prefillScientificName: String? = null,
+    prefillNotes: String? = null,
+    prefillWateringDays: Int? = null,
+    prefillFertilizingDays: Int? = null,
     addPlantViewModel: AddPlantViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -289,10 +307,21 @@ fun AddPlantRoute(
         onPhotoSelected = addPlantViewModel::onPhotoSelected,
     )
 
-    LaunchedEffect(prefillName, prefillPhotoUri) {
+    LaunchedEffect(
+        prefillName,
+        prefillPhotoUri,
+        prefillScientificName,
+        prefillNotes,
+        prefillWateringDays,
+        prefillFertilizingDays,
+    ) {
         addPlantViewModel.applyPrefill(
             name = prefillName,
             photoUri = prefillPhotoUri,
+            scientificName = prefillScientificName,
+            notes = prefillNotes,
+            wateringDays = prefillWateringDays,
+            fertilizingDays = prefillFertilizingDays,
         )
     }
 

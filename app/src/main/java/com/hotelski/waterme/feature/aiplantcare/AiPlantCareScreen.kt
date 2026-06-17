@@ -220,6 +220,11 @@ private fun AiPlantCareContent(
                     onSend = { onEvent(AiPlantCareEvent.SendFollowUpClicked) },
                 )
             }
+            if (!uiState.actionMessage.isNullOrBlank()) {
+                item {
+                    AiCareSuggestedActionMessage(uiState = uiState)
+                }
+            }
             item {
                 AiCareSuggestedActionsCard(
                     advice = uiState.advice,
@@ -233,25 +238,8 @@ private fun AiPlantCareContent(
                     },
                     onAddNote = { onEvent(AiPlantCareEvent.AddNoteSuggestedActionClicked) },
                     onSaveCareProfile = { onEvent(AiPlantCareEvent.SaveCareProfileSuggestedActionClicked) },
+                    onAddTemporaryPlant = { onEvent(AiPlantCareEvent.AddTemporaryPlantClicked) },
                 )
-            }
-        }
-
-        if (!uiState.actionMessage.isNullOrBlank()) {
-            item {
-                val activeCharacter = uiState.activeCharacter
-                if (!uiState.actionMessageIsError && activeCharacter != null) {
-                    PlantCharacterCelebrationCard(
-                        character = activeCharacter,
-                        message = uiState.actionMessage,
-                        heartBurstKey = uiState.actionHeartBurstKey.takeIf { it != 0L },
-                    )
-                } else {
-                    AiCareActionMessageCard(
-                        message = uiState.actionMessage,
-                        isError = uiState.actionMessageIsError,
-                    )
-                }
             }
         }
 
@@ -1047,6 +1035,7 @@ private fun AiCareSuggestedActionsCard(
     onSetFertilizingReminder: () -> Unit,
     onAddNote: () -> Unit,
     onSaveCareProfile: () -> Unit,
+    onAddTemporaryPlant: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     WaterMePremiumCard(
@@ -1119,8 +1108,16 @@ private fun AiCareSuggestedActionsCard(
                 onClick = onSaveCareProfile,
             )
             if (!hasSavedPlant) {
+                AiCareSuggestedActionButton(
+                    title = "Add to my plants",
+                    subtitle = "Open New Plant with this profile prefilled",
+                    icon = Icons.Rounded.LocalFlorist,
+                    color = LeafGreen,
+                    enabled = !isApplying,
+                    onClick = onAddTemporaryPlant,
+                )
                 Text(
-                    text = "Select a saved plant to apply reminders or notes.",
+                    text = "Add this plant first to apply reminders or notes.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1175,6 +1172,29 @@ private fun AiCareSuggestedActionButton(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+@Composable
+private fun AiCareSuggestedActionMessage(
+    uiState: AiPlantCareUiState,
+    modifier: Modifier = Modifier,
+) {
+    val message = uiState.actionMessage ?: return
+    val activeCharacter = uiState.activeCharacter
+    if (!uiState.actionMessageIsError && activeCharacter != null) {
+        PlantCharacterCelebrationCard(
+            character = activeCharacter,
+            message = message,
+            heartBurstKey = uiState.actionHeartBurstKey.takeIf { it != 0L },
+            modifier = modifier,
+        )
+    } else {
+        AiCareActionMessageCard(
+            message = message,
+            isError = uiState.actionMessageIsError,
+            modifier = modifier,
+        )
     }
 }
 

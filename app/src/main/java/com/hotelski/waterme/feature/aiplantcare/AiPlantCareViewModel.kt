@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
 import com.hotelski.waterme.data.aiplantcare.AiCareCachedAdvice
+import com.hotelski.waterme.data.aiplantcare.AiPlantCareException
 import com.hotelski.waterme.data.aiplantcare.buildAiCareCacheKey
 import com.hotelski.waterme.data.local.entity.HistoryAction
 import com.hotelski.waterme.data.local.entity.ReminderEntity
@@ -20,6 +21,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -137,6 +139,7 @@ sealed interface AiPlantCareEvent {
     data class SetReminderSuggestedActionClicked(val careType: CareType) : AiPlantCareEvent
     data object AddNoteSuggestedActionClicked : AiPlantCareEvent
     data object SaveCareProfileSuggestedActionClicked : AiPlantCareEvent
+    data object AddTemporaryPlantClicked : AiPlantCareEvent
     data class SuggestedActionDraftChanged(val value: String) : AiPlantCareEvent
     data object ConfirmSuggestedActionClicked : AiPlantCareEvent
     data object DismissSuggestedActionClicked : AiPlantCareEvent
@@ -149,6 +152,13 @@ sealed interface AiPlantCareEvent {
 
 sealed interface AiPlantCareEffect {
     data object NavigateBack : AiPlantCareEffect
+    data class NavigateToAddPlant(
+        val name: String,
+        val scientificName: String?,
+        val notes: String?,
+        val wateringDays: Int?,
+        val fertilizingDays: Int?,
+    ) : AiPlantCareEffect
 }
 
 private data class AiPlantCareFormState(
@@ -347,6 +357,7 @@ class AiPlantCareViewModel(
             is AiPlantCareEvent.SetReminderSuggestedActionClicked -> openReminderSuggestedAction(event.careType)
             AiPlantCareEvent.AddNoteSuggestedActionClicked -> openAddNoteSuggestedAction()
             AiPlantCareEvent.SaveCareProfileSuggestedActionClicked -> openSaveCareProfileSuggestedAction()
+            AiPlantCareEvent.AddTemporaryPlantClicked -> navigateToAddPlantWithAdvice()
             is AiPlantCareEvent.SuggestedActionDraftChanged -> updateSuggestedActionDraft(event.value)
             AiPlantCareEvent.ConfirmSuggestedActionClicked -> confirmSuggestedAction()
             AiPlantCareEvent.DismissSuggestedActionClicked -> suggestedActionState.value = AiCareSuggestedActionState()
@@ -421,6 +432,18 @@ class AiPlantCareViewModel(
 
     private fun requestAdvice(forceRefresh: Boolean) {
         val target = resolveAdviceTarget() ?: return
+        if (target.plantName.isObviousNonPlantInput()) {
+            adviceJob?.cancel()
+            cacheLoadJob?.cancel()
+            runningAdviceCacheKey = null
+            adviceState.value = AiPlantCareAdviceState(
+                cacheKey = target.cacheKey,
+                errorMessage = target.plantName.unrecognizedPlantNameMessage(),
+            )
+            suggestedActionState.value = AiCareSuggestedActionState()
+            resetFollowUp()
+            return
+        }
         if (adviceJob?.isActive == true && runningAdviceCacheKey == target.cacheKey) return
         if (adviceJob?.isActive == true) {
             adviceJob?.cancel()
@@ -486,6 +509,7 @@ class AiPlantCareViewModel(
     }
 
     private fun loadCachedAdvice(target: AiPlantCareAdviceTarget) {
+        if (target.plantName.isObviousNonPlantInput()) return
         cacheLoadJob = viewModelScope.launch {
             val cachedAdvice = runCatching {
                 aiCareCacheRepository.getCachedAdvice(
@@ -504,6 +528,14 @@ class AiPlantCareViewModel(
         target: AiPlantCareAdviceTarget,
         error: Throwable,
     ) {
+        if (error is AiPlantCareException.UnrecognizedPlantName) {
+            adviceState.value = AiPlantCareAdviceState(
+                cacheKey = target.cacheKey,
+                errorMessage = error.toUserMessage(),
+            )
+            return
+        }
+
         val cachedAdvice = runCatching {
             aiCareCacheRepository.getCachedAdvice(
                 plantId = target.plantId,
@@ -650,6 +682,37 @@ class AiPlantCareViewModel(
         suggestedActionState.value = AiCareSuggestedActionState(
             pendingAction = AiCarePendingAction.SaveCareProfile,
             draftValue = advice.toPlantNotesProfile(),
+        )
+    }
+
+    private fun navigateToAddPlantWithAdvice() {
+        val state = uiState.value
+        if (state.selectedPlant != null) return
+
+        val advice = state.advice ?: return
+        val plantName = advice.plantName
+            .trim()
+            .ifBlank { state.temporaryPlantName.trim() }
+        if (plantName.isBlank()) {
+            showSuggestedActionMessage(
+                message = "Generate advice with a plant name before adding it.",
+                isError = true,
+            )
+            return
+        }
+
+        val scientificName = advice.scientificName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: state.temporaryScientificName.trim().takeIf { it.isNotBlank() }
+        emitEffect(
+            AiPlantCareEffect.NavigateToAddPlant(
+                name = plantName,
+                scientificName = scientificName,
+                notes = advice.toAddPlantPrefillNotes(scientificName),
+                wateringDays = advice.suggestedWateringIntervalDays?.coerceIn(MinReminderDays, MaxReminderDays),
+                fertilizingDays = advice.suggestedFertilizingIntervalDays?.coerceIn(MinReminderDays, MaxReminderDays),
+            ),
         )
     }
 
@@ -1007,6 +1070,37 @@ class AiPlantCareViewModel(
         }
     }
 
+    private fun String.isObviousNonPlantInput(): Boolean {
+        val normalized = trim()
+            .lowercase(Locale.ROOT)
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+        if (normalized.isBlank()) return true
+        if (normalized.all { it.isDigit() }) return true
+        return normalized in setOf(
+            "test",
+            "testing",
+            "\u0442\u0435\u0441\u0442",
+            "\u0442\u0435\u0441\u0442\u043E\u0432\u043E",
+            "asdf",
+            "qwerty",
+            "abc",
+            "abcd",
+            "none",
+            "null",
+            "unknown",
+            "plant",
+            "\u0440\u0430\u0441\u0442\u0435\u043D\u0438\u0435",
+        )
+    }
+
+    private fun String.unrecognizedPlantNameMessage(): String =
+        if (any { it in '\u0400'..'\u04FF' }) {
+            "WaterMe \u043D\u0435 \u0440\u0430\u0437\u043F\u043E\u0437\u043D\u0430 \u0442\u043E\u0432\u0430 \u043A\u0430\u0442\u043E \u0440\u0430\u0441\u0442\u0435\u043D\u0438\u0435. " +
+                "\u041F\u0440\u043E\u0432\u0435\u0440\u0435\u0442\u0435 \u0438\u043C\u0435\u0442\u043E \u0438 \u043E\u043F\u0438\u0442\u0430\u0439\u0442\u0435 \u043E\u0442\u043D\u043E\u0432\u043E."
+        } else {
+            "WaterMe couldn't recognize this as a plant. Please check the plant name and try again."
+        }
+
     private fun PlantCareAdvice.toFollowUpProfileSummary(): String =
         buildString {
             plantName.takeIf { it.isNotBlank() }?.let { appendLine("Profile plant name: $it") }
@@ -1055,6 +1149,19 @@ class AiPlantCareViewModel(
             disclaimer.takeIf { it.isNotBlank() }?.let { appendLine(it) }
         }.trim()
 
+    private fun PlantCareAdvice.toAddPlantPrefillNotes(scientificNameOverride: String?): String =
+        buildString {
+            appendLine("AI Care Profile: ${plantName.ifBlank { "Plant" }}")
+            scientificNameOverride?.takeIf { it.isNotBlank() }?.let { appendLine("Scientific name: $it") }
+            shortDescription.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+            suggestedWateringIntervalDays?.let { appendLine("Water: every $it days") }
+            suggestedFertilizingIntervalDays?.let { appendLine("Fertilize: every $it days") }
+            suggestedLightLevel?.takeIf { it.isNotBlank() }?.let { appendLine("Light: $it") }
+            suggestedNote?.takeIf { it.isNotBlank() }?.let { appendLine("Note: $it") }
+        }
+            .trim()
+            .take(MaxAddPlantPrefillNotesLength)
+
     private fun Int.toDefaultReminderDueAt(): Long =
         LocalDate.now()
             .plusDays(toLong())
@@ -1073,6 +1180,7 @@ class AiPlantCareViewModel(
         const val MaxReminderInputDigits = 3
         const val MaxSuggestedNoteLength = 700
         const val MaxCareProfileNoteLength = 2_400
+        const val MaxAddPlantPrefillNotesLength = 320
         const val MaxFollowUpQuestionLength = 240
         const val ActionMessageVisibleMillis = 2_400L
         const val SavedAdviceUnavailableMessage = "Showing saved AI advice. Refresh is unavailable right now."

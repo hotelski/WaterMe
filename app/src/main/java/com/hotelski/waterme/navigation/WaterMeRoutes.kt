@@ -44,11 +44,24 @@ sealed interface WaterMeRoute {
         const val BASE_ROUTE = "plants/add"
         const val PREFILL_NAME_ARG = "prefillName"
         const val PREFILL_PHOTO_URI_ARG = "prefillPhotoUri"
-        override val route = "$BASE_ROUTE?$PREFILL_NAME_ARG={$PREFILL_NAME_ARG}&$PREFILL_PHOTO_URI_ARG={$PREFILL_PHOTO_URI_ARG}"
+        const val PREFILL_SCIENTIFIC_NAME_ARG = "prefillScientificName"
+        const val PREFILL_NOTES_ARG = "prefillNotes"
+        const val PREFILL_WATERING_DAYS_ARG = "prefillWateringDays"
+        const val PREFILL_FERTILIZING_DAYS_ARG = "prefillFertilizingDays"
+        override val route = "$BASE_ROUTE?$PREFILL_NAME_ARG={$PREFILL_NAME_ARG}" +
+            "&$PREFILL_PHOTO_URI_ARG={$PREFILL_PHOTO_URI_ARG}" +
+            "&$PREFILL_SCIENTIFIC_NAME_ARG={$PREFILL_SCIENTIFIC_NAME_ARG}" +
+            "&$PREFILL_NOTES_ARG={$PREFILL_NOTES_ARG}" +
+            "&$PREFILL_WATERING_DAYS_ARG={$PREFILL_WATERING_DAYS_ARG}" +
+            "&$PREFILL_FERTILIZING_DAYS_ARG={$PREFILL_FERTILIZING_DAYS_ARG}"
 
         fun createRoute(
             prefillName: String? = null,
             prefillPhotoUri: String? = null,
+            prefillScientificName: String? = null,
+            prefillNotes: String? = null,
+            prefillWateringDays: Int? = null,
+            prefillFertilizingDays: Int? = null,
         ): String {
             val queryParameters = buildList {
                 prefillName?.takeIf { it.isNotBlank() }?.let {
@@ -56,6 +69,18 @@ sealed interface WaterMeRoute {
                 }
                 prefillPhotoUri?.takeIf { it.isNotBlank() }?.let {
                     add("$PREFILL_PHOTO_URI_ARG=${Uri.encode(it)}")
+                }
+                prefillScientificName?.takeIf { it.isNotBlank() }?.let {
+                    add("$PREFILL_SCIENTIFIC_NAME_ARG=${Uri.encode(it)}")
+                }
+                prefillNotes?.takeIf { it.isNotBlank() }?.let {
+                    add("$PREFILL_NOTES_ARG=${Uri.encode(it)}")
+                }
+                prefillWateringDays?.takeIf { it > 0 }?.let {
+                    add("$PREFILL_WATERING_DAYS_ARG=$it")
+                }
+                prefillFertilizingDays?.takeIf { it > 0 }?.let {
+                    add("$PREFILL_FERTILIZING_DAYS_ARG=$it")
                 }
             }
             return if (queryParameters.isEmpty()) {

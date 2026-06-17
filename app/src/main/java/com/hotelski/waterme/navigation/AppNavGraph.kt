@@ -123,6 +123,26 @@ fun AppNavGraph(
                     nullable = true
                     defaultValue = null
                 },
+                navArgument(WaterMeRoute.AddPlant.PREFILL_SCIENTIFIC_NAME_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(WaterMeRoute.AddPlant.PREFILL_NOTES_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(WaterMeRoute.AddPlant.PREFILL_WATERING_DAYS_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(WaterMeRoute.AddPlant.PREFILL_FERTILIZING_DAYS_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
             ),
         ) { entry ->
             AddPlantRoute(
@@ -131,6 +151,16 @@ fun AppNavGraph(
                 onPlantCreated = navigationActions::onPlantSaved,
                 prefillName = entry.arguments?.getString(WaterMeRoute.AddPlant.PREFILL_NAME_ARG),
                 prefillPhotoUri = entry.arguments?.getString(WaterMeRoute.AddPlant.PREFILL_PHOTO_URI_ARG),
+                prefillScientificName = entry.arguments?.getString(
+                    WaterMeRoute.AddPlant.PREFILL_SCIENTIFIC_NAME_ARG,
+                ),
+                prefillNotes = entry.arguments?.getString(WaterMeRoute.AddPlant.PREFILL_NOTES_ARG),
+                prefillWateringDays = entry.arguments
+                    ?.getString(WaterMeRoute.AddPlant.PREFILL_WATERING_DAYS_ARG)
+                    ?.toIntOrNull(),
+                prefillFertilizingDays = entry.arguments
+                    ?.getString(WaterMeRoute.AddPlant.PREFILL_FERTILIZING_DAYS_ARG)
+                    ?.toIntOrNull(),
             )
         }
 
@@ -149,6 +179,15 @@ fun AppNavGraph(
         waterMeComposable(WaterMeRoute.AiPlantCare.route) {
             AiPlantCareRoute(
                 onBack = navigationActions::back,
+                onAddPlant = { name, scientificName, notes, wateringDays, fertilizingDays ->
+                    navigationActions.navigateToAddPlant(
+                        prefillName = name,
+                        prefillScientificName = scientificName,
+                        prefillNotes = notes,
+                        prefillWateringDays = wateringDays,
+                        prefillFertilizingDays = fertilizingDays,
+                    )
+                },
             )
         }
 

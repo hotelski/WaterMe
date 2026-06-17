@@ -112,6 +112,7 @@ data class AddPlantUiState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val name: String = "",
+    val plantType: String = "Houseplant",
     val environment: PlantEnvironment = PlantEnvironment.INDOOR,
     val notes: String = "",
     val selectedPhotoUri: String? = null,

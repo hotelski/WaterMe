@@ -1,6 +1,8 @@
 .gradle/
 build/
 local.properties
+app/google-services.json
+.codex-remote-attachments/
 captures/
 .externalNativeBuild/
 .cxx/

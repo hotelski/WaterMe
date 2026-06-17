@@ -21,6 +21,8 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.util.Locale
 
+private const val UnrecognizedPlantNameMarker = "__UNRECOGNIZED_PLANT__"
+
 interface AiPlantCareRepository {
     suspend fun generateFullPlantCareAdvice(
         plantName: String,
@@ -70,6 +72,16 @@ sealed class AiPlantCareException(
         cause,
     )
 
+    class UnrecognizedPlantName(useBulgarian: Boolean, cause: Throwable? = null) : AiPlantCareException(
+        if (useBulgarian) {
+            "WaterMe \u043D\u0435 \u0440\u0430\u0437\u043F\u043E\u0437\u043D\u0430 \u0442\u043E\u0432\u0430 \u043A\u0430\u0442\u043E \u0440\u0430\u0441\u0442\u0435\u043D\u0438\u0435. " +
+                "\u041F\u0440\u043E\u0432\u0435\u0440\u0435\u0442\u0435 \u0438\u043C\u0435\u0442\u043E \u0438 \u043E\u043F\u0438\u0442\u0430\u0439\u0442\u0435 \u043E\u0442\u043D\u043E\u0432\u043E."
+        } else {
+            "WaterMe couldn't recognize this as a plant. Please check the plant name and try again."
+        },
+        cause,
+    )
+
     class Unknown(message: String, cause: Throwable? = null) : AiPlantCareException(message, cause)
 }
 
@@ -98,6 +110,10 @@ class FirebaseAiPlantCareRepository : AiPlantCareRepository {
             val normalizedPlantName = plantName.trim()
             val normalizedScientificName = scientificName?.trim()?.ifBlank { null }
             require(normalizedPlantName.isNotBlank()) { "Plant name is required." }
+            val useBulgarianResponse = shouldUseBulgarianResponse(normalizedPlantName)
+            if (normalizedPlantName.isObviousNonPlantInput()) {
+                throw AiPlantCareException.UnrecognizedPlantName(useBulgarianResponse)
+            }
             if (BuildConfig.DEBUG) {
                 Log.d(
                     LogTag,
@@ -125,7 +141,7 @@ class FirebaseAiPlantCareRepository : AiPlantCareRepository {
                 if (rawResponse.isBlank()) throw AiPlantCareException.EmptyResponse()
                 parsePlantCareAdviceJson(
                     rawResponse = rawResponse,
-                    useBulgarianFallbacks = shouldUseBulgarianResponse(normalizedPlantName),
+                    useBulgarianFallbacks = useBulgarianResponse,
                 )
             }
         }.recoverCatching { error ->
@@ -194,6 +210,10 @@ class FirebaseAiPlantCareRepository : AiPlantCareRepository {
             JSONObject(jsonText)
         } catch (error: JSONException) {
             throw PlantCareAdviceParseException(rawResponse, error)
+        }
+
+        if (json.optCleanString("plantName").equals(UnrecognizedPlantNameMarker, ignoreCase = true)) {
+            throw AiPlantCareException.UnrecognizedPlantName(useBulgarianFallbacks)
         }
 
         return PlantCareAdvice(
@@ -377,7 +397,11 @@ private fun buildPlantCareAdvicePrompt(
         Keep scientificName as the Latin scientific name when known.
         For plantName, use a common name in the selected response language when known; otherwise use the most recognizable common name.
         The plant name may be in Bulgarian, English, Latin transliteration, or contain a small typo. Infer the most likely plant before answering.
-        If the plant name is ambiguous, say that the advice is general for the likely plant.
+        Before creating a care profile, decide whether the entered name is a real, recognizable plant common name, scientific name, or a clear Bulgarian/English/transliterated plant name.
+        Do not invent a plant profile for random words, placeholders, test input, usernames, objects, animals, people, or text that is not a plant name.
+        If the entered name is not recognizable as a plant, return the same JSON structure but set plantName to "$UnrecognizedPlantNameMarker", scientificName to an empty string, careDifficulty to "Medium", every other text field to an empty string, and every nullable suggestion field to null.
+        If the plant name is a broad but real plant group, only answer when practical home care advice is possible; otherwise use "$UnrecognizedPlantNameMarker".
+        If the plant name is ambiguous but still likely a real plant, say that the advice is general for the likely plant.
         Include a safety note in toxicity if the plant may be toxic to pets or children.
         The disclaimer field must use the selected response language and say that AI advice may be inaccurate and the user should check the real plant condition.
         careDifficulty must be exactly one of these English values: Easy, Medium, Difficult.
@@ -477,6 +501,29 @@ private fun shouldUseBulgarianResponse(plantName: String): Boolean {
     )
 
     return hasCyrillic || likelyBulgarianTransliteration
+}
+
+private fun String.isObviousNonPlantInput(): Boolean {
+    val normalized = trim()
+        .lowercase(Locale.ROOT)
+        .replace(Regex("[^\\p{L}\\p{N}]"), "")
+    if (normalized.isBlank()) return true
+    if (normalized.all { it.isDigit() }) return true
+    return normalized in setOf(
+        "test",
+        "testing",
+        "тест",
+        "тестово",
+        "asdf",
+        "qwerty",
+        "abc",
+        "abcd",
+        "none",
+        "null",
+        "unknown",
+        "plant",
+        "растение",
+    )
 }
 
 private fun fallbackPlantName(useBulgarian: Boolean): String =

@@ -57,11 +57,19 @@ class WaterMeNavigationActions(
     fun navigateToAddPlant(
         prefillName: String? = null,
         prefillPhotoUri: String? = null,
+        prefillScientificName: String? = null,
+        prefillNotes: String? = null,
+        prefillWateringDays: Int? = null,
+        prefillFertilizingDays: Int? = null,
     ) {
         navController.navigate(
             WaterMeRoute.AddPlant.createRoute(
                 prefillName = prefillName,
                 prefillPhotoUri = prefillPhotoUri,
+                prefillScientificName = prefillScientificName,
+                prefillNotes = prefillNotes,
+                prefillWateringDays = prefillWateringDays,
+                prefillFertilizingDays = prefillFertilizingDays,
             ),
         )
     }

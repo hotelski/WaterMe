@@ -124,20 +124,47 @@ class AddPlantViewModel(
     fun applyPrefill(
         name: String?,
         photoUri: String?,
+        scientificName: String? = null,
+        notes: String? = null,
+        wateringDays: Int? = null,
+        fertilizingDays: Int? = null,
     ) {
         val normalizedName = name
             ?.trim()
             ?.take(MAX_NAME_LENGTH)
             .orEmpty()
+        val normalizedScientificName = scientificName
+            ?.trim()
+            ?.take(MAX_PLANT_TYPE_LENGTH)
+            .orEmpty()
         val normalizedPhotoUri = photoUri?.takeIf { it.isNotBlank() }
-        if (normalizedName.isBlank() && normalizedPhotoUri == null) {
+        val normalizedNotes = notes
+            ?.trim()
+            ?.take(MAX_NOTES_LENGTH)
+            .orEmpty()
+        val normalizedWateringDays = wateringDays?.takeIf { it in 1..MAX_REMINDER_DAYS }
+        val normalizedFertilizingDays = fertilizingDays?.takeIf { it in 1..MAX_REMINDER_DAYS }
+        if (
+            normalizedName.isBlank() &&
+            normalizedScientificName.isBlank() &&
+            normalizedPhotoUri == null &&
+            normalizedNotes.isBlank() &&
+            normalizedWateringDays == null &&
+            normalizedFertilizingDays == null
+        ) {
             return
         }
 
         _uiState.update {
             it.copy(
                 name = normalizedName.ifBlank { it.name },
+                plantType = normalizedScientificName.ifBlank { it.plantType },
                 selectedPhotoUri = normalizedPhotoUri ?: it.selectedPhotoUri,
+                notes = normalizedNotes.ifBlank { it.notes },
+                reminders = it.reminders.prefillReminderDays(
+                    wateringDays = normalizedWateringDays,
+                    fertilizingDays = normalizedFertilizingDays,
+                ),
                 fieldErrors = it.fieldErrors.copy(name = null),
                 errorMessage = null,
                 successMessage = null,
@@ -161,7 +188,7 @@ class AddPlantViewModel(
                 val plantId = plantRepository.addPlant(
                     userId = WaterMeAppContainer.LOCAL_USER_ID,
                     name = plantName,
-                    plantType = DEFAULT_PLANT_TYPE,
+                    plantType = current.plantType.trim().ifBlank { DEFAULT_PLANT_TYPE },
                     location = DEFAULT_PLANT_LOCATION,
                     environment = current.environment,
                     notes = current.notes,
@@ -371,6 +398,48 @@ class AddPlantViewModel(
         AddPlantFrequencyOption.entries.firstOrNull { it.days == defaultFrequencyDays }
             ?: AddPlantFrequencyOption.EVERY_3_DAYS
 
+    private fun List<AddPlantReminderDraftUiModel>.prefillReminderDays(
+        wateringDays: Int?,
+        fertilizingDays: Int?,
+    ): List<AddPlantReminderDraftUiModel> =
+        map { reminder ->
+            val intervalDays = when (reminder.careType) {
+                CareType.WATERING -> wateringDays
+                CareType.FERTILIZING -> fertilizingDays
+                else -> null
+            } ?: return@map reminder
+
+            val frequency = intervalDays.toFrequencyOption()
+            val startDateMillis = reminder.careType.prefillStartDateMillis(intervalDays)
+            reminder.copy(
+                enabled = true,
+                frequency = frequency,
+                customFrequencyDays = if (frequency == AddPlantFrequencyOption.CUSTOM) {
+                    intervalDays.toString()
+                } else {
+                    ""
+                },
+                startDateMillis = startDateMillis,
+                startDateLabel = startDateMillis.toDateLabel(),
+            )
+        }
+
+    private fun Int.toFrequencyOption(): AddPlantFrequencyOption =
+        AddPlantFrequencyOption.entries.firstOrNull { it.days == this }
+            ?: AddPlantFrequencyOption.CUSTOM
+
+    private fun CareType.prefillStartDateMillis(intervalDays: Int): Long {
+        val targetDate = if (this == CareType.WATERING) {
+            LocalDate.now()
+        } else {
+            LocalDate.now().plusDays(intervalDays.toLong())
+        }
+        return targetDate
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }
+
     private fun emitEffect(effect: AddPlantEffect) {
         viewModelScope.launch { _effects.emit(effect) }
     }
@@ -382,6 +451,7 @@ class AddPlantViewModel(
         const val DEFAULT_PLANT_TYPE = "Houseplant"
         const val DEFAULT_PLANT_LOCATION = "Home"
         const val MAX_NAME_LENGTH = 80
+        const val MAX_PLANT_TYPE_LENGTH = 120
         const val MAX_NOTES_LENGTH = 320
         const val MAX_REMINDER_DAYS = 365
         const val MAX_FREQUENCY_DIGITS = 3
