@@ -25,16 +25,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,13 +48,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.hotelski.waterme.feature.common.WaterMeCard
+import com.hotelski.waterme.feature.common.WaterMeIconBadge
+import com.hotelski.waterme.feature.common.WaterMePremiumCard
+import com.hotelski.waterme.feature.common.WaterMeStatusChip
 import com.hotelski.waterme.feature.common.WaterMeTopBar
 import com.hotelski.waterme.ui.theme.Clay
 import com.hotelski.waterme.ui.theme.FreshGreen
@@ -85,40 +92,27 @@ fun HowToUseScreen(
 private fun HowToUseContent(
     modifier: Modifier = Modifier,
 ) {
-    val summarySteps = rememberGuideSummarySteps()
-
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 20.dp, top = 14.dp, end = 20.dp, bottom = 36.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item {
-            GuideHeroCard()
-        }
-        item {
-            GuideSummaryCard(steps = summarySteps)
-        }
-        item { Spacer(Modifier.height(72.dp)) }
+        item { GuideHeroCard() }
+        item { SmartToolsCard() }
+        item { DailyRhythmCard() }
+        item { RecordsCard() }
+        item { QuickTipsCard() }
     }
 }
 
 @Composable
 private fun GuideHeroCard() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.30f),
-                    ),
-                ),
-                shape = RoundedCornerShape(30.dp),
-            )
-            .padding(16.dp),
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.surface,
+        accentColor = LeafGreen,
+        shape = RoundedCornerShape(32.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -127,102 +121,111 @@ private fun GuideHeroCard() {
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = "Quick guide",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
+                WaterMeStatusChip(
+                    label = "Care hub",
+                    color = LeafGreen,
+                    icon = Icons.Rounded.LocalFlorist,
                 )
                 Text(
-                    text = "Add plants, set reminders, care today, and track changes.",
+                    text = "WaterMe keeps plant care simple",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Add plants, scan unknown leaves, get AI care guidance, and keep reminders in one quiet daily flow.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
                 )
             }
 
             Box(
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(108.dp)
                     .background(
-                        Brush.linearGradient(
-                            listOf(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
                                 LeafGreen.copy(alpha = 0.18f),
                                 MistBlue.copy(alpha = 0.18f),
+                                Clay.copy(alpha = 0.12f),
                             ),
                         ),
-                        RoundedCornerShape(28.dp),
+                        shape = RoundedCornerShape(30.dp),
                     )
-                    .padding(6.dp),
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                AnimatedPlantGuide(
-                    modifier = Modifier.size(84.dp),
-                )
+                SmartGuideIllustration(modifier = Modifier.size(88.dp))
             }
         }
     }
 }
 
 @Composable
-private fun GuideSummaryCard(
-    steps: List<GuideSummaryStep>,
-) {
-    val transition = rememberInfiniteTransition(label = "GuideFlowMotion")
-    val activePosition by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = steps.size.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 10_000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "GuideFlowActivePosition",
-    )
+private fun SmartToolsCard() {
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.surface,
+        accentColor = MistBlue,
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            GuideSectionHeader(
+                icon = Icons.Rounded.AutoAwesome,
+                color = MistBlue,
+                title = "Smart tools",
+                subtitle = "Use these when you need help identifying or caring for a plant.",
+            )
 
-    WaterMeCard(containerColor = MaterialTheme.colorScheme.surface) {
-        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(LeafGreen.copy(alpha = 0.11f), RoundedCornerShape(17.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.WaterDrop,
-                        contentDescription = null,
-                        tint = LeafGreen,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = "Care flow",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "A simple daily loop.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            GuideFeatureCard(
+                icon = Icons.Rounded.PhotoCamera,
+                color = MistBlue,
+                title = "Plant Scanner",
+                description = "Take a photo or choose one from the gallery, crop the exact area, and WaterMe shows the most likely plant match.",
+                bullets = listOf(
+                    "Great for unknown plants",
+                    "Uses the selected crop for analysis",
+                    "Save the result to My Plants",
+                ),
+            )
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GuideFeatureCard(
+                icon = Icons.Rounded.TipsAndUpdates,
+                color = LeafGreen,
+                title = "AI Care",
+                description = "Choose a saved plant or type a temporary name to get a care profile with water, light, humidity, toxicity, and origin info.",
+                bullets = listOf(
+                    "Works with saved or temporary plants",
+                    "Can suggest reminders and notes",
+                    "Supports short follow-up questions",
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DailyRhythmCard() {
+    val steps = rememberDailyGuideSteps()
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.surface,
+        accentColor = LeafGreen,
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            GuideSectionHeader(
+                icon = Icons.Rounded.WaterDrop,
+                color = LeafGreen,
+                title = "Daily rhythm",
+                subtitle = "A small routine keeps the app useful without feeling busy.",
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 steps.forEachIndexed { index, step ->
-                    GuideFlowStepRow(
+                    GuideStepRow(
                         number = index + 1,
                         step = step,
-                        shade = flowShade(activePosition = activePosition, stepIndex = index),
                     )
                 }
             }
@@ -231,73 +234,160 @@ private fun GuideSummaryCard(
 }
 
 @Composable
-private fun GuideFlowStepRow(
-    number: Int,
-    step: GuideSummaryStep,
-    shade: Float,
+private fun RecordsCard() {
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.surface,
+        accentColor = Clay,
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            GuideSectionHeader(
+                icon = Icons.Rounded.History,
+                color = Clay,
+                title = "Plant memory",
+                subtitle = "WaterMe becomes more useful as you keep small records.",
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                GuideMiniCard(
+                    title = "Photos",
+                    text = "Keep visual progress.",
+                    icon = Icons.Rounded.PhotoCamera,
+                    color = MistBlue,
+                    modifier = Modifier.weight(1f),
+                )
+                GuideMiniCard(
+                    title = "History",
+                    text = "Review care actions.",
+                    icon = Icons.Rounded.History,
+                    color = Clay,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            GuideMiniCard(
+                title = "Notes",
+                text = "Save observations from AI Care, repotting, pests, growth, or anything you notice.",
+                icon = Icons.Rounded.Check,
+                color = LeafGreen,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickTipsCard() {
+    WaterMePremiumCard(
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
+        accentColor = FreshGreen,
+        shape = RoundedCornerShape(30.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            GuideSectionHeader(
+                icon = Icons.Rounded.LocalFlorist,
+                color = FreshGreen,
+                title = "Best results",
+                subtitle = "Small habits make scanner matches and AI advice more useful.",
+            )
+            GuideTipRow("Use clear photos with one plant filling most of the frame.")
+            GuideTipRow("Crop the leaf, flower, or stem area before scanning.")
+            GuideTipRow("For AI Care, use the common name or scientific name when you know it.")
+            GuideTipRow("Always check the real plant condition before following any AI suggestion.")
+        }
+    }
+}
+
+@Composable
+private fun GuideSectionHeader(
+    icon: ImageVector,
+    color: Color,
+    title: String,
+    subtitle: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WaterMeIconBadge(
+            icon = icon,
+            color = color,
+            size = 46.dp,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GuideFeatureCard(
+    icon: ImageVector,
+    color: Color,
+    title: String,
+    description: String,
+    bullets: List<String>,
+    modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(24.dp)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(
                 Brush.horizontalGradient(
                     listOf(
-                        step.color.copy(alpha = 0.07f + shade * 0.15f),
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.14f + shade * 0.05f),
+                        color.copy(alpha = 0.10f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.16f),
                     ),
                 ),
                 shape,
             )
-            .border(
-                width = 1.dp,
-                color = step.color.copy(alpha = 0.07f + shade * 0.18f),
-                shape = shape,
-            )
+            .border(1.dp, color.copy(alpha = 0.18f), shape)
             .padding(14.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.84f + shade * 0.08f), RoundedCornerShape(17.dp))
-                    .border(1.dp, step.color.copy(alpha = 0.12f + shade * 0.18f), RoundedCornerShape(17.dp)),
-                contentAlignment = Alignment.Center,
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = step.icon,
-                    contentDescription = null,
-                    tint = step.color,
-                    modifier = Modifier.size(23.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = "STEP ${number.toString().padStart(2, '0')}",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = step.color,
-                    maxLines = 1,
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                WaterMeIconBadge(icon = icon, color = color, size = 48.dp)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(
-                        text = step.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = step.summary,
+                        text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
                     )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                bullets.forEach { bullet ->
+                    GuideBullet(text = bullet, color = color)
                 }
             }
         }
@@ -305,135 +395,330 @@ private fun GuideFlowStepRow(
 }
 
 @Composable
-private fun AnimatedPlantGuide(
-    modifier: Modifier = Modifier,
+private fun GuideStepRow(
+    number: Int,
+    step: GuideStep,
 ) {
-    val transition = rememberInfiniteTransition(label = "GuidePlantMotion")
-    val growth by transition.animateFloat(
-        initialValue = 0.78f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "GuidePlantGrowth",
-    )
-    val dropY by transition.animateFloat(
-        initialValue = 0.10f,
-        targetValue = 0.50f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "GuideWaterDrop",
-    )
-
-    Canvas(modifier = modifier) {
-        val potWidth = size.width * 0.48f
-        val potHeight = size.height * 0.24f
-        val potLeft = (size.width - potWidth) / 2f
-        val potTop = size.height - potHeight - 4.dp.toPx()
-        val stemBottom = Offset(size.width / 2f, potTop + 4.dp.toPx())
-        val leafNode = Offset(size.width / 2f, size.height * (0.45f - (growth - 0.78f) * 0.32f))
-
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.20f),
-            topLeft = Offset(size.width * 0.05f, size.height * 0.07f),
-            size = Size(size.width * 0.90f, size.height * 0.86f),
-            cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx()),
-        )
-        drawRoundRect(
-            color = Color.White.copy(alpha = 0.10f),
-            topLeft = Offset(size.width * 0.10f, size.height * 0.12f),
-            size = Size(size.width * 0.72f, size.height * 0.58f),
-            cornerRadius = CornerRadius(24.dp.toPx(), 24.dp.toPx()),
-        )
-        drawRoundRect(
-            color = Clay.copy(alpha = 0.95f),
-            topLeft = Offset(potLeft, potTop),
-            size = Size(potWidth, potHeight),
-            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
-        )
-        drawLine(
-            color = Color.White.copy(alpha = 0.94f),
-            start = stemBottom,
-            end = leafNode,
-            strokeWidth = 5.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        rotate(degrees = -13f, pivot = leafNode) {
-            drawOval(
-                color = FreshGreen,
-                topLeft = Offset(leafNode.x - size.width * 0.36f, leafNode.y - size.height * 0.08f),
-                size = Size(size.width * 0.40f * growth, size.height * 0.17f * growth),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(step.color.copy(alpha = 0.08f), RoundedCornerShape(22.dp))
+            .border(1.dp, step.color.copy(alpha = 0.13f), RoundedCornerShape(22.dp))
+            .padding(13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f), RoundedCornerShape(16.dp))
+                .border(1.dp, step.color.copy(alpha = 0.16f), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = number.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = step.color,
             )
         }
-        rotate(degrees = 14f, pivot = leafNode) {
-            drawOval(
-                color = LeafGreen,
-                topLeft = Offset(leafNode.x - size.width * 0.02f, leafNode.y - size.height * 0.13f),
-                size = Size(size.width * 0.42f * growth, size.height * 0.19f * growth),
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = step.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = step.text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        drawCircle(
-            color = Color.White.copy(alpha = 0.92f),
-            radius = 3.3.dp.toPx(),
-            center = leafNode,
-        )
-        drawCircle(
-            color = MistBlue.copy(alpha = 0.86f),
-            radius = 6.dp.toPx(),
-            center = Offset(size.width * 0.77f, size.height * dropY),
+        Icon(
+            imageVector = step.icon,
+            contentDescription = null,
+            tint = step.color,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
 
 @Composable
-private fun rememberGuideSummarySteps(): List<GuideSummaryStep> =
+private fun GuideMiniCard(
+    title: String,
+    text: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .background(color.copy(alpha = 0.09f), RoundedCornerShape(22.dp))
+            .border(1.dp, color.copy(alpha = 0.14f), RoundedCornerShape(22.dp))
+            .padding(13.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            WaterMeIconBadge(icon = icon, color = color, size = 38.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GuideBullet(
+    text: String,
+    color: Color,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .size(6.dp)
+                .background(color, RoundedCornerShape(999.dp)),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun GuideTipRow(text: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Check,
+            contentDescription = null,
+            tint = LeafGreen,
+            modifier = Modifier
+                .padding(top = 1.dp)
+                .size(18.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SmartGuideIllustration(
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "GuideSmartMotion")
+    val orbit by transition.animateFloat(
+        initialValue = -18f,
+        targetValue = 342f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 6200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "GuideOrbit",
+    )
+    val scanSweep by transition.animateFloat(
+        initialValue = 0.16f,
+        targetValue = 0.84f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "GuideScanSweep",
+    )
+    val sparkle by transition.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "GuideSparkle",
+    )
+
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width * 0.50f, size.height * 0.50f)
+        val badgeTopLeft = Offset(size.width * 0.12f, size.height * 0.12f)
+        val badgeSize = Size(size.width * 0.76f, size.height * 0.76f)
+        val badgeRadius = 26.dp.toPx()
+
+        drawRoundRect(
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.44f),
+                    LeafGreen.copy(alpha = 0.12f),
+                    MistBlue.copy(alpha = 0.18f),
+                ),
+            ),
+            topLeft = badgeTopLeft,
+            size = badgeSize,
+            cornerRadius = CornerRadius(badgeRadius, badgeRadius),
+        )
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.72f),
+            topLeft = Offset(size.width * 0.23f, size.height * 0.24f),
+            size = Size(size.width * 0.54f, size.height * 0.52f),
+            cornerRadius = CornerRadius(21.dp.toPx(), 21.dp.toPx()),
+        )
+        drawArc(
+            color = LeafGreen.copy(alpha = 0.44f),
+            startAngle = orbit,
+            sweepAngle = 118f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.18f, size.height * 0.18f),
+            size = Size(size.width * 0.64f, size.height * 0.64f),
+            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+        )
+        drawArc(
+            color = MistBlue.copy(alpha = 0.32f),
+            startAngle = orbit + 170f,
+            sweepAngle = 72f,
+            useCenter = false,
+            topLeft = Offset(size.width * 0.26f, size.height * 0.26f),
+            size = Size(size.width * 0.48f, size.height * 0.48f),
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+        )
+
+        val scanY = size.height * scanSweep
+        drawLine(
+            color = MistBlue.copy(alpha = 0.72f),
+            start = Offset(size.width * 0.29f, scanY),
+            end = Offset(size.width * 0.71f, scanY),
+            strokeWidth = 2.4.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawCircle(
+            color = MistBlue.copy(alpha = 0.15f),
+            radius = 10.dp.toPx() * sparkle,
+            center = Offset(size.width * 0.72f, scanY),
+        )
+
+        val stemBase = Offset(size.width * 0.50f, size.height * 0.68f)
+        val stemTop = Offset(size.width * 0.50f, size.height * 0.43f)
+        drawRoundRect(
+            brush = Brush.horizontalGradient(
+                listOf(
+                    Clay.copy(alpha = 0.92f),
+                    Clay.copy(alpha = 0.62f),
+                ),
+            ),
+            topLeft = Offset(size.width * 0.36f, size.height * 0.66f),
+            size = Size(size.width * 0.28f, size.height * 0.14f),
+            cornerRadius = CornerRadius(11.dp.toPx(), 11.dp.toPx()),
+        )
+        drawLine(
+            color = LeafGreen.copy(alpha = 0.86f),
+            start = stemBase,
+            end = stemTop,
+            strokeWidth = 4.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        rotate(degrees = -22f, pivot = stemTop) {
+            drawOval(
+                color = FreshGreen,
+                topLeft = Offset(stemTop.x - size.width * 0.32f, stemTop.y - size.height * 0.05f),
+                size = Size(size.width * 0.34f, size.height * 0.15f),
+            )
+        }
+        rotate(degrees = 20f, pivot = stemTop) {
+            drawOval(
+                color = LeafGreen,
+                topLeft = Offset(stemTop.x - size.width * 0.02f, stemTop.y - size.height * 0.10f),
+                size = Size(size.width * 0.36f, size.height * 0.17f),
+            )
+        }
+        drawCircle(
+            color = Color.White.copy(alpha = 0.95f),
+            radius = 3.2.dp.toPx(),
+            center = stemTop,
+        )
+
+        rotate(degrees = orbit * 0.25f, pivot = center) {
+            drawCircle(
+                color = LeafGreen.copy(alpha = 0.88f),
+                radius = 3.dp.toPx(),
+                center = Offset(size.width * 0.28f, size.height * 0.30f),
+            )
+            drawCircle(
+                color = MistBlue.copy(alpha = 0.88f),
+                radius = 2.6.dp.toPx(),
+                center = Offset(size.width * 0.74f, size.height * 0.36f),
+            )
+        }
+        drawCircle(
+            color = Clay.copy(alpha = 0.18f + sparkle * 0.18f),
+            radius = 8.dp.toPx() * sparkle,
+            center = Offset(size.width * 0.68f, size.height * 0.24f),
+        )
+        drawCircle(
+            color = Clay.copy(alpha = 0.88f),
+            radius = 2.3.dp.toPx(),
+            center = Offset(size.width * 0.68f, size.height * 0.24f),
+        )
+    }
+}
+
+@Composable
+private fun rememberDailyGuideSteps(): List<GuideStep> =
     remember {
         listOf(
-            GuideSummaryStep(
-                title = "Add plants",
-                summary = "Photo, name, place, notes.",
+            GuideStep(
+                title = "Add your plant",
+                text = "Start with a name, photo, location, and optional notes.",
                 icon = Icons.Rounded.LocalFlorist,
                 color = LeafGreen,
             ),
-            GuideSummaryStep(
-                title = "Set rhythm",
-                summary = "Pick care intervals.",
+            GuideStep(
+                title = "Set care reminders",
+                text = "Choose watering and fertilizing intervals that match the plant.",
                 icon = Icons.Rounded.Notifications,
                 color = MistBlue,
             ),
-            GuideSummaryStep(
-                title = "Care today",
-                summary = "Done, snooze, or skip.",
+            GuideStep(
+                title = "Check Today",
+                text = "Mark care as done, snooze it, or skip when the plant is not ready.",
                 icon = Icons.Rounded.WaterDrop,
                 color = FreshGreen,
             ),
-            GuideSummaryStep(
-                title = "Track changes",
-                summary = "Notes, photos, history.",
-                icon = Icons.Rounded.PhotoCamera,
+            GuideStep(
+                title = "Track what changed",
+                text = "Use history, notes, and photos to remember what worked.",
+                icon = Icons.Rounded.History,
                 color = Clay,
             ),
         )
     }
 
-private data class GuideSummaryStep(
+private data class GuideStep(
     val title: String,
-    val summary: String,
+    val text: String,
     val icon: ImageVector,
     val color: Color,
 )
-
-private fun flowShade(
-    activePosition: Float,
-    stepIndex: Int,
-): Float {
-    val localProgress = activePosition - stepIndex
-    if (localProgress < 0f || localProgress >= 1f) return 0f
-    return 1f - localProgress * 0.78f
-}
 
 @Preview(showBackground = true)
 @Composable
