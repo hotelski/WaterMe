@@ -341,56 +341,32 @@ private fun WaterMeLeafRefreshIndicator(
         visible = isRefreshing || distanceFraction > 0f,
         modifier = modifier.padding(top = 5.dp),
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .graphicsLayer {
+                    alpha = (0.24f + progress * 0.76f).coerceIn(0f, 1f)
+                    scaleX = 0.68f + progress * 0.32f
+                    scaleY = 0.68f + progress * 0.32f
+                    translationY = -8f + progress * 5f
+                },
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
+            Icon(
+                imageVector = Icons.Rounded.Eco,
+                contentDescription = "Refresh",
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(21.dp)
                     .graphicsLayer {
-                        alpha = (0.24f + progress * 0.76f).coerceIn(0f, 1f)
-                        scaleX = 0.68f + progress * 0.32f
-                        scaleY = 0.68f + progress * 0.32f
-                        translationY = -8f + progress * 5f
-                    }
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                    .border(1.dp, LeafGreen.copy(alpha = 0.22f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Eco,
-                    contentDescription = "Refresh",
-                    modifier = Modifier
-                        .size(21.dp)
-                        .graphicsLayer {
-                            rotationZ = if (isRefreshing) 10f else -26f + progress * 36f
-                        },
-                    tint = LeafGreen,
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(3) { index ->
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .graphicsLayer {
-                                alpha = (0.22f + progress * (0.42f + index * 0.1f)).coerceIn(0f, 1f)
-                            }
-                            .clip(CircleShape)
-                            .background(LeafGreen.copy(alpha = 0.72f)),
-                    )
-                }
-            }
+                        rotationZ = if (isRefreshing) 10f else -26f + progress * 36f
+                    },
+                tint = LeafGreen,
+            )
         }
     }
 }
 
-private val LeafRefreshSpaceHeight = 58.dp
+private val LeafRefreshSpaceHeight = 42.dp
 
 @Composable
 fun WaterMeCard(
