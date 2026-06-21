@@ -511,17 +511,25 @@ private fun PlantListCard(
                     size = 96.dp,
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.Top) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(
-                                text = plant.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    Text(
+                        text = plant.name,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        PlantStatusChips(
+                            plant = plant,
+                            modifier = Modifier.weight(1f),
+                        )
                         IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(42.dp)) {
                             Icon(
                                 imageVector = if (plant.isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
@@ -541,8 +549,6 @@ private fun PlantListCard(
                             )
                         }
                     }
-
-                    PlantStatusChips(plant = plant)
                 }
             }
 

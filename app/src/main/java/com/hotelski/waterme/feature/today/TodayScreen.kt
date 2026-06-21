@@ -1016,7 +1016,10 @@ private fun HomeCareTaskCard(
                     )
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
                     Text(
                         text = task.careType.label(),
                         style = MaterialTheme.typography.titleMedium,
@@ -1030,12 +1033,12 @@ private fun HomeCareTaskCard(
                         text = task.plantName,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                }
 
-                CareTaskStatusChip(task)
+                    CareTaskStatusChip(task)
+                }
             }
 
             Row(

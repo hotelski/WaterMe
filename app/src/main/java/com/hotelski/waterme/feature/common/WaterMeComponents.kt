@@ -781,19 +781,17 @@ fun PlantCard(
                 size = 78.dp,
             )
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = plant.name,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (plant.dueTaskCount > 0) {
-                        CountPill("${plant.dueTaskCount} due")
-                    }
+                Text(
+                    text = plant.name,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (plant.dueTaskCount > 0) {
+                    CountPill("${plant.dueTaskCount} due", modifier = Modifier.padding(top = 6.dp))
                 }
                 if (plant.nextCareLabel != null) {
                     Text(
@@ -828,7 +826,10 @@ fun CareTaskCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CareTypeBadge(task.careType)
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
                     Text(
                         text = task.careType.label(),
                         style = MaterialTheme.typography.titleMedium,
@@ -839,7 +840,7 @@ fun CareTaskCard(
                         text = task.plantName,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
@@ -847,8 +848,8 @@ fun CareTaskCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    StatusPill(task)
                 }
-                StatusPill(task)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1001,8 +1002,12 @@ private fun StatusPill(task: CareTaskUiModel) {
 }
 
 @Composable
-private fun CountPill(label: String) {
+private fun CountPill(
+    label: String,
+    modifier: Modifier = Modifier,
+) {
     Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(50),
         color = LeafGreen.copy(alpha = 0.12f),
     ) {
