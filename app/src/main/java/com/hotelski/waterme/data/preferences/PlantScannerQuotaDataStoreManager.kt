@@ -11,8 +11,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 private val Context.waterMePlantScannerQuotaDataStore by preferencesDataStore(
     name = "waterme_plant_scanner_quota",
@@ -47,6 +49,17 @@ class PlantScannerQuotaDataStoreManager(
     private val clock: Clock = Clock.systemDefaultZone(),
 ) {
     private val dataStore: DataStore<Preferences> = context.applicationContext.waterMePlantScannerQuotaDataStore
+
+    fun observeTotalScans(userId: String): Flow<Int> =
+        dataStore.data
+            .catch { error ->
+                if (error is IOException) {
+                    emit(emptyPreferences())
+                } else {
+                    throw error
+                }
+            }
+            .map { preferences -> preferences.toTotalScans(userId) }
 
     suspend fun currentQuota(userId: String): PlantScannerQuotaSnapshot {
         val preferences = dataStore.data
@@ -89,6 +102,7 @@ class PlantScannerQuotaDataStoreManager(
 
             val consumedSnapshot = activeSnapshot.copy(scansUsed = activeSnapshot.scansUsed + 1)
             preferences.persistQuota(userId, consumedSnapshot)
+            preferences.incrementTotalScans(userId, activeSnapshot)
             result = PlantScannerQuotaConsumeResult.Consumed(consumedSnapshot)
         }
         return requireNotNull(result)
@@ -115,6 +129,19 @@ class PlantScannerQuotaDataStoreManager(
         )
     }
 
+    private fun Preferences.toTotalScans(userId: String): Int {
+        val keys = PlantScannerQuotaPreferenceKeys.forUser(userId)
+        val persistedTotal = this[keys.totalScans]
+        if (persistedTotal != null) return persistedTotal.coerceAtLeast(0)
+
+        val resetAtMillis = this[keys.resetAtMillis] ?: nextResetAtMillis()
+        return if (resetAtMillis > nowMillis()) {
+            (this[keys.scansUsed] ?: 0).coerceIn(0, ScanLimit)
+        } else {
+            0
+        }
+    }
+
     private fun androidx.datastore.preferences.core.MutablePreferences.persistQuota(
         userId: String,
         snapshot: PlantScannerQuotaSnapshot,
@@ -122,6 +149,15 @@ class PlantScannerQuotaDataStoreManager(
         val keys = PlantScannerQuotaPreferenceKeys.forUser(userId)
         this[keys.scansUsed] = snapshot.scansUsed.coerceIn(0, snapshot.scanLimit)
         this[keys.resetAtMillis] = snapshot.resetAtMillis
+    }
+
+    private fun androidx.datastore.preferences.core.MutablePreferences.incrementTotalScans(
+        userId: String,
+        activeSnapshot: PlantScannerQuotaSnapshot,
+    ) {
+        val keys = PlantScannerQuotaPreferenceKeys.forUser(userId)
+        val existingTotal = this[keys.totalScans] ?: activeSnapshot.scansUsed
+        this[keys.totalScans] = (existingTotal + 1).coerceAtLeast(0)
     }
 
     private fun nowMillis(): Long = clock.millis()
@@ -145,6 +181,7 @@ class PlantScannerQuotaDataStoreManager(
 private data class PlantScannerQuotaPreferenceKeys(
     val scansUsed: Preferences.Key<Int>,
     val resetAtMillis: Preferences.Key<Long>,
+    val totalScans: Preferences.Key<Int>,
 ) {
     companion object {
         fun forUser(userId: String): PlantScannerQuotaPreferenceKeys {
@@ -152,6 +189,7 @@ private data class PlantScannerQuotaPreferenceKeys(
             return PlantScannerQuotaPreferenceKeys(
                 scansUsed = intPreferencesKey("plant_scanner_${keySegment}_scans_used"),
                 resetAtMillis = longPreferencesKey("plant_scanner_${keySegment}_reset_at_millis"),
+                totalScans = intPreferencesKey("plant_scanner_${keySegment}_total_scans"),
             )
         }
     }

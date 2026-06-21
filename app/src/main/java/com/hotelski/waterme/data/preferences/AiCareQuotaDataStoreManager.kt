@@ -11,8 +11,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 private val Context.waterMeAiCareQuotaDataStore by preferencesDataStore(
     name = "waterme_ai_care_quota",
@@ -47,6 +49,17 @@ class AiCareQuotaDataStoreManager(
     private val clock: Clock = Clock.systemDefaultZone(),
 ) {
     private val dataStore: DataStore<Preferences> = context.applicationContext.waterMeAiCareQuotaDataStore
+
+    fun observeTotalRequests(userId: String): Flow<Int> =
+        dataStore.data
+            .catch { error ->
+                if (error is IOException) {
+                    emit(emptyPreferences())
+                } else {
+                    throw error
+                }
+            }
+            .map { preferences -> preferences.toTotalRequests(userId) }
 
     suspend fun currentQuota(userId: String): AiCareQuotaSnapshot {
         val preferences = dataStore.data
@@ -89,6 +102,7 @@ class AiCareQuotaDataStoreManager(
 
             val consumedSnapshot = activeSnapshot.copy(requestsUsed = activeSnapshot.requestsUsed + 1)
             preferences.persistQuota(userId, consumedSnapshot)
+            preferences.incrementTotalRequests(userId, activeSnapshot)
             result = AiCareQuotaConsumeResult.Consumed(consumedSnapshot)
         }
         return requireNotNull(result)
@@ -115,6 +129,19 @@ class AiCareQuotaDataStoreManager(
         )
     }
 
+    private fun Preferences.toTotalRequests(userId: String): Int {
+        val keys = AiCareQuotaPreferenceKeys.forUser(userId)
+        val persistedTotal = this[keys.totalRequests]
+        if (persistedTotal != null) return persistedTotal.coerceAtLeast(0)
+
+        val resetAtMillis = this[keys.resetAtMillis] ?: nextResetAtMillis()
+        return if (resetAtMillis > nowMillis()) {
+            (this[keys.requestsUsed] ?: 0).coerceIn(0, RequestLimit)
+        } else {
+            0
+        }
+    }
+
     private fun androidx.datastore.preferences.core.MutablePreferences.persistQuota(
         userId: String,
         snapshot: AiCareQuotaSnapshot,
@@ -122,6 +149,15 @@ class AiCareQuotaDataStoreManager(
         val keys = AiCareQuotaPreferenceKeys.forUser(userId)
         this[keys.requestsUsed] = snapshot.requestsUsed.coerceIn(0, snapshot.requestLimit)
         this[keys.resetAtMillis] = snapshot.resetAtMillis
+    }
+
+    private fun androidx.datastore.preferences.core.MutablePreferences.incrementTotalRequests(
+        userId: String,
+        activeSnapshot: AiCareQuotaSnapshot,
+    ) {
+        val keys = AiCareQuotaPreferenceKeys.forUser(userId)
+        val existingTotal = this[keys.totalRequests] ?: activeSnapshot.requestsUsed
+        this[keys.totalRequests] = (existingTotal + 1).coerceAtLeast(0)
     }
 
     private fun nowMillis(): Long = clock.millis()
@@ -145,6 +181,7 @@ class AiCareQuotaDataStoreManager(
 private data class AiCareQuotaPreferenceKeys(
     val requestsUsed: Preferences.Key<Int>,
     val resetAtMillis: Preferences.Key<Long>,
+    val totalRequests: Preferences.Key<Int>,
 ) {
     companion object {
         fun forUser(userId: String): AiCareQuotaPreferenceKeys {
@@ -152,6 +189,7 @@ private data class AiCareQuotaPreferenceKeys(
             return AiCareQuotaPreferenceKeys(
                 requestsUsed = intPreferencesKey("ai_care_${keySegment}_requests_used"),
                 resetAtMillis = longPreferencesKey("ai_care_${keySegment}_reset_at_millis"),
+                totalRequests = intPreferencesKey("ai_care_${keySegment}_total_requests"),
             )
         }
     }

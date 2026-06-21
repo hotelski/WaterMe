@@ -37,6 +37,11 @@ private data class HomeActionState(
     val isRefreshing: Boolean = false,
 )
 
+private data class HomeFeatureUsageStats(
+    val plantScannerScans: Int = 0,
+    val aiCareRequests: Int = 0,
+)
+
 class HomeViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -44,6 +49,8 @@ class HomeViewModel(
     private val plantRepository = WaterMeAppContainer.plantRepository(appContext)
     private val careRepository = WaterMeAppContainer.careRepository(appContext)
     private val settingsDataStore = WaterMeAppContainer.settingsDataStore(appContext)
+    private val plantScannerQuotaDataStore = WaterMeAppContainer.plantScannerQuotaDataStore(appContext)
+    private val aiCareQuotaDataStore = WaterMeAppContainer.aiCareQuotaDataStore(appContext)
     private val reminderNotifications = WaterMeAppContainer.reminderNotificationCoordinator(appContext)
 
     private val actionState = MutableStateFlow(HomeActionState())
@@ -52,13 +59,23 @@ class HomeViewModel(
 
     val effects = _effects.asSharedFlow()
 
+    private val featureUsageStats = combine(
+        plantScannerQuotaDataStore.observeTotalScans(WaterMeAppContainer.LOCAL_USER_ID),
+        aiCareQuotaDataStore.observeTotalRequests(WaterMeAppContainer.LOCAL_USER_ID),
+    ) { plantScannerScans, aiCareRequests ->
+        HomeFeatureUsageStats(
+            plantScannerScans = plantScannerScans,
+            aiCareRequests = aiCareRequests,
+        )
+    }
+
     val uiState = combine(
         careRepository.observeTasksDueBy(endOfTodayMillis()),
         plantRepository.observePlantsWithDetails(WaterMeAppContainer.LOCAL_USER_ID),
         careRepository.observeCareHistoryForUser(WaterMeAppContainer.LOCAL_USER_ID),
         settingsDataStore.settings,
-        actionState,
-    ) { tasks, plants, careHistory, settings, action ->
+        featureUsageStats,
+    ) { tasks, plants, careHistory, settings, usageStats ->
         val todayStartMillis = startOfTodayMillis()
         val weekStartMillis = startOfWeekMillis()
 
@@ -105,6 +122,8 @@ class HomeViewModel(
             reminderCount = activeReminderCount,
             careHistoryCount = careHistoryCount,
             noteCount = noteCount,
+            plantScannerScanCount = usageStats.plantScannerScans,
+            aiCareUsageCount = usageStats.aiCareRequests,
             appOpenDayStreak = settings.appOpenDayStreak,
             completedThisWeek = completedThisWeekCount,
             activeCharacter = activePlantCharacter(
@@ -113,12 +132,16 @@ class HomeViewModel(
                 plantsAddedTotal = plants.size,
                 appOpenDayStreak = settings.appOpenDayStreak,
             ),
-            isRefreshing = action.isRefreshing,
-            errorMessage = action.errorMessage,
-            successMessage = action.successMessage,
-            heartBurstKey = action.heartBurstKey,
         )
     }
+        .combine(actionState) { state, action ->
+            state.copy(
+                isRefreshing = action.isRefreshing,
+                errorMessage = action.errorMessage,
+                successMessage = action.successMessage,
+                heartBurstKey = action.heartBurstKey,
+            )
+        }
         .catch { error ->
             emit(TodayUiState(errorMessage = error.toUserMessage()))
         }

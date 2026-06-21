@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Eco
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.Snooze
 import androidx.compose.material.icons.rounded.VolunteerActivism
@@ -104,6 +106,8 @@ data class TodayUiState(
     val reminderCount: Int = 0,
     val careHistoryCount: Int = 0,
     val noteCount: Int = 0,
+    val plantScannerScanCount: Int = 0,
+    val aiCareUsageCount: Int = 0,
     val appOpenDayStreak: Int = 0,
     val completedThisWeek: Int = 0,
     val activeCharacter: PlantCharacterUiModel? = null,
@@ -653,6 +657,26 @@ private fun GardenStatsCard(uiState: TodayUiState) {
                     helper = "care notes",
                     color = Color(0xFF6AA9A5),
                     icon = Icons.Rounded.RateReview,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniStatCard(
+                    label = "Scanner",
+                    value = uiState.plantScannerScanCount.toString(),
+                    helper = "plants scanned",
+                    color = Color(0xFF4F8FC7),
+                    icon = Icons.Rounded.PhotoCamera,
+                    modifier = Modifier.weight(1f),
+                )
+
+                MiniStatCard(
+                    label = "AI Care",
+                    value = uiState.aiCareUsageCount.toString(),
+                    helper = "requests used",
+                    color = Color(0xFF8B6CB7),
+                    icon = Icons.Rounded.AutoAwesome,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -1234,6 +1258,8 @@ private fun dashboardPreviewState(): TodayUiState =
         reminderCount = WaterMePreviewData.reminders.size,
         careHistoryCount = 8,
         noteCount = WaterMePreviewData.healthNotes.size + WaterMePreviewData.plants.count { it.notes.isNotBlank() },
+        plantScannerScanCount = 6,
+        aiCareUsageCount = 4,
         appOpenDayStreak = 5,
         completedThisWeek = 12,
     )
