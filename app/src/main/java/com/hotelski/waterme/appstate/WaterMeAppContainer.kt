@@ -14,6 +14,7 @@ import com.hotelski.waterme.data.local.WaterMeSeedData
 import com.hotelski.waterme.data.plantnet.PlantIdentificationRepository
 import com.hotelski.waterme.data.plantnet.PlantNetPlantIdentificationRepository
 import com.hotelski.waterme.data.preferences.AiCareQuotaDataStoreManager
+import com.hotelski.waterme.data.preferences.PlantScannerHistoryDataStoreManager
 import com.hotelski.waterme.data.preferences.PlantScannerQuotaDataStoreManager
 import com.hotelski.waterme.data.preferences.SettingsDataStoreManager
 import com.hotelski.waterme.data.repository.RoomCareRepository
@@ -31,6 +32,8 @@ object WaterMeAppContainer {
     private var databaseInstance: WaterMeDatabase? = null
     @Volatile
     private var settingsDataStoreInstance: SettingsDataStoreManager? = null
+    @Volatile
+    private var plantScannerHistoryDataStoreInstance: PlantScannerHistoryDataStoreManager? = null
     @Volatile
     private var plantScannerQuotaDataStoreInstance: PlantScannerQuotaDataStoreManager? = null
     @Volatile
@@ -72,6 +75,12 @@ object WaterMeAppContainer {
         plantScannerQuotaDataStoreInstance ?: synchronized(this) {
             plantScannerQuotaDataStoreInstance
                 ?: PlantScannerQuotaDataStoreManager(context).also { plantScannerQuotaDataStoreInstance = it }
+        }
+
+    fun plantScannerHistoryDataStore(context: Context): PlantScannerHistoryDataStoreManager =
+        plantScannerHistoryDataStoreInstance ?: synchronized(this) {
+            plantScannerHistoryDataStoreInstance
+                ?: PlantScannerHistoryDataStoreManager(context).also { plantScannerHistoryDataStoreInstance = it }
         }
 
     fun aiCareQuotaDataStore(context: Context): AiCareQuotaDataStoreManager =
@@ -132,5 +141,6 @@ object WaterMeAppContainer {
             database.clearAllTables()
             WaterMeSeedData.ensureLocalUser(database)
         }
+        plantScannerHistoryDataStore(context).clearHistory(LOCAL_USER_ID)
     }
 }

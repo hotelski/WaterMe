@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hotelski.waterme.appstate.WaterMeAppContainer
+import com.hotelski.waterme.data.preferences.PlantScannerHistoryEntry
 import com.hotelski.waterme.data.preferences.PlantScannerQuotaConsumeResult
 import com.hotelski.waterme.data.preferences.PlantScannerQuotaSnapshot
 import com.hotelski.waterme.model.PlantIdentificationResult
@@ -29,6 +30,13 @@ data class PlantScannerResultUiModel(
         get() = (confidenceScore * 100).toInt().coerceIn(0, 100)
 }
 
+data class PlantScannerRecentScanUiModel(
+    val commonName: String,
+    val scientificName: String,
+    val confidencePercent: Int,
+    val photoUri: String?,
+)
+
 private fun PlantIdentificationResult.toUiModel(): PlantScannerResultUiModel =
     PlantScannerResultUiModel(
         commonName = commonName,
@@ -36,6 +44,14 @@ private fun PlantIdentificationResult.toUiModel(): PlantScannerResultUiModel =
         confidenceScore = confidenceScore,
         relatedImageUrl = relatedImageUrl,
         relatedImageAttribution = relatedImageAttribution,
+    )
+
+private fun PlantScannerHistoryEntry.toUiModel(): PlantScannerRecentScanUiModel =
+    PlantScannerRecentScanUiModel(
+        commonName = commonName,
+        scientificName = scientificName,
+        confidencePercent = confidencePercent,
+        photoUri = photoUri,
     )
 
 data class PlantScannerUiState(
@@ -48,6 +64,7 @@ data class PlantScannerUiState(
     val remainingScans: Int = 3,
     val scanQuotaResetCountdown: String? = null,
     val isScanQuotaExhausted: Boolean = false,
+    val recentScans: List<PlantScannerRecentScanUiModel> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = selectedImageUri == null && !isLoading && errorMessage == null && results.isEmpty()
@@ -78,6 +95,8 @@ class PlantScannerViewModel(
         WaterMeAppContainer.plantIdentificationRepository(appContext)
     private val plantScannerQuotaDataStore =
         WaterMeAppContainer.plantScannerQuotaDataStore(appContext)
+    private val plantScannerHistoryDataStore =
+        WaterMeAppContainer.plantScannerHistoryDataStore(appContext)
     private val _uiState = MutableStateFlow(PlantScannerUiState())
     private val _effects = MutableSharedFlow<PlantScannerEffect>()
     private var scanJob: Job? = null
@@ -87,6 +106,7 @@ class PlantScannerViewModel(
 
     init {
         observeScanQuota()
+        observeRecentScans()
     }
 
     fun onEvent(event: PlantScannerEvent) {
@@ -118,6 +138,17 @@ class PlantScannerViewModel(
                     .onSuccess(::applyQuotaSnapshot)
                 delay(QuotaTickMillis)
             }
+        }
+    }
+
+    private fun observeRecentScans() {
+        viewModelScope.launch {
+            plantScannerHistoryDataStore.observeRecentScans(WaterMeAppContainer.LOCAL_USER_ID)
+                .collect { entries ->
+                    _uiState.update { state ->
+                        state.copy(recentScans = entries.map { it.toUiModel() })
+                    }
+                }
         }
     }
 
@@ -196,6 +227,13 @@ class PlantScannerViewModel(
 
             runCatching { plantIdentificationRepository.identifyPlant(selectedUri) }
                 .onSuccess { results ->
+                    val topResult = results.firstOrNull()
+                    if (topResult != null) {
+                        recordSuccessfulScan(
+                            selectedUri = selectedUri,
+                            result = topResult,
+                        )
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -213,6 +251,26 @@ class PlantScannerViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    private fun recordSuccessfulScan(
+        selectedUri: String,
+        result: PlantIdentificationResult,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                plantScannerHistoryDataStore.recordScan(
+                    userId = WaterMeAppContainer.LOCAL_USER_ID,
+                    entry = PlantScannerHistoryEntry(
+                        commonName = result.commonName.ifBlank { result.scientificName },
+                        scientificName = result.scientificName,
+                        confidencePercent = (result.confidenceScore * 100).toInt().coerceIn(0, 100),
+                        photoUri = selectedUri,
+                        scannedAtMillis = System.currentTimeMillis(),
+                    ),
+                )
+            }
         }
     }
 

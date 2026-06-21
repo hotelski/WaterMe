@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.PhotoCamera
@@ -162,6 +163,12 @@ private fun PlantScannerContent(
 
             uiState.isEmpty -> item {
                 ScannerEmptyState()
+            }
+        }
+
+        if (uiState.recentScans.isNotEmpty()) {
+            item {
+                RecentScansCard(recentScans = uiState.recentScans)
             }
         }
     }
@@ -569,6 +576,116 @@ private fun PlantScannerResultCard(
 }
 
 @Composable
+private fun RecentScansCard(
+    recentScans: List<PlantScannerRecentScanUiModel>,
+    modifier: Modifier = Modifier,
+) {
+    WaterMePremiumCard(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        accentColor = MistBlue,
+        shape = RoundedCornerShape(28.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WaterMeIconBadge(
+                    icon = Icons.Rounded.History,
+                    size = 38.dp,
+                    color = MistBlue,
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Recent scans",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "Last ${recentScans.size.coerceAtMost(3)} identified plants",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                recentScans.take(3).forEach { scan ->
+                    RecentScanRow(scan = scan)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentScanRow(
+    scan: PlantScannerRecentScanUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(MistBlue.copy(alpha = 0.08f))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(22.dp),
+            )
+            .padding(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.26f)),
+        ) {
+            PlantPhotoTile(
+                photoUri = scan.photoUri,
+                plantName = scan.commonName,
+                fillContainer = true,
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(
+                text = scan.commonName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (scan.scientificName.isNotBlank()) {
+                Text(
+                    text = scan.scientificName,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        WaterMeStatusChip(
+            label = "${scan.confidencePercent}%",
+            color = LeafGreen,
+            icon = Icons.Rounded.AutoAwesome,
+        )
+    }
+}
+
+@Composable
 private fun PlantImageOverlayLabel(
     label: String,
     modifier: Modifier = Modifier,
@@ -703,7 +820,9 @@ private fun ScannerInlineMessage(
 private fun PlantScannerEmptyPreview() {
     WaterMeTheme {
         PlantScannerScreen(
-            uiState = PlantScannerUiState(),
+            uiState = PlantScannerUiState(
+                recentScans = scannerPreviewRecentScans(),
+            ),
             onEvent = {},
         )
     }
@@ -747,11 +866,34 @@ private fun PlantScannerResultPreview() {
                         confidenceScore = 0.64,
                     ),
                 ),
+                recentScans = scannerPreviewRecentScans(),
             ),
             onEvent = {},
         )
     }
 }
+
+private fun scannerPreviewRecentScans(): List<PlantScannerRecentScanUiModel> =
+    listOf(
+        PlantScannerRecentScanUiModel(
+            commonName = "Monstera",
+            scientificName = "Monstera deliciosa",
+            confidencePercent = 92,
+            photoUri = null,
+        ),
+        PlantScannerRecentScanUiModel(
+            commonName = "Prayer plant",
+            scientificName = "Maranta leuconeura",
+            confidencePercent = 86,
+            photoUri = null,
+        ),
+        PlantScannerRecentScanUiModel(
+            commonName = "Snake plant",
+            scientificName = "Dracaena trifasciata",
+            confidencePercent = 81,
+            photoUri = null,
+        ),
+    )
 
 @Preview(showBackground = true)
 @Composable
