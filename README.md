@@ -1,6 +1,5 @@
 <div align="center">
 
-<img src="app/src/main/res/drawable-nodpi/sprout.png" alt="WaterMe mascot" width="150" />
 
 # 🌿 WaterMe
 
@@ -27,22 +26,22 @@ Whether you own one houseplant or an entire indoor jungle, WaterMe helps you und
     <td>
       <img src="https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw"
            alt="WaterMe screenshot 1"
-           width="220">
+           width="222>
     </td>
     <td>
       <img src="https://play-lh.googleusercontent.com/qPwla5Gnj6DGFhfzVccXi-5kuEmhV8isKBACMHCSRniNDDnTeysHZegom-B8hYak7AEOq8XTZZD72Py61tfQ2g=w2560-h1440-rw"
            alt="WaterMe screenshot 2"
-           width="220">
+           width="222">
     </td>
     <td>
       <img src="https://play-lh.googleusercontent.com/5WP8JBLRpoU7gwxcuNL4x3KDU5M17MX2tAzHyhnMi3e112C48MDmtSCJm5Z1Sr2q_lcWiUO7LTD1HBSL7jM4=w2560-h1440-rw"
            alt="WaterMe screenshot 3"
-           width="220">
+           width="222">
     </td>
     <td>
       <img src="https://play-lh.googleusercontent.com/tYwL2X-zDaJt4GzTd2bSKjzj5hxozxRvJTXFlC4qLm5b-XD5vkjtSatoAnG8Gbuvj3pqt1NjD32qgeurAewR9g=w2560-h1440-rw"
            alt="WaterMe screenshot 4"
-           width="220">
+           width="222">
     </td>
   </tr>
 
