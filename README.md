@@ -27,7 +27,7 @@ Whether you own one houseplant or an entire indoor jungle, WaterMe helps you und
 <td width="50%" valign="top">
 
 ### 💧 Smart care reminders
-Create personalized schedules for watering, fertilizing, repotting, misting, and pruning. See tasks that are due today or overdue and mark them as completed directly in the app.
+Create personalized schedules for watering and fertilizing. See tasks that are due today or overdue and mark them as completed directly in the app.
 
 </td>
 <td width="50%" valign="top">
@@ -95,27 +95,10 @@ Receive timely reminders when a plant needs attention, with support for completi
 - Use light and dark themes
 - Keep core plant data stored locally on the device
 
-## 🛠️ Built with
-
-| Area | Technology |
-|---|---|
-| Language | Kotlin |
-| UI | Jetpack Compose + Material 3 |
-| Architecture | MVVM |
-| Local data | Room + DataStore |
-| Background work | WorkManager |
-| Navigation | Navigation Compose |
-| AI | Firebase AI Logic with Gemini |
-| Plant identification | PlantNet API |
-| Networking | Retrofit + OkHttp |
-| Billing | Google Play Billing |
-| Minimum Android version | Android 8.0 / API 26 |
-| Target SDK | Android 16 / API 36 |
-
 
 ## 💚 Project vision
 
-WaterMe is built to turn plant care from a guessing game into a simple daily routine. The goal is a calm, helpful, and visually welcoming app that gives plant owners useful guidance without overwhelming them.
+WaterMe is built to turn plant care into a simple daily routine. The goal is a calm, helpful, and visually welcoming app that gives plant owners useful guidance without overwhelming them.
 
 ---
 
