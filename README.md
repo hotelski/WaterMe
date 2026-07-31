@@ -20,7 +20,55 @@ Keep every plant healthy with personalized reminders, AI-powered care guidance, 
 
 Whether you own one houseplant or an entire indoor jungle, WaterMe helps you understand what each plant needs and what to do next.
 
-![WaterMe app preview](https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw)
+<h2 align="center">📱 App Screenshots</h2>
+
+<table>
+  <tr>
+    <td>
+      <img src="https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw"
+           alt="WaterMe screenshot 1"
+           width="200">
+    </td>
+    <td>
+      <img src="https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw"
+           alt="WaterMe screenshot 2"
+           width="200">
+    </td>
+    <td>
+      <img src="URL_НА_СНИМКА_3"
+           alt="WaterMe screenshot 3"
+           width="200">
+    </td>
+    <td>
+      <img src="URL_НА_СНИМКА_4"
+           alt="WaterMe screenshot 4"
+           width="200">
+    </td>
+  </tr>
+
+  <tr>
+    <td>
+      <img src="URL_НА_СНИМКА_5"
+           alt="WaterMe screenshot 5"
+           width="200">
+    </td>
+    <td>
+      <img src="URL_НА_СНИМКА_6"
+           alt="WaterMe screenshot 6"
+           width="200">
+    </td>
+    <td>
+      <img src="URL_НА_СНИМКА_7"
+           alt="WaterMe screenshot 7"
+           width="200">
+    </td>
+    <td>
+      <img src="URL_НА_СНИМКА_8"
+           alt="WaterMe screenshot 8"
+           width="200">
+    </td>
+  </tr>
+</table>
 
 ## ✨ Highlights
 
