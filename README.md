@@ -112,64 +112,6 @@ Receive timely reminders when a plant needs attention, with support for completi
 | Minimum Android version | Android 8.0 / API 26 |
 | Target SDK | Android 16 / API 36 |
 
-## 🚀 Get the app
-
-<div align="center">
-
-### Available on Google Play
-
-[![Get it on Google Play](https://img.shields.io/badge/GET_IT_ON-Google_Play-000000?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.hotelski.waterme)
-
-</div>
-
-## 🧑‍💻 Run locally
-
-### Requirements
-
-- Android Studio
-- JDK 17
-- Android SDK 36
-
-### Setup
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/hotelski/WaterMe.git
-cd WaterMe
-```
-
-2. Open the project in Android Studio.
-3. Let Gradle finish syncing.
-4. Run the `app` configuration on an emulator or Android device.
-
-To build from the command line:
-
-```bash
-./gradlew :app:assembleDebug
-```
-
-On Windows:
-
-```powershell
-gradlew.bat :app:assembleDebug
-```
-
-### Optional services
-
-Some features require local configuration that is intentionally not committed to the repository:
-
-- `PLANTNET_API_KEY` in `local.properties` for plant identification
-- Firebase configuration for AI Care
-- Release signing values in `keystore.properties`
-
-## 📚 Documentation
-
-- [UI and UX flow](docs/ui-ux-flow.md)
-- [Database and app logic](docs/database-and-app-logic.md)
-- [Android architecture](docs/android-architecture.md)
-- [Navigation flow](docs/navigation-user-flow.md)
-- [Reminder and notification system](docs/reminder-notification-system.md)
 
 ## 💚 Project vision
 
