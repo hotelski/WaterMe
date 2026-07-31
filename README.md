@@ -1,6 +1,4 @@
 <div align="center">
-
-
 # 🌿 WaterMe: AI Plant Care
 
 ### Smart plant care, made simple
