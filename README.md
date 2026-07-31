@@ -20,6 +20,8 @@ Keep every plant healthy with personalized reminders, AI-powered care guidance, 
 
 Whether you own one houseplant or an entire indoor jungle, WaterMe helps you understand what each plant needs and what to do next.
 
+![WaterMe app preview](https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw)
+
 ## ✨ Highlights
 
 <table>
