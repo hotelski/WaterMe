@@ -1,7 +1,7 @@
 <div align="center">
 
 
-# 🌿 WaterMe
+# 🌿 WaterMe: AI Plant Care
 
 ### Smart plant care, made simple
 
@@ -26,7 +26,7 @@ Whether you own one houseplant or an entire indoor jungle, WaterMe helps you und
     <td>
       <img src="https://play-lh.googleusercontent.com/j17zU2Q63Rw9R_99zRQ9YnRRXfLGgrCj2AwVE-LSPEEFvTnSGG8pFL4SK6CcrXLWkWak2fe-gcsCm8y3NAZNDA=w2560-h1440-rw"
            alt="WaterMe screenshot 1"
-           width="222>
+           width="222">
     </td>
     <td>
       <img src="https://play-lh.googleusercontent.com/qPwla5Gnj6DGFhfzVccXi-5kuEmhV8isKBACMHCSRniNDDnTeysHZegom-B8hYak7AEOq8XTZZD72Py61tfQ2g=w2560-h1440-rw"
