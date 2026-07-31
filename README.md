@@ -1,50 +1,191 @@
-# WaterMe
+<div align="center">
 
-WaterMe is a native Android plant care reminder app built with Kotlin and Jetpack Compose.
+<img src="app/src/main/res/drawable-nodpi/sprout.png" alt="WaterMe mascot" width="150" />
 
-## Features
+# 🌿 WaterMe
 
-- Add plants with a name, photo, type, location, and notes.
-- Configure custom reminders for watering, fertilizing, repotting, misting, and pruning.
-- See today's plant care tasks on the home screen.
-- Browse upcoming tasks in a calendar-style agenda.
-- Review each plant's reminders, care history, and health notes.
-- Receive local notifications when plants need attention.
+### Smart plant care, made simple
 
-## Tech Stack
+Keep every plant healthy with personalized reminders, AI-powered care guidance, plant identification, and a clear overview of what needs attention today.
 
-- Kotlin 2.3.21
-- Jetpack Compose with Compose BOM 2026.05.00
-- Material 3
-- Android Gradle Plugin 8.13.0
+[![Download on Google Play](https://img.shields.io/badge/Download_on-Google_Play-2F7D4B?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.hotelski.waterme)
 
-## Build
+![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.0-2F7D4B?style=flat-square)
 
-Open the project in Android Studio, let it sync Gradle, then run the `app` configuration.
+</div>
 
-Command line builds require JDK 17 and Android SDK 36:
+---
 
-```powershell
-gradle :app:assembleDebug
+## 🌱 About WaterMe
+
+**WaterMe** is a native Android app designed to make plant care easier and more consistent. It brings schedules, reminders, plant details, care history, AI-generated guidance, and plant identification together in one friendly experience.
+
+Whether you own one houseplant or an entire indoor jungle, WaterMe helps you understand what each plant needs and what to do next.
+
+## ✨ Highlights
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 💧 Smart care reminders
+Create personalized schedules for watering, fertilizing, repotting, misting, and pruning. See tasks that are due today or overdue and mark them as completed directly in the app.
+
+</td>
+<td width="50%" valign="top">
+
+### 🤖 AI Care
+Generate practical care guidance for your plants, including light, watering, temperature, humidity, fertilizing, repotting, growth, flowering, toxicity, and origin.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 📷 Plant Scanner
+Identify plants from a photo and review likely matches with common names, scientific names, confidence scores, and related images.
+
+</td>
+<td width="50%" valign="top">
+
+### 📖 Care history
+Keep a clear record of completed care tasks, notes, and plant health updates so you can follow each plant's progress over time.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🪴 Personal plant collection
+Add photos, names, species, locations, notes, and custom schedules for every plant in your collection.
+
+</td>
+<td width="50%" valign="top">
+
+### 🔔 Local notifications
+Receive timely reminders when a plant needs attention, with support for completing, skipping, and snoozing care tasks.
+
+</td>
+</tr>
+</table>
+
+## 🌈 Meet the WaterMe garden
+
+<div align="center">
+  <img src="app/src/main/res/drawable-nodpi/sprout.png" alt="Sprout" width="105" />
+  <img src="app/src/main/res/drawable-nodpi/aqua_aloe.png" alt="Aqua Aloe" width="105" />
+  <img src="app/src/main/res/drawable-nodpi/captain_cactus.png" alt="Captain Cactus" width="105" />
+  <img src="app/src/main/res/drawable-nodpi/luna_leaf.png" alt="Luna Leaf" width="105" />
+  <img src="app/src/main/res/drawable-nodpi/sunny_bloom.png" alt="Sunny Bloom" width="105" />
+</div>
+
+<div align="center">
+<sub>Friendly garden characters make everyday plant care more rewarding.</sub>
+</div>
+
+## 📱 Main features
+
+- Add and organize plants with photos, type, location, environment, and notes
+- Create custom watering and care schedules
+- View today's and overdue tasks in one place
+- Complete, skip, or snooze reminders
+- Browse upcoming care tasks in a calendar-style agenda
+- Review plant care history and health notes
+- Identify plants from photos with PlantNet
+- Generate and locally cache AI-powered care profiles
+- Save useful AI recommendations as reminders or notes
+- Use light and dark themes
+- Keep core plant data stored locally on the device
+
+## 🛠️ Built with
+
+| Area | Technology |
+|---|---|
+| Language | Kotlin |
+| UI | Jetpack Compose + Material 3 |
+| Architecture | MVVM |
+| Local data | Room + DataStore |
+| Background work | WorkManager |
+| Navigation | Navigation Compose |
+| AI | Firebase AI Logic with Gemini |
+| Plant identification | PlantNet API |
+| Networking | Retrofit + OkHttp |
+| Billing | Google Play Billing |
+| Minimum Android version | Android 8.0 / API 26 |
+| Target SDK | Android 16 / API 36 |
+
+## 🚀 Get the app
+
+<div align="center">
+
+### Available on Google Play
+
+[![Get it on Google Play](https://img.shields.io/badge/GET_IT_ON-Google_Play-000000?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.hotelski.waterme)
+
+</div>
+
+## 🧑‍💻 Run locally
+
+### Requirements
+
+- Android Studio
+- JDK 17
+- Android SDK 36
+
+### Setup
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/hotelski/WaterMe.git
+cd WaterMe
 ```
 
-## Design
+2. Open the project in Android Studio.
+3. Let Gradle finish syncing.
+4. Run the `app` configuration on an emulator or Android device.
 
-The full mobile UI/UX flow, screen copy, navigation model, empty states, colors, and actions are defined in [docs/ui-ux-flow.md](docs/ui-ux-flow.md).
+To build from the command line:
 
-## Data And Logic
+```bash
+./gradlew :app:assembleDebug
+```
 
-The Room database schema, relationships, DAO examples, reminder rules, notification scheduling, care history, and settings logic are defined in [docs/database-and-app-logic.md](docs/database-and-app-logic.md).
+On Windows:
 
-## Architecture
+```powershell
+gradlew.bat :app:assembleDebug
+```
 
-The recommended Kotlin, Jetpack Compose, MVVM, Room, WorkManager, Hilt, Navigation Compose, and Material 3 architecture is defined in [docs/android-architecture.md](docs/android-architecture.md).
+### Optional services
 
-## Navigation
+Some features require local configuration that is intentionally not committed to the repository:
 
-Navigation Compose routes, bottom navigation, screen transitions, argument passing, and example screen event navigation calls are implemented in `app/src/main/java/com/hotelski/waterme/navigation`.
-The full navigation and back-stack user flow is documented in [docs/navigation-user-flow.md](docs/navigation-user-flow.md).
+- `PLANTNET_API_KEY` in `local.properties` for plant identification
+- Firebase configuration for AI Care
+- Release signing values in `keystore.properties`
 
-## Reminders And Notifications
+## 📚 Documentation
 
-The WorkManager reminder scheduler, notification helper, worker classes, snooze/skip/complete actions, Android 13+ permission checks, and ViewModel integration example are implemented in `app/src/main/java/com/hotelski/waterme/notifications` and documented in [docs/reminder-notification-system.md](docs/reminder-notification-system.md).
+- [UI and UX flow](docs/ui-ux-flow.md)
+- [Database and app logic](docs/database-and-app-logic.md)
+- [Android architecture](docs/android-architecture.md)
+- [Navigation flow](docs/navigation-user-flow.md)
+- [Reminder and notification system](docs/reminder-notification-system.md)
+
+## 💚 Project vision
+
+WaterMe is built to turn plant care from a guessing game into a simple daily routine. The goal is a calm, helpful, and visually welcoming app that gives plant owners useful guidance without overwhelming them.
+
+---
+
+<div align="center">
+
+Made with 🌿 for plant lovers.
+
+[Download WaterMe](https://play.google.com/store/apps/details?id=com.hotelski.waterme) · [Report an issue](https://github.com/hotelski/WaterMe/issues)
+
+</div>
