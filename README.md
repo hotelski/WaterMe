@@ -10,11 +10,6 @@ Keep every plant healthy with personalized reminders, AI-powered care guidance, 
 
 [![Download on Google Play](https://img.shields.io/badge/Download_on-Google_Play-2F7D4B?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.hotelski.waterme)
 
-![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)
-![Version](https://img.shields.io/badge/version-1.0-2F7D4B?style=flat-square)
-
 </div>
 
 ---
